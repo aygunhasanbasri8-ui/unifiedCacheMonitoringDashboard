@@ -8,7 +8,6 @@ public class InstanceRef {
     private int port;
     private boolean enabled;
 
-    // Constructors
     public InstanceRef() {}
 
     public InstanceRef(Long id, String name, String type, String host, int port, boolean enabled) {
@@ -20,7 +19,6 @@ public class InstanceRef {
         this.enabled = enabled;
     }
 
-    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
