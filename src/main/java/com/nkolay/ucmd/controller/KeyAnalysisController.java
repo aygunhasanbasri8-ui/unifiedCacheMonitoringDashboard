@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/instances")
+@RequestMapping("/v1/instances")
 public class KeyAnalysisController {
 
     @Autowired

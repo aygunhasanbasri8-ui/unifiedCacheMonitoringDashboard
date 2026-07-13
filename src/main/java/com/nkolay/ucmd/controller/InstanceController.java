@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/instances")
+@RequestMapping("/v1/instances")
 public class InstanceController {
 
     @Autowired

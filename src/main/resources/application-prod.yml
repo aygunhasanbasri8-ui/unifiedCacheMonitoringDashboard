@@ -1,0 +1,40 @@
+# PROD PROFILE
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://prod-db:5432/ucmd}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
+      ssl: ${REDIS_TLS_ENABLED:true}  # Prod'da TLS default ON
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:60000}
+
+hazelcast:
+  cluster-name: ${HAZELCAST_CLUSTER_NAME}
+  members: ${HAZELCAST_MEMBERS}
+  username: ${HAZELCAST_USERNAME}
+  password: ${HAZELCAST_PASSWORD}
+  tls-enabled: ${HAZELCAST_TLS_ENABLED:true}
+
+app:
+  environment: production
+  jwt:
+    secret: ${JWT_SECRET}
+
+logging:
+  level:
+    root: WARN
+    com.nkolay: INFO

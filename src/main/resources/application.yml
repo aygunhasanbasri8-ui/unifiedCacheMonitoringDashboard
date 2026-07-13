@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: ucmd
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:testdb}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      ssl:
+        enabled: false
+        timeout: 60000ms
+
+hazelcast:
+  cluster-name: ${HAZELCAST_CLUSTER_NAME:default}
+  members: ${HAZELCAST_MEMBERS:localhost:5701}
+  username: ${HAZELCAST_USERNAME:}
+  password: ${HAZELCAST_PASSWORD:}
+  tls-enabled: ${HAZELCAST_TLS_ENABLED:false}
+
+app:
+  environment: ${APP_ENVIRONMENT:development}
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration-hours: ${JWT_EXPIRATION_HOURS:24}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: INFO
+    com.nkolay: DEBUG
