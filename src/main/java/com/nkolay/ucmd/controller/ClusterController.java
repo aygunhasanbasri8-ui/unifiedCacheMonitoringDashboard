@@ -1,7 +1,6 @@
 package com.nkolay.ucmd.controller;
 
 import com.nkolay.ucmd.model.ClusterInfo;
-import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
