@@ -8,6 +8,8 @@ import com.nkolay.ucmd.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,10 +19,13 @@ import java.util.Set;
 @Component
 public class HazelcastMonitor implements CacheMonitor {
 
-    @Autowired
-    private HazelcastInstance hazelcastInstance;
-    @Autowired
-    private HazelcastInstance hazelcastClient;
+    private static final Logger logger = LoggerFactory.getLogger(HazelcastMonitor.class);
+
+    private final HazelcastInstance hazelcastClient;
+
+    public HazelcastMonitor(HazelcastInstance hazelcastClient) {
+        this.hazelcastClient =  hazelcastClient;
+    }
 
     @Override
     public String getSupportedType() {
@@ -33,6 +38,8 @@ public class HazelcastMonitor implements CacheMonitor {
             return hazelcastClient.getLifecycleService().isRunning()
                     && !hazelcastClient.getCluster().getMembers().isEmpty();
         } catch (Exception e) {
+            logger.warn("Hazelcast reachability check failed for {}: {}",
+                    instance.getName(), e.getMessage());
             return false;
         }
     }
@@ -51,6 +58,7 @@ public class HazelcastMonitor implements CacheMonitor {
             return new HealthInfo("UP", "5.3.6", clusterUptime / 1000);
 
         } catch (Exception e) {
+            logger.error("Error fetching Hazelcast health: {}", e.getMessage(), e);
             return new HealthInfo("DOWN", "unknown", 0);
         }
     }
@@ -66,6 +74,7 @@ public class HazelcastMonitor implements CacheMonitor {
 
             return new ResourceStats(0.0, usedMemory, estimatedMemory);
         } catch (Exception e) {
+            logger.error("Error fetching resource stats: {}", e.getMessage(), e);
             return new ResourceStats(0,0,0);
         }
     }
@@ -129,6 +138,7 @@ public class HazelcastMonitor implements CacheMonitor {
             clusterInfo.setMembers(memberInfoList);
             return clusterInfo;
         } catch (Exception e) {
+            logger.error("Error fetching cluster info: {}", e.getMessage(), e);
             return null;
         }
     }

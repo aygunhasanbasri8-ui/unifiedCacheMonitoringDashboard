@@ -1,7 +1,9 @@
 package com.nkolay.ucmd.service.impl;
 
 import com.nkolay.ucmd.model.*;
+import com.nkolay.ucmd.monitor.MonitorRegistry;
 import com.nkolay.ucmd.service.MonitoringService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -12,14 +14,17 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class MonitoringServiceImpl implements MonitoringService {
 
+    private final MonitorRegistry monitorRegistry;
     // In-memory storage (sonra veritabanı ile değiştirilecek)
     private Map<Long, InstanceRef> instances = new ConcurrentHashMap<>();
     private Long instanceIdCounter = 1L;
 
-    public MonitoringServiceImpl() {
+    @Autowired
+    public MonitoringServiceImpl(MonitorRegistry monitorRegistry) {
         // Test data
         instances.put(1L, new InstanceRef(1L, "redis-prod", "REDIS", "localhost", 6379, true));
         instances.put(2L, new InstanceRef(2L, "hazelcast-cluster", "HAZELCAST", "localhost", 5701, true));
+        this.monitorRegistry = monitorRegistry;
     }
 
     // ===== Instance CRUD =====
@@ -61,11 +66,10 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = instances.get(id);
         if (instance == null) return null;
 
-        // Mock data
-        if ("REDIS".equals(instance.getType())) {
-            return new HealthInfo("UP", "7.0.0", 3600);
-        } else {
-            return new HealthInfo("UP", "5.3.4", 7200);
+        try {
+            return monitorRegistry.getMonitor(instance).getHealth(instance);
+        } catch (Exception e) {
+            return new HealthInfo("DOWN", "unknown", 0);
         }
     }
 
@@ -74,10 +78,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = instances.get(id);
         if (instance == null) return null;
 
-        // Mock data
-        ResourceStats stats = new ResourceStats(25.5, 512000000L, 1024000000L);
-        stats.setFragmentationRatio(1.05);
-        return stats;
+        try {
+            return monitorRegistry.getMonitor(instance).getResourceStats(instance);
+        } catch (Exception e) {
+            return new ResourceStats(0,0,0);
+        }
     }
 
     @Override
@@ -85,19 +90,23 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = instances.get(id);
         if (instance == null) return null;
 
-        // Mock data
-        return new ConnectionStats(45, 2, 0);
-    }
+        try {
+            return monitorRegistry.getMonitor(instance).getConnectionStats(instance);
+        } catch (Exception e) {
+            return new ConnectionStats(0,0,0);
+        }
+        }
 
     @Override
     public DataStats getDataStats(Long id) {
         InstanceRef instance = instances.get(id);
         if (instance == null) return null;
 
-        // Mock data
-        DataStats stats = new DataStats(15000, 512000000L, 1024000000L);
-        stats.setFragmentationRatio(1.08);
-        return stats;
+        try {
+            return monitorRegistry.getMonitor(instance).getDataStats(instance);
+        } catch (Exception e) {
+            return new DataStats(0,0,0);
+        }
     }
 
     @Override
@@ -105,23 +114,10 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = instances.get(id);
         if (instance == null) return null;
 
-        if ("HAZELCAST".equals(instance.getType())) {
-            ClusterInfo clusterInfo = new ClusterInfo(3, 271, "default");
-            clusterInfo.setBalanced(true);
-
-            // Mock members
-            clusterInfo.getMembers().add(
-                    new ClusterInfo.MemberInfo("member-1", "192.168.1.10", 5701, true)
-            );
-            clusterInfo.getMembers().add(
-                    new ClusterInfo.MemberInfo("member-2", "192.168.1.11", 5701, false)
-            );
-            clusterInfo.getMembers().add(
-                    new ClusterInfo.MemberInfo("member-3", "192.168.1.12", 5701, false)
-            );
-
-            return clusterInfo;
+        try {
+            return monitorRegistry.getMonitor(instance).getClusterInfo(instance);
+        } catch (Exception e) {
+            return null;
         }
-        return null;
     }
 }

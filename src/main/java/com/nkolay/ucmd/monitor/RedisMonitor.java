@@ -9,6 +9,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.RedisCallback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Properties;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -16,11 +19,16 @@ import java.util.*;
 @Component
 public class RedisMonitor implements CacheMonitor {
 
-    @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisConnectionFactory connectionFactory;
 
-    @Autowired
-    private RedisConnectionFactory connectionFactory;
+    public RedisMonitor(RedisTemplate<String, String> redisTemplate,
+                        RedisConnectionFactory connectionFactory) {
+        this.redisTemplate = redisTemplate;
+        this.connectionFactory = connectionFactory;
+    }
+
+    private static final Logger logger = LoggerFactory.getLogger(RedisMonitor.class);
 
     @Override
     public String getSupportedType() {
@@ -35,6 +43,9 @@ public class RedisMonitor implements CacheMonitor {
             conn.close();
             return true;
         } catch (Exception e) {
+            logger.warn("Hazelcast reachability check failed for {}: {}",
+                    instance.getName(), e.getMessage());
+
             return false;
         }
     }
@@ -51,6 +62,8 @@ public class RedisMonitor implements CacheMonitor {
 
             return new HealthInfo("UP", version, uptime);
         } catch (Exception e) {
+            logger.error("Error fetching Redis health: {}", e.getMessage(), e);
+
             return new HealthInfo("DOWN", "unknown", 0);
         }
     }
@@ -76,6 +89,8 @@ public class RedisMonitor implements CacheMonitor {
         stats.setFragmentationRatio(fragRatio);
         return stats;
         } catch (Exception e) {
+            logger.error("Error fetching resource stats: {}", e.getMessage(), e);
+
             return new ResourceStats(0, 0, 0);
         }
     }
@@ -99,6 +114,8 @@ public class RedisMonitor implements CacheMonitor {
             return new ConnectionStats(connectedClients, connErrors, rejectedConn);
 
         } catch (Exception e) {
+            logger.error("Error fetching connection stats: {}", e.getMessage(), e);
+
             return new ConnectionStats(0,0,0);
         }
     }
@@ -139,12 +156,15 @@ public class RedisMonitor implements CacheMonitor {
             stats.setFragmentationRatio(fragRatio);
             return stats;
         } catch (Exception e) {
+            logger.error("Error fetching data stats: {}", e.getMessage(), e);
+
             return new DataStats(0, 0, 0);
         }
     }
 
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
+        logger.debug("Redis doesn't support cluster info for instance: {}", instance.getName());
         return null;
     }
 
@@ -185,6 +205,7 @@ public class RedisMonitor implements CacheMonitor {
             return new PageInfo<>(keys, nextCursor, hasMore, count);
 
         } catch (Exception e) {
+            logger.error("Error scanning keys: {}", e.getMessage(), e);
             return new PageInfo<>(new ArrayList<>(), "0", false, count);
         }
     }
@@ -223,6 +244,7 @@ public class RedisMonitor implements CacheMonitor {
             cursor.close();
 
         } catch (Exception e) {
+            logger.error("Error fetching top N keys: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
 

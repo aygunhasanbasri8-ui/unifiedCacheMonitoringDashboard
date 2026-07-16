@@ -23,7 +23,7 @@ spring:
         timeout: 60000ms
 
 hazelcast:
-  cluster-name: ${HAZELCAST_CLUSTER_NAME:default}
+  cluster-name: ${HAZELCAST_CLUSTER_NAME:dev}
   members: ${HAZELCAST_MEMBERS:localhost:5701}
   username: ${HAZELCAST_USERNAME:}
   password: ${HAZELCAST_PASSWORD:}
