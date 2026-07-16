@@ -1,23 +1,22 @@
 package com.nkolay.ucmd.monitor;
 
 import com.nkolay.ucmd.model.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Component;
-import org.springframework.data.redis.core.RedisCallback;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Properties;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Component
 public class RedisMonitor implements CacheMonitor {
+
+    private static final Logger logger = LoggerFactory.getLogger(RedisMonitor.class);
 
     private final RedisTemplate<String, String> redisTemplate;
     private final RedisConnectionFactory connectionFactory;
@@ -28,8 +27,6 @@ public class RedisMonitor implements CacheMonitor {
         this.connectionFactory = connectionFactory;
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(RedisMonitor.class);
-
     @Override
     public String getSupportedType() {
         return "REDIS";
@@ -38,14 +35,15 @@ public class RedisMonitor implements CacheMonitor {
     @Override
     public boolean isReachable(InstanceRef instance) {
         try {
-            RedisConnection conn = connectionFactory.getConnection();
-            conn.ping();
-            conn.close();
-            return true;
+            // execute() ile connection pool'dan güvenli al
+            String result = redisTemplate.execute((RedisCallback<String>) conn -> {
+                byte[] pong = conn.ping().getBytes();
+                return pong != null ? new String(pong) : null;
+            });
+            return "PONG".equalsIgnoreCase(result);
         } catch (Exception e) {
-            logger.warn("Hazelcast reachability check failed for {}: {}",
+            logger.warn("Redis reachability check failed for {}: {}",
                     instance.getName(), e.getMessage());
-
             return false;
         }
     }
@@ -53,17 +51,19 @@ public class RedisMonitor implements CacheMonitor {
     @Override
     public HealthInfo getHealth(InstanceRef instance) {
         try {
-            Map<String, String> info = parseInfo(getInfoSection("server"));
+            return redisTemplate.execute((RedisCallback<HealthInfo>) conn -> {
+                Properties serverInfo = conn.info("server");
+                if (serverInfo == null) return new HealthInfo("DOWN", "unknown", 0);
 
-            String version = info.getOrDefault("redis_version", "unknown");
-            long uptime = Long.parseLong(
-                    info.getOrDefault("uptime_in_seconds", "0")
-            );
+                String version = serverInfo.getProperty("redis_version", "unknown");
+                long uptime = Long.parseLong(
+                        serverInfo.getProperty("uptime_in_seconds", "0"));
 
-            return new HealthInfo("UP", version, uptime);
+                return new HealthInfo("UP", version, uptime);
+            });
         } catch (Exception e) {
-            logger.error("Error fetching Redis health: {}", e.getMessage(), e);
-
+            logger.error("Error fetching Redis health for {}: {}",
+                    instance.getName(), e.getMessage(), e);
             return new HealthInfo("DOWN", "unknown", 0);
         }
     }
@@ -71,26 +71,26 @@ public class RedisMonitor implements CacheMonitor {
     @Override
     public ResourceStats getResourceStats(InstanceRef instance) {
         try {
-         Map<String, String> info = parseInfo(getInfoSection("all"));
+            return redisTemplate.execute((RedisCallback<ResourceStats>) conn -> {
+                Properties memInfo = conn.info("memory");
+                if (memInfo == null) return new ResourceStats(0, 0, 0);
 
-         long usedMemory = Long.parseLong(
-                 info.getOrDefault("used_memory", "0")
-         );
+                long usedMemory = Long.parseLong(
+                        memInfo.getProperty("used_memory", "0"));
+                long maxMemory = Long.parseLong(
+                        memInfo.getProperty("maxmemory", "0"));
+                double fragRatio = Double.parseDouble(
+                        memInfo.getProperty("mem_fragmentation_ratio", "1.0"));
 
-        long maxMemory = Long.parseLong(
-                info.getOrDefault("maxmemory", "0")
-        );
+                if (maxMemory == 0) maxMemory = usedMemory * 3;
 
-        double fragRatio = Double.parseDouble(
-                info.getOrDefault("mem_fragmentation_ratio", "1.0")
-        );
-
-        ResourceStats stats = new ResourceStats(0.0, usedMemory, maxMemory);
-        stats.setFragmentationRatio(fragRatio);
-        return stats;
+                ResourceStats stats = new ResourceStats(0.0, usedMemory, maxMemory);
+                stats.setFragmentationRatio(fragRatio);
+                return stats;
+            });
         } catch (Exception e) {
-            logger.error("Error fetching resource stats: {}", e.getMessage(), e);
-
+            logger.error("Error fetching resource stats for {}: {}",
+                    instance.getName(), e.getMessage(), e);
             return new ResourceStats(0, 0, 0);
         }
     }
@@ -98,78 +98,81 @@ public class RedisMonitor implements CacheMonitor {
     @Override
     public ConnectionStats getConnectionStats(InstanceRef instance) {
         try {
-            Map<String, String> info = parseInfo(getInfoSection("clients"));
+            return redisTemplate.execute((RedisCallback<ConnectionStats>) conn -> {
+                Properties clientInfo = conn.info("clients");
+                if (clientInfo == null) return new ConnectionStats(0, 0, 0);
 
-            int connectedClients = Integer.parseInt(
-                    info.getOrDefault("connected_clients", "0")
-            );
-            long connErrors = Long.parseLong(
-                    info.getOrDefault("total_connection_received", "0")
-            );
+                int connectedClients = Integer.parseInt(
+                        clientInfo.getProperty("connected_clients", "0"));
+                long connErrors = Long.parseLong(
+                        clientInfo.getProperty("total_connections_received", "0"));
+                long rejectedConn = Long.parseLong(
+                        clientInfo.getProperty("rejected_connections", "0"));
 
-            long rejectedConn = Long.parseLong(
-                    info.getOrDefault("rejected_connections", "0")
-            );
-
-            return new ConnectionStats(connectedClients, connErrors, rejectedConn);
-
+                return new ConnectionStats(connectedClients, connErrors, rejectedConn);
+            });
         } catch (Exception e) {
-            logger.error("Error fetching connection stats: {}", e.getMessage(), e);
-
-            return new ConnectionStats(0,0,0);
+            logger.error("Error fetching connection stats for {}: {}",
+                    instance.getName(), e.getMessage(), e);
+            return new ConnectionStats(0, 0, 0);
         }
     }
 
     @Override
     public DataStats getDataStats(InstanceRef instance) {
         try {
-            Map<String, String> memInfo = parseInfo(getInfoSection("memory"));
-            Map<String, String> keyInfo = parseInfo(getInfoSection("keyspace"));
+            return redisTemplate.execute((RedisCallback<DataStats>) conn -> {
+                Properties memInfo = conn.info("memory");
+                Properties keyInfo = conn.info("keyspace");
+                if (memInfo == null) return new DataStats(0, 0, 0);
 
-            long usedMemory = Long.parseLong(
-                    memInfo.getOrDefault("used_memory", "0")
-            );
-            long maxMemory = Long.parseLong(
-                    memInfo.getOrDefault("maxmemory", "0")
-            );
-            if (maxMemory == 0) maxMemory = usedMemory * 3;
+                long usedMemory = Long.parseLong(
+                        memInfo.getProperty("used_memory", "0"));
+                long maxMemory = Long.parseLong(
+                        memInfo.getProperty("maxmemory", "0"));
+                if (maxMemory == 0) maxMemory = usedMemory * 3;
 
-            // Keyspace'den toplam key sayısı
-            long totalKeys = 0;
-            for (Map.Entry<String, String> entry : keyInfo.entrySet()) {
-                if (entry.getKey().startsWith("db")) {
-                    // Format: keys=N,expires=M,avg_ttl=X
-                    String val = entry.getValue();
-                    String[] parts = val.split(",");
-                    for (String part : parts) {
-                        if (part.startsWith("keys=")) {
-                            totalKeys += Long.parseLong(part.split("=")[1]);
+                double fragRatio = Double.parseDouble(
+                        memInfo.getProperty("mem_fragmentation_ratio", "1.0"));
+
+                // Keyspace'den toplam key sayısı
+                long totalKeys = 0;
+                if (keyInfo != null) {
+                    for (String key : keyInfo.stringPropertyNames()) {
+                        if (key.startsWith("db")) {
+                            String val = keyInfo.getProperty(key);
+                            for (String part : val.split(",")) {
+                                if (part.startsWith("keys=")) {
+                                    totalKeys += Long.parseLong(part.split("=")[1]);
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            DataStats stats = new DataStats(totalKeys, usedMemory, maxMemory);
-            double fragRatio = Double.parseDouble(
-                    memInfo.getOrDefault("mem_fragmentation_ratio", "1.0")
-            );
-            stats.setFragmentationRatio(fragRatio);
-            return stats;
+                DataStats stats = new DataStats(totalKeys, usedMemory, maxMemory);
+                stats.setFragmentationRatio(fragRatio);
+                return stats;
+            });
         } catch (Exception e) {
-            logger.error("Error fetching data stats: {}", e.getMessage(), e);
-
+            logger.error("Error fetching data stats for {}: {}",
+                    instance.getName(), e.getMessage(), e);
             return new DataStats(0, 0, 0);
         }
     }
 
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
-        logger.debug("Redis doesn't support cluster info for instance: {}", instance.getName());
+        logger.debug("Redis doesn't support cluster info for instance: {}",
+                instance.getName());
         return null;
     }
 
     @Override
-    public PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count) {
+    public PageInfo<KeyInfo> scanKeys(InstanceRef instance,
+                                      String prefix,
+                                      String cursor,
+                                      int count) {
         List<KeyInfo> keys = new ArrayList<>();
         String pattern = (prefix == null || prefix.isEmpty())
                 ? "*" : prefix + "*";
@@ -180,32 +183,29 @@ public class RedisMonitor implements CacheMonitor {
                     .count(count)
                     .build();
 
-            Cursor<byte[]> scanCursor = redisTemplate
-                    .getConnectionFactory()
-                    .getConnection()
-                    .scan(options);
+            redisTemplate.execute((RedisCallback<Void>) conn -> {
+                try (Cursor<byte[]> scanCursor = conn.scan(options)) {
+                    int fetched = 0;
+                    while (scanCursor.hasNext() && fetched < count) {
+                        byte[] keyBytes = scanCursor.next();
+                        String keyName = new String(keyBytes, StandardCharsets.UTF_8);
+                        String type = conn.type(keyBytes).code();
+                        long ttl = conn.ttl(keyBytes) * 1000;
+                        keys.add(new KeyInfo(keyName, type, 0, ttl));
+                        fetched++;
+                    }
+                }
+                return null;
+            });
 
-            int fetched = 0;
-            while (scanCursor.hasNext() && fetched < count) {
-                byte[] keyBytes = scanCursor.next();
-                String keyName = new String(keyBytes, StandardCharsets.UTF_8);
+            logger.debug("Scanned {} keys with pattern '{}' for instance {}",
+                    keys.size(), pattern, instance.getName());
 
-                String type = redisTemplate.type(keyName).code();
-                long ttl = redisTemplate.getExpire(keyName) * 1000;
-
-                KeyInfo keyInfo = new KeyInfo(keyName, type, 0, ttl);
-                keys.add(keyInfo);
-                fetched++;
-            }
-
-            String nextCursor = scanCursor.getCursorId() + "";
-            boolean hasMore = !nextCursor.equals("0");
-            scanCursor.close();
-
-            return new PageInfo<>(keys, nextCursor, hasMore, count);
+            return new PageInfo<>(keys, "0", false, count);
 
         } catch (Exception e) {
-            logger.error("Error scanning keys: {}", e.getMessage(), e);
+            logger.error("Error scanning keys for {}: {}",
+                    instance.getName(), e.getMessage(), e);
             return new PageInfo<>(new ArrayList<>(), "0", false, count);
         }
     }
@@ -215,78 +215,35 @@ public class RedisMonitor implements CacheMonitor {
         List<KeyInfo> keys = new ArrayList<>();
 
         try {
-            ScanOptions options = ScanOptions.scanOptions()
-                    .count(n * 3)
-                    .build();
+            redisTemplate.execute((RedisCallback<Void>) conn -> {
+                ScanOptions options = ScanOptions.scanOptions()
+                        .count(n * 3)
+                        .build();
 
-            Cursor<byte[]> cursor = redisTemplate
-                    .getConnectionFactory()
-                    .getConnection()
-                    .scan(options);
+                try (Cursor<byte[]> cursor = conn.scan(options)) {
+                    while (cursor.hasNext() && keys.size() < n * 3) {
+                        byte[] keyBytes = cursor.next();
+                        String keyName = new String(keyBytes, StandardCharsets.UTF_8);
+                        // MEMORY USAGE — sizeBytes şimdilik 0, ilerleyen fazda native komutla eklenecek
+                        long sizeBytes = 0;
+                        String type = conn.type(keyBytes).code();
+                        long ttl = conn.ttl(keyBytes) * 1000;
+                        keys.add(new KeyInfo(keyName, type, sizeBytes, ttl));
+                    }
+                }
+                return null;
+            });
 
-            while (cursor.hasNext() && keys.size() < n * 3) {
-                String keyName = new String(
-                        cursor.next(), StandardCharsets.UTF_8
-                );
-                // MEMORY USAGE komutu — byte cinsinden boyut
-                Long size = redisTemplate.execute((RedisCallback<Long>) conn -> {
-                    Object raw = conn.execute("MEMORY",
-                            "USAGE".getBytes(StandardCharsets.UTF_8),
-                            keyName.getBytes(StandardCharsets.UTF_8));
-                    return (raw instanceof Long) ? (Long) raw : 0L;
-                });
-                long sizeBytes = (size != null) ? size : 0;
-                String type = redisTemplate.type(keyName).code();
-                long ttl = redisTemplate.getExpire(keyName) * 1000;
-
-                keys.add(new KeyInfo(keyName, type, sizeBytes, ttl));
-            }
-            cursor.close();
+            logger.debug("Fetched {} candidate keys for top-{} analysis on instance {}",
+                    keys.size(), n, instance.getName());
 
         } catch (Exception e) {
-            logger.error("Error fetching top N keys: {}", e.getMessage(), e);
+            logger.error("Error fetching top N keys for {}: {}",
+                    instance.getName(), e.getMessage(), e);
             return new ArrayList<>();
         }
 
-        // Boyuta göre azalan sırala, en büyük N'i al
         keys.sort((a, b) -> Long.compare(b.getSizeBytes(), a.getSizeBytes()));
         return keys.stream().limit(n).toList();
     }
-
-    // ===== YARDIMCI METOTLAR =====
-
-    /**
-     * Redis INFO komutunu çalıştır, belirli section'ı döndür
-     * section: server | clients | memory | keyspace | all
-     */
-    private String getInfoSection(String section) {
-        return redisTemplate.execute((RedisCallback<String>) conn -> {
-            Properties props = conn.serverCommands().info(section);
-            if (props == null) return "";
-            StringBuilder sb = new StringBuilder();
-            for (String name : props.stringPropertyNames()) {
-                sb.append(name).append(":").append(props.getProperty(name)).append("\r\n");
-            }
-            return sb.toString();
-        });
-    }
-
-    /**
-     * INFO çıktısını key:value map'e dönüştür
-     */
-    private Map<String, String> parseInfo(String info) {
-        Map<String, String> map = new HashMap<>();
-        if (info == null || info.isEmpty()) return map;
-
-        for (String line : info.split("\r\n")) {
-            if (line.startsWith("#") || line.isEmpty()) continue;
-            String[] parts = line.split(":", 2);
-            if (parts.length == 2) {
-                map.put(parts[0].trim(), parts[1].trim());
-            }
-        }
-        return map;
-    }
-
-
 }

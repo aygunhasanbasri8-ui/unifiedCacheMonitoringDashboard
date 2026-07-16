@@ -1,11 +1,15 @@
 package com.nkolay.ucmd.service;
 
 import com.nkolay.ucmd.model.MetricSnapshot;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PreDestroy;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,14 +23,34 @@ public class SnapshotScheduler {
     @Autowired
     private AuditService auditService;
 
+    private static final Logger logger =
+            LoggerFactory.getLogger(SnapshotScheduler.class);
+
+    // Shutdown bayrağı
+    private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
+
+
     private List<MetricSnapshot> snapshots = new ArrayList<>();
 
+
+
+    @PreDestroy
+    public void onShutdown() {
+        logger.info("SnapshotScheduler shutting down, stopping metric collection");
+        shuttingDown.set(true);
+    }
     /**
      * Her 15 saniyede bir metrik toplama
      * Gerçek implementasyonda tüm instance'lardan PARALEL çekeceğiz
      */
     @Scheduled(fixedRate = 15000)  // 15 saniye
     public void collectMetrics() {
+
+        if (shuttingDown.get()) {
+            logger.info("Skipping metric collection — shutdown in progress");
+            return;
+        }
+
         try {
             List<MetricSnapshot> currentSnapshots = new ArrayList<>();
 
