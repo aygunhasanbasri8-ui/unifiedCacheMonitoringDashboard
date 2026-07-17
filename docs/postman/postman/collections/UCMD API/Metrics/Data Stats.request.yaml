@@ -1,0 +1,4 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/instances/1/data-stats"
+method: GET
+order: 4000

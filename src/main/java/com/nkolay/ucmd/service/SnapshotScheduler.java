@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.service;
 
 import com.nkolay.ucmd.model.MetricSnapshot;
+import com.nkolay.ucmd.repository.SnapshotRepository;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,22 +30,19 @@ public class SnapshotScheduler {
     private AuditService auditService;
 
     public List<MetricSnapshot> getSnapshots() {
-        return new ArrayList<>(snapshots);
+        return snapshotRepository.findAll();
     }
 
     public List<MetricSnapshot> getSnapshotsForInstance(Long instanceId) {
-        return snapshots.stream()
-                .filter(s -> s.getInstanceId().equals(instanceId))
-                .toList();
+        return snapshotRepository.findByInstanceId(instanceId);
     }
 
     private static final Logger logger = LoggerFactory.getLogger(SnapshotScheduler.class);
 
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
-    // DÜZELTME 1: Performanslı silme işlemi için LinkedList ve Thread-Safe yapı
-    private final List<MetricSnapshot> snapshots = Collections.synchronizedList(new java.util.LinkedList<>());
-    private static final int MAX_SNAPSHOT_HISTORY = 1000; // Maksimum tutulacak kayıt sayısı
+    @Autowired
+    private SnapshotRepository snapshotRepository;
 
     @PreDestroy
     public void onShutdown() {
@@ -99,16 +97,8 @@ public class SnapshotScheduler {
                 }
             }
 
-            // DÜZELTME 3: Ana akışta toplu ekleme ve Memory Leak önlemi
-            synchronized (snapshots) {
-                snapshots.addAll(currentSnapshots);
+            snapshotRepository.saveAll(currentSnapshots);
 
-                // Kapasite aşımı varsa en eski kayıtları (listenin başından) sil
-                int excess = snapshots.size() - MAX_SNAPSHOT_HISTORY;
-                if (excess > 0) {
-                    snapshots.subList(0, excess).clear();
-                }
-            }
 
             auditService.log("METRICS_COLLECTED", "Collected metrics from " + currentSnapshots.size() + " instances");
 

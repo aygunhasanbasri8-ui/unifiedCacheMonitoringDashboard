@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/instances/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "redis-prod-updated",
+      "type": "REDIS",
+      "host": "localhost",
+      "port": 6379,
+      "enabled": true
+    }
+order: 5000

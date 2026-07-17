@@ -36,6 +36,7 @@ build/
 .env
 .env.local
 .env.*.local
+/docs/postman/postman/environments/
 
 # Secrets
 secrets/

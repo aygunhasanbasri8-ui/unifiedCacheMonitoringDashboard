@@ -1,0 +1,8 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/instances/1/keys?prefix=&cursor=0&count=20"
+method: GET
+queryParams:
+  prefix: ""
+  cursor: "0"
+  count: "20"
+order: 2000

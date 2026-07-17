@@ -1,8 +1,16 @@
 package com.nkolay.ucmd.model;
 
 import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import org.hibernate.annotations.IdGeneratorType;
 
+@Entity
+@Table(name = "metric_snapshots")
 public class MetricSnapshot {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
     private Long id;
     private Long instanceId;
     private LocalDateTime collectedAt;

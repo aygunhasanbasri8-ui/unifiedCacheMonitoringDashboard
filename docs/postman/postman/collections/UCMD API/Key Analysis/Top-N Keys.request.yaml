@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/instances/1/keys/top?n=10"
+method: GET
+queryParams:
+  n: "10"
+order: 3000

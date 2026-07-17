@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: fe90aee8-406f-4e9f-8231-b436006e662e
+
+localResources:
+  collections:
+    - ../ucmdAPI.postman_collection.json
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/UCMD API: 6f0953f0-8899-494e-a2be-9a31d3bff09f

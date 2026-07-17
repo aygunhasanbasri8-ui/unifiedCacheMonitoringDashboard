@@ -1,0 +1,4 @@
+$kind: http-request
+url: "{{baseUrl}}/api/v1/instances/2/cluster"
+method: GET
+order: 5000

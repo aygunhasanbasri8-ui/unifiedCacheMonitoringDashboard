@@ -23,7 +23,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         if (path.contains("/auth/login") ||
                 path.contains("/health") ||
-                path.contains("/actuator")) {
+                path.contains("/actuator")||
+                path.contains("/h2-console")) {
             return true;
         }
 
