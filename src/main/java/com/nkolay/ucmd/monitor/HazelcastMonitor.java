@@ -199,4 +199,21 @@ public class HazelcastMonitor implements CacheMonitor {
         return keys.stream().limit(n).toList();
     }
 
+    @Override
+    public long getKeyTTL(InstanceRef instance, String key) {
+        try {
+            boolean isMap = hazelcastClient.getDistributedObjects().stream()
+                    .filter(obj -> obj instanceof com.hazelcast.map.IMap)
+                            .anyMatch(obj -> obj.getName().equals(key));
+            return isMap ? -1 : -2;
+
+        } catch (Exception e) {
+            logger.error("Error fetching TTL for '{}' on {}: {}",
+                    key, instance.getName(), e.getMessage(), e);
+            return -2;
+        }
+    }
+
+
+
 }

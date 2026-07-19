@@ -50,10 +50,13 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
 
 
     /**
-     *
-     * MOCK DATA _____ GERÇEK VERİ GEÇİLECEK
+     * GUNCELLENDI
      */
     public long getKeyTTL(Long instanceId, String key) {
-        return (long) (Math.random() * 3600);  // 0-3600 saniye
+        InstanceRef instance = monitoringService.getInstanceById(instanceId);
+        if (instanceId == null) return -2;
+
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+        return monitor.getKeyTTL(instance, key);
     }
 }

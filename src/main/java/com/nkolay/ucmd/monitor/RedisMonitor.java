@@ -211,6 +211,22 @@ public class RedisMonitor implements CacheMonitor {
     }
 
     @Override
+    public long getKeyTTL(InstanceRef instance, String key) {
+        try {
+            Long ttlSeconds = redisTemplate.execute((RedisCallback<Long>) conn ->
+                    conn.keyCommands().ttl(key.getBytes(StandardCharsets.UTF_8)));
+
+            if (ttlSeconds == null) return -2;
+            if (ttlSeconds < 0) return ttlSeconds;
+            return ttlSeconds * 1000;
+        } catch (Exception e) {
+            logger.error("Eror fetching TTL for key '{}' on {}: {}",
+                    key, instance.getName(), e.getMessage(), e);
+            return -2;
+        }
+    }
+
+    @Override
     public List<KeyInfo> getTopNKeys(InstanceRef instance, int n) {
         List<KeyInfo> keys = new ArrayList<>();
 

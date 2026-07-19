@@ -3,6 +3,7 @@ package com.nkolay.ucmd.controller;
 import com.nkolay.ucmd.model.KeyInfo;
 import com.nkolay.ucmd.model.PageInfo;
 import com.nkolay.ucmd.service.KeyAnalysisService;
+import com.nkolay.ucmd.model.KeyTtlResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -42,4 +43,18 @@ public class KeyAnalysisController {
         List<KeyInfo> topKeys = keyAnalysisService.getTopNKeys(id, n);
         return ResponseEntity.ok(topKeys);
     }
+
+    @GetMapping("/{id}/keys/ttl")
+    public ResponseEntity<KeyTtlResponse> getKeyTTL(
+            @PathVariable Long id,
+            @PathVariable String key) {
+        if (key == null || key.isEmpty() || key.length()>512) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        long ttlMillis = keyAnalysisService.getKeyTTL(id, key);
+        return ResponseEntity.ok(new KeyTtlResponse(key, ttlMillis));
+
+    }
+
 }

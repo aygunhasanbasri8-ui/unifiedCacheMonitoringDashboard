@@ -31,4 +31,5 @@ public interface CacheMonitor {
 
     List<KeyInfo> getTopNKeys(InstanceRef instance, int n);
 
+    long getKeyTTL(InstanceRef instanceId, String key);
 }
