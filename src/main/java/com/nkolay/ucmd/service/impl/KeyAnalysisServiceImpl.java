@@ -54,7 +54,7 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
      */
     public long getKeyTTL(Long instanceId, String key) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instanceId == null) return -2;
+        if (instance == null) return -2;
 
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
         return monitor.getKeyTTL(instance, key);

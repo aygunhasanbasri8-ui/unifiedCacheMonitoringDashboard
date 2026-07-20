@@ -62,7 +62,7 @@ public class JwtTokenProvider {
      */
     public static boolean validateToken(String token) {
         try {
-            if (token == null || token.contains(".")){
+            if (token == null || !token.contains(".")){
                 return false;
             }
             String[] parts = token.split("\\.");

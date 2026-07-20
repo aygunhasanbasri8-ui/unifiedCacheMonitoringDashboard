@@ -12,7 +12,7 @@ public class SecurityConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
     @Autowired
-    private SecurityConfig(AuthInterceptor authInterceptor) {
+    public SecurityConfig(AuthInterceptor authInterceptor) {
         this.authInterceptor = authInterceptor;
     }
 

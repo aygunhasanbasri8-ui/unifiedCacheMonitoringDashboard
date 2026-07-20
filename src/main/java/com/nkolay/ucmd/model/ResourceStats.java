@@ -14,8 +14,7 @@ public class ResourceStats {
         this.cpuUsagePercent = cpuUsagePercent;
         this.memoryUsedBytes = memoryUsedBytes;
         this.memoryMaxBytes = memoryMaxBytes;
-        this.memoryUsagePercent = (double) memoryUsedBytes / memoryMaxBytes * 100;
-    }
+        this.memoryUsagePercent = memoryMaxBytes > 0 ? (double) memoryUsedBytes / memoryMaxBytes * 100 : 0;}
 
     public double getCpuUsagePercent() { return cpuUsagePercent; }
     public void setCpuUsagePercent(double cpuUsagePercent) { this.cpuUsagePercent = cpuUsagePercent; }

@@ -51,4 +51,28 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InstanceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleInstanceNotFound(InstanceNotFoundException e) {
+        logger.warn("Instance not found: {}", e.getMessage());
+        return new ErrorResponse("about:blank/not-found", "Instance Not Found",
+                HttpStatus.NOT_FOUND.value(), e.getMessage());
+    }
+
+    @ExceptionHandler(InstanceUnreachableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleUnreachable(InstanceUnreachableException e) {
+        logger.warn("Instance unreachable: {}", e.getMessage());
+        return new ErrorResponse("about:blank/unreachable", "Instance Unreachable",
+                HttpStatus.SERVICE_UNAVAILABLE.value(), e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPrefixException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleInvalidPrefix(InvalidPrefixException e) {
+        logger.warn("Invalid prefix: {}", e.getMessage());
+        return new ErrorResponse("about:blank/bad-request", "Invalid Prefix",
+                HttpStatus.BAD_REQUEST.value(), e.getMessage());
+    }
+
 }

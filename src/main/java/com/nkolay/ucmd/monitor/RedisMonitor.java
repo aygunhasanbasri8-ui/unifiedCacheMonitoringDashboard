@@ -220,7 +220,7 @@ public class RedisMonitor implements CacheMonitor {
             if (ttlSeconds < 0) return ttlSeconds;
             return ttlSeconds * 1000;
         } catch (Exception e) {
-            logger.error("Eror fetching TTL for key '{}' on {}: {}",
+            logger.error("Error fetching TTL for key '{}' on {}: {}",
                     key, instance.getName(), e.getMessage(), e);
             return -2;
         }

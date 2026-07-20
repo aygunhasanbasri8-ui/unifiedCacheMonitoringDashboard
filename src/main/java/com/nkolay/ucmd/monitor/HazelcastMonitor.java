@@ -46,6 +46,9 @@ public class HazelcastMonitor implements CacheMonitor {
 
     @Override
     public HealthInfo getHealth(InstanceRef instance) {
+        String version = hazelcastClient.getCluster().getMembers()
+                .stream().findFirst().map(m -> m.getVersion()
+                        .toString()).orElse("unknown");
         try {
             if (!isReachable(instance)) {
                 return new HealthInfo("DOWN", "unknown", 0);

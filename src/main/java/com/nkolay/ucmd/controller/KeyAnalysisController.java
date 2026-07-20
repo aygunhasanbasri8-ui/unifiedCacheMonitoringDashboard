@@ -47,7 +47,7 @@ public class KeyAnalysisController {
     @GetMapping("/{id}/keys/ttl")
     public ResponseEntity<KeyTtlResponse> getKeyTTL(
             @PathVariable Long id,
-            @PathVariable String key) {
+            @RequestParam String key) {
         if (key == null || key.isEmpty() || key.length()>512) {
             return ResponseEntity.badRequest().build();
         }
