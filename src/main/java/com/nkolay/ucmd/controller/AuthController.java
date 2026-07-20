@@ -2,6 +2,8 @@ package com.nkolay.ucmd.controller;
 
 import com.nkolay.ucmd.model.dto.LoginRequest;
 import com.nkolay.ucmd.model.dto.LoginResponse;
+import com.nkolay.ucmd.security.JwtTokenProvider;
+import com.nkolay.ucmd.security.TokenBlacklist;
 import com.nkolay.ucmd.service.UserService;
 import com.nkolay.ucmd.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,9 @@ public class AuthController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private TokenBlacklist tokenBlacklist;
 
     @Autowired
     private AuditService auditService;
@@ -45,7 +50,12 @@ public class AuthController {
 
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            long expiry = JwtTokenProvider.getExpiryFromToken(token);
+            tokenBlacklist.blacklist(token, expiry);
+        }
         auditService.log("LOGOUT", "SYSTEM", "User logged out", "SUCCESS");
         return ResponseEntity.ok().body("Logged out successfully");
     }

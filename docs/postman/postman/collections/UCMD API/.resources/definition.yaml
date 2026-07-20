@@ -1,10 +1,9 @@
 $kind: collection
+name: UCMD API
 description: Unified Cache Monitoring Dashboard - Tüm API endpoint'leri
 variables:
   baseUrl: http://localhost:8080
 auth:
-  - id: 8e85f986-a628-4eac-a814-f5444d705199
-    type: bearer
-    name: bearer auth
-    credentials:
-      token: "{{token}}"
+  type: bearer
+  credentials:
+    token: bW9uaXRvcjpNT05JVE9SOjE3ODQ2NDE2Nzk0ODY=.bW9uaXRvcjpNT05JVE9S

@@ -105,4 +105,9 @@ public class JwtTokenProvider {
         }
     }
 
+    public static long getExpiryFromToken(String token) {
+        String payload = new String(Base64.getDecoder().decode(token.split("\\.")[0]));
+        return Long.parseLong(payload.split(":")[2]);   // index 2 = expiry
+    }
+
 }

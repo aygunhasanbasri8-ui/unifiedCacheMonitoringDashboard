@@ -1,0 +1,5 @@
+$kind: http-request
+name: Snapshot
+url: "{{baseUrl}}/api/v1/instances/1/snapshots"
+method: GET
+order: 379810235815285

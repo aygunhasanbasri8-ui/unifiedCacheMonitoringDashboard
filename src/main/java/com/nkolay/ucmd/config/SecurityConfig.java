@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.config;
 
 import com.nkolay.ucmd.security.AuthInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -10,6 +12,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig implements WebMvcConfigurer {
 
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+
     private final AuthInterceptor authInterceptor;
     @Autowired
     public SecurityConfig(AuthInterceptor authInterceptor) {
@@ -18,12 +22,13 @@ public class SecurityConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-
-        registry.addInterceptor((HandlerInterceptor) authInterceptor)
-                .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/v1/auth/login",
-                "/api/v1/health",
-                "/api/actuator/**");
+        logger.info(">>> AuthInterceptor kaydediliyor (path: /**)");
+        registry.addInterceptor(authInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns(
+                        "/v1/auth/login",
+                        "/v1/health",
+                        "/actuator/**");
     }
 
 }

@@ -14,6 +14,9 @@ public class AuthInterceptor implements HandlerInterceptor {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private TokenBlacklist tokenBlacklist;
+
     @Override
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
@@ -45,6 +48,14 @@ public class AuthInterceptor implements HandlerInterceptor {
             response.getWriter().write("{\"error\": \"Invalid or expired token\"}");
             return false;
         }
+
+        if (tokenBlacklist.isBlacklisted(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Token has been invalidated (logged out)\"}");
+            return false;
+        }
+
 
         User user = userService.getUserFromToken(token);
         if (user == null || !user.isActive()) {
