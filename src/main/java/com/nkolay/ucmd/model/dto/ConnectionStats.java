@@ -1,5 +1,5 @@
 
-package com.nkolay.ucmd.model;
+package com.nkolay.ucmd.model.dto;
 
 public class ConnectionStats {
     private int activeClients;

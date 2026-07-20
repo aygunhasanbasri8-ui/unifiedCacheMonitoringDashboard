@@ -1,12 +1,10 @@
 
 package com.nkolay.ucmd.service;
 
-import com.nkolay.ucmd.service.impl.AuditServiceImpl;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+
 import java.util.List;
-import com.nkolay.ucmd.model.AuditLog;
+import com.nkolay.ucmd.model.entity.AuditLog;
 
 @Service
 public interface AuditService {

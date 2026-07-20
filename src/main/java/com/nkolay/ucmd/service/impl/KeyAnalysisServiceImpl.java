@@ -1,12 +1,11 @@
 package com.nkolay.ucmd.service.impl;
 
 
-import com.nkolay.ucmd.model.InstanceRef;
-import com.nkolay.ucmd.model.KeyInfo;
-import com.nkolay.ucmd.model.PageInfo;
+import com.nkolay.ucmd.model.entity.InstanceRef;
+import com.nkolay.ucmd.model.dto.KeyInfo;
+import com.nkolay.ucmd.model.dto.PageInfo;
 import com.nkolay.ucmd.monitor.CacheMonitor;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
-import com.nkolay.ucmd.monitor.RedisMonitor;
 import com.nkolay.ucmd.service.KeyAnalysisService;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;

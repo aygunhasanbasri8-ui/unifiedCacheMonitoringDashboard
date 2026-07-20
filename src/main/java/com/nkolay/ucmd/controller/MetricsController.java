@@ -1,9 +1,9 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.HealthInfo;
-import com.nkolay.ucmd.model.ResourceStats;
-import com.nkolay.ucmd.model.ConnectionStats;
-import com.nkolay.ucmd.model.DataStats;
+import com.nkolay.ucmd.model.dto.HealthInfo;
+import com.nkolay.ucmd.model.dto.ResourceStats;
+import com.nkolay.ucmd.model.dto.ConnectionStats;
+import com.nkolay.ucmd.model.dto.DataStats;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

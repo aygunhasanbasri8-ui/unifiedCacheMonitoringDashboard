@@ -1,8 +1,7 @@
-package com.nkolay.ucmd.model;
+package com.nkolay.ucmd.model.entity;
 
 import java.time.LocalDateTime;
 import jakarta.persistence.*;
-import org.hibernate.annotations.IdGeneratorType;
 
 @Entity
 @Table(name = "metric_snapshots")

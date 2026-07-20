@@ -1,4 +1,4 @@
-package com.nkolay.ucmd.model;
+package com.nkolay.ucmd.model.entity;
 
 import java.time.LocalDateTime;
 

@@ -1,4 +1,4 @@
-package com.nkolay.ucmd.model;
+package com.nkolay.ucmd.model.dto;
 
 public class ErrorResponse {
     private String type;           // Hata kategorisi

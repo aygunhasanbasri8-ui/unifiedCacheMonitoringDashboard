@@ -1,17 +1,14 @@
 package com.nkolay.ucmd.service.impl;
 
-import com.nkolay.ucmd.model.*;
+import com.nkolay.ucmd.model.dto.*;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
 import com.nkolay.ucmd.repository.InstanceRepository;
 import com.nkolay.ucmd.service.MonitoringService;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class MonitoringServiceImpl implements MonitoringService {

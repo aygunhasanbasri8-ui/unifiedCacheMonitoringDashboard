@@ -1,9 +1,7 @@
 package com.nkolay.ucmd.security;
 
-import com.fasterxml.jackson.databind.ser.Serializers;
-import com.nkolay.ucmd.model.User;
+import com.nkolay.ucmd.model.entity.User;
 
-import javax.sound.midi.SysexMessage;
 import java.util.Base64;
 
 

@@ -1,7 +1,7 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.LoginRequest;
-import com.nkolay.ucmd.model.LoginResponse;
+import com.nkolay.ucmd.model.dto.LoginRequest;
+import com.nkolay.ucmd.model.dto.LoginResponse;
 import com.nkolay.ucmd.service.UserService;
 import com.nkolay.ucmd.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;

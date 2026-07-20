@@ -1,7 +1,7 @@
 package com.nkolay.ucmd.service;
 
-import com.nkolay.ucmd.model.KeyInfo;
-import com.nkolay.ucmd.model.PageInfo;
+import com.nkolay.ucmd.model.dto.KeyInfo;
+import com.nkolay.ucmd.model.dto.PageInfo;
 import java.util.List;
 
 public interface KeyAnalysisService {

@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.monitor;
 
-import com.nkolay.ucmd.model.*;
+import com.nkolay.ucmd.model.dto.*;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.RedisConnectionFactory;

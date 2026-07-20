@@ -1,7 +1,7 @@
 package com.nkolay.ucmd.repository;
 
 
-import com.nkolay.ucmd.model.InstanceRef;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

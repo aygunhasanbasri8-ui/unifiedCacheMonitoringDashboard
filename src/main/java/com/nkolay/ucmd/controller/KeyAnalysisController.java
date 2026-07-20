@@ -1,9 +1,9 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.KeyInfo;
-import com.nkolay.ucmd.model.PageInfo;
+import com.nkolay.ucmd.model.dto.KeyInfo;
+import com.nkolay.ucmd.model.dto.PageInfo;
 import com.nkolay.ucmd.service.KeyAnalysisService;
-import com.nkolay.ucmd.model.KeyTtlResponse;
+import com.nkolay.ucmd.model.dto.KeyTtlResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

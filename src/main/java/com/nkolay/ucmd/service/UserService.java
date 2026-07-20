@@ -1,12 +1,8 @@
 package com.nkolay.ucmd.service;
 
-import com.nkolay.ucmd.model.User;
-import com.nkolay.ucmd.model.LoginResponse;
-import com.nkolay.ucmd.security.SimplePasswordEncoder;
-import com.nkolay.ucmd.security.JwtTokenProvider;
+import com.nkolay.ucmd.model.entity.User;
+import com.nkolay.ucmd.model.dto.LoginResponse;
 import org.springframework.stereotype.Service;
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
 public interface UserService {

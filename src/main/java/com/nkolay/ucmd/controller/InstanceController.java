@@ -1,6 +1,6 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.InstanceRef;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

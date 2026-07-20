@@ -1,6 +1,4 @@
-package com.nkolay.ucmd.model;
-
-import java.security.SecureRandom;
+package com.nkolay.ucmd.model.entity;
 
 public class User {
     private Long id;

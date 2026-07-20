@@ -1,6 +1,6 @@
 package com.nkolay.ucmd.service.impl;
 
-import com.nkolay.ucmd.model.AuditLog;
+import com.nkolay.ucmd.model.entity.AuditLog;
 import com.nkolay.ucmd.service.AuditService;
 import org.springframework.stereotype.Service;
 
@@ -11,10 +11,10 @@ import java.util.List;
 @Service
 public class AuditServiceImpl implements AuditService {
 
-    private List<com.nkolay.ucmd.model.AuditLog> auditLogs = new ArrayList<>();
+    private List<AuditLog> auditLogs = new ArrayList<>();
 
     public void log(String action, String detail) {
-        com.nkolay.ucmd.model.AuditLog log = new com.nkolay.ucmd.model.AuditLog(
+        AuditLog log = new AuditLog(
                 action,
                 detail,
                 "SYSTEM",
@@ -25,7 +25,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     public void logError(String action, String detail) {
-        com.nkolay.ucmd.model.AuditLog log = new com.nkolay.ucmd.model.AuditLog(
+        AuditLog log = new AuditLog(
                 action,
                 detail,
                 "SYSTEM",
@@ -36,15 +36,15 @@ public class AuditServiceImpl implements AuditService {
     }
 
     public void log(String action, String username, String detail, String result) {
-        com.nkolay.ucmd.model.AuditLog log = new com.nkolay.ucmd.model.AuditLog(action, detail, username, LocalDateTime.now(), result);
+        AuditLog log = new AuditLog(action, detail, username, LocalDateTime.now(), result);
         auditLogs.add(log);
     }
 
-    public List<com.nkolay.ucmd.model.AuditLog> getAuditLogs() {
+    public List<AuditLog> getAuditLogs() {
         return new ArrayList<>(auditLogs);
     }
 
-    public List<com.nkolay.ucmd.model.AuditLog> getAuditLogsByAction(String action) {
+    public List<AuditLog> getAuditLogsByAction(String action) {
         return auditLogs.stream()
                 .filter(log -> action.equals(log.getAction()))
                 .toList();

@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.monitor;
 
-import com.nkolay.ucmd.model.*;
+import com.nkolay.ucmd.model.dto.*;
+import com.nkolay.ucmd.model.entity.InstanceRef;
+
 import java.util.List;
 
 public interface CacheMonitor {

@@ -1,12 +1,10 @@
 package com.nkolay.ucmd.monitor;
 
-import com.hazelcast.client.impl.clientside.HazelcastClientProxy;
 import com.hazelcast.cluster.Cluster;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.core.HazelcastInstance;
-import com.nkolay.ucmd.model.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
+import com.nkolay.ucmd.model.dto.*;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

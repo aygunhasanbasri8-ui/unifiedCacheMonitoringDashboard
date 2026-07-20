@@ -1,7 +1,6 @@
 package com.nkolay.ucmd.repository;
 
-import com.nkolay.ucmd.model.MetricSnapshot;
-import org.springframework.cglib.core.Local;
+import com.nkolay.ucmd.model.entity.MetricSnapshot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

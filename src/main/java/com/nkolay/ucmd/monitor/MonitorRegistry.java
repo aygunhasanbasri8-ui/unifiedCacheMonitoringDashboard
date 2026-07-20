@@ -1,11 +1,9 @@
 package com.nkolay.ucmd.monitor;
 
-import com.nkolay.ucmd.controller.InstanceController;
-import com.nkolay.ucmd.model.InstanceRef;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;

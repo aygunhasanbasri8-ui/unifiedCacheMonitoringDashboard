@@ -1,4 +1,4 @@
-package com.nkolay.ucmd.model;
+package com.nkolay.ucmd.model.dto;
 
 public class KeyTtlResponse {
     private String key;

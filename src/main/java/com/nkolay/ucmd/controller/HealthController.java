@@ -1,6 +1,6 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.HealthInfo;
+import com.nkolay.ucmd.model.dto.HealthInfo;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

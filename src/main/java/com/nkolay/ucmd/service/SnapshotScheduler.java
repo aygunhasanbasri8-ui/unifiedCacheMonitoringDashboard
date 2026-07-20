@@ -1,6 +1,6 @@
 package com.nkolay.ucmd.service;
 
-import com.nkolay.ucmd.model.MetricSnapshot;
+import com.nkolay.ucmd.model.entity.MetricSnapshot;
 import com.nkolay.ucmd.repository.SnapshotRepository;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;

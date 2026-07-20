@@ -1,11 +1,11 @@
 package com.nkolay.ucmd.service;
 
-import com.nkolay.ucmd.model.ClusterInfo;
-import com.nkolay.ucmd.model.DataStats;
-import com.nkolay.ucmd.model.ConnectionStats;
-import com.nkolay.ucmd.model.ResourceStats;
-import com.nkolay.ucmd.model.HealthInfo;
-import com.nkolay.ucmd.model.InstanceRef;
+import com.nkolay.ucmd.model.dto.ClusterInfo;
+import com.nkolay.ucmd.model.dto.DataStats;
+import com.nkolay.ucmd.model.dto.ConnectionStats;
+import com.nkolay.ucmd.model.dto.ResourceStats;
+import com.nkolay.ucmd.model.dto.HealthInfo;
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import java.util.List;
 
 

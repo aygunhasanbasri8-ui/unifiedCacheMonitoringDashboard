@@ -1,6 +1,6 @@
 package com.nkolay.ucmd.security;
 
-import com.nkolay.ucmd.model.User;
+import com.nkolay.ucmd.model.entity.User;
 import com.nkolay.ucmd.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
