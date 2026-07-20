@@ -9,6 +9,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PreDestroy;
+import com.nkolay.ucmd.model.dto.HealthInfo;
+import com.nkolay.ucmd.model.dto.ResourceStats;
+import com.nkolay.ucmd.model.dto.DataStats;
+import com.nkolay.ucmd.model.dto.ConnectionStats;
+import com.nkolay.ucmd.model.dto.ClusterInfo;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
@@ -65,23 +70,56 @@ public class SnapshotScheduler {
                     monitoringService.getAllInstances().stream()
                             .map(instance -> (java.util.concurrent.Future<?>) virtualThreadExecutor.submit(() -> {
                                 try {
+                                    Long id = instance.getId();
                                     MetricSnapshot snapshot = new MetricSnapshot();
-                                    snapshot.setInstanceId(instance.getId());
+                                    snapshot.setInstanceId(id);
+
+                                    // 1) Önce sağlık/erişilebilirlik
+                                    HealthInfo health = monitoringService.getInstanceHealth(id);
+
+                                    if (health == null || "DOWN".equalsIgnoreCase(health.getStatus())) {
+                                        // Erişilemiyor → DOWN snapshot yaz, gerisini atla
+                                        snapshot.setStatus("DOWN");
+                                        snapshot.setVersion(health != null ? health.getVersion() : "unknown");
+                                        snapshot.setUptimeSeconds(0);
+                                        currentSnapshots.add(snapshot);
+                                        logger.debug("Instance {} is DOWN, recorded DOWN snapshot", instance.getName());
+                                        return;
+                                    }
+
+                                    // 2) UP → gerçek metrikleri topla
                                     snapshot.setStatus("UP");
-                                    snapshot.setVersion("1.0.0");
-                                    snapshot.setUptimeSeconds(System.currentTimeMillis() / 1000);
-                                    snapshot.setCpuPercent(Math.random() * 100);
-                                    snapshot.setMemoryUsed((long) (Math.random() * 1024000000));
-                                    snapshot.setMemoryMax(1024000000L);
-                                    snapshot.setKeyCount((long) (Math.random() * 50000));
-                                    snapshot.setClientCount((int) (Math.random() * 100));
-                                    snapshot.setConnectionErrors(0);
-                                    snapshot.setFragmentationRatio(1.0 + Math.random() * 0.5);
+                                    snapshot.setVersion(health.getVersion());
+                                    snapshot.setUptimeSeconds(health.getUptimeSeconds());
+
+                                    ResourceStats resources = monitoringService.getResourceStats(id);
+                                    if (resources != null) {
+                                        snapshot.setCpuPercent(resources.getCpuUsagePercent());
+                                        snapshot.setMemoryUsed(resources.getMemoryUsedBytes());
+                                        snapshot.setMemoryMax(resources.getMemoryMaxBytes());
+                                        snapshot.setFragmentationRatio(resources.getFragmentationRatio());
+                                    }
+
+                                    DataStats data = monitoringService.getDataStats(id);
+                                    if (data != null) {
+                                        snapshot.setKeyCount(data.getTotalKeyCount());
+                                    }
+
+                                    ConnectionStats connections = monitoringService.getConnectionStats(id);
+                                    if (connections != null) {
+                                        snapshot.setClientCount(connections.getActiveClients());
+                                        snapshot.setConnectionErrors(connections.getTotalConnectionErrors());
+                                    }
+
+                                    // Hazelcast ise cluster bilgisi (Redis'te null döner)
+                                    ClusterInfo cluster = monitoringService.getClusterInfo(id);
+                                    if (cluster != null) {
+                                        snapshot.setNodeCount(cluster.getNodeCount());
+                                    }
 
                                     currentSnapshots.add(snapshot);
-                                    // DÜZELTME 2: snapshots.add(snapshot) buradan kaldırıldı (Race condition önlendi)
+                                    logger.debug("Collected real metrics for instance: {}", instance.getName());
 
-                                    logger.debug("Collected metrics for instance: {}", instance.getName());
                                 } catch (Exception e) {
                                     logger.error("Failed to collect metrics for {}: {}", instance.getName(), e.getMessage());
                                 }
