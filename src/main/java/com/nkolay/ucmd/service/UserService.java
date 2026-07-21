@@ -11,6 +11,7 @@ public interface UserService {
     User getUserFromToken(String token);
     User createUser(String username, String password, String email, String role);
     java.util.Collection<User> getAllUsers();
+    void deleteUser(String username);
 
 
 }

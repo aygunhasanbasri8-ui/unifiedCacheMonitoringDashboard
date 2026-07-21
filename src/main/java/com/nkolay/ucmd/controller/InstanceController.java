@@ -18,6 +18,7 @@ public class InstanceController {
     @GetMapping
     public ResponseEntity<List<InstanceRef>> getAllInstances() {
         List<InstanceRef> instances = monitoringService.getAllInstances();
+
         return ResponseEntity.ok(instances);
     }
 
