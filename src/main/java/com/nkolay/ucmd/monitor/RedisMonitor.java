@@ -175,34 +175,46 @@ public class RedisMonitor implements CacheMonitor {
                                       String cursor,
                                       int count) {
         List<KeyInfo> keys = new ArrayList<>();
-        String pattern = (prefix == null || prefix.isEmpty())
-                ? "*" : prefix + "*";
+        String pattern = (prefix == null || prefix.isEmpty()) ? "*" : prefix + "*";
+        // Gelen cursor null/boşsa baştan başla
+        final String startCursor = (cursor == null || cursor.isEmpty()) ? "0" : cursor;
 
         try {
-            ScanOptions options = ScanOptions.scanOptions()
-                    .match(pattern)
-                    .count(count)
-                    .build();
-
-            redisTemplate.execute((RedisCallback<Void>) conn -> {
-                try (Cursor<byte[]> scanCursor = conn.scan(options)) {
-                    int fetched = 0;
-                    while (scanCursor.hasNext() && fetched < count) {
-                        byte[] keyBytes = scanCursor.next();
-                        String keyName = new String(keyBytes, StandardCharsets.UTF_8);
-                        String type = conn.type(keyBytes).code();
-                        long ttl = conn.ttl(keyBytes) * 1000;
-                        keys.add(new KeyInfo(keyName, type, 0, ttl));
-                        fetched++;
-                    }
+            return redisTemplate.execute((RedisCallback<PageInfo<KeyInfo>>) conn -> {
+                Object nativeConn = conn.getNativeConnection();
+                if (!(nativeConn instanceof io.lettuce.core.api.async.RedisAsyncCommands)) {
+                    logger.warn("Native connection is not RedisAsyncCommands, cannot SCAN");
+                    return new PageInfo<>(new ArrayList<>(), "0", false, count);
                 }
-                return null;
+
+                @SuppressWarnings("unchecked")
+                io.lettuce.core.api.async.RedisAsyncCommands<byte[], byte[]> async =
+                        (io.lettuce.core.api.async.RedisAsyncCommands<byte[], byte[]>) nativeConn;
+                io.lettuce.core.api.sync.RedisCommands<byte[], byte[]> sync =
+                        async.getStatefulConnection().sync();
+
+                io.lettuce.core.ScanCursor scanCursor = io.lettuce.core.ScanCursor.of(startCursor);
+                io.lettuce.core.ScanArgs args = io.lettuce.core.ScanArgs.Builder
+                        .matches(pattern).limit(count);
+
+                io.lettuce.core.KeyScanCursor<byte[]> result = sync.scan(scanCursor, args);
+
+                for (byte[] keyBytes : result.getKeys()) {
+                    String keyName = new String(keyBytes, StandardCharsets.UTF_8);
+                    String type = sync.type(keyBytes);
+                    Long ttlSec = sync.ttl(keyBytes);
+                    long ttl = (ttlSec != null && ttlSec >= 0) ? ttlSec * 1000 : (ttlSec != null ? ttlSec : -2);
+                    keys.add(new KeyInfo(keyName, type, 0, ttl));
+                }
+
+                String nextCursor = result.getCursor();
+                boolean hasMore = !result.isFinished();
+
+                logger.debug("Scanned {} keys, pattern '{}', cursor {} -> {}, hasMore={}",
+                        keys.size(), pattern, startCursor, nextCursor, hasMore);
+
+                return new PageInfo<>(keys, nextCursor, hasMore, count);
             });
-
-            logger.debug("Scanned {} keys with pattern '{}' for instance {}",
-                    keys.size(), pattern, instance.getName());
-
-            return new PageInfo<>(keys, "0", false, count);
 
         } catch (Exception e) {
             logger.error("Error scanning keys for {}: {}",
