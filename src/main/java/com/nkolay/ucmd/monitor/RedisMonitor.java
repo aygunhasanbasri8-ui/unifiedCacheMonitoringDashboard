@@ -175,8 +175,9 @@ public class RedisMonitor implements CacheMonitor {
                                       String cursor,
                                       int count) {
         List<KeyInfo> keys = new ArrayList<>();
-        String pattern = (prefix == null || prefix.isEmpty()) ? "*" : prefix + "*";
-        // Gelen cursor null/boşsa baştan başla
+        // "İçeren" arama: *prefix*  (prefix boşsa tüm key'ler)
+        final String search = (prefix == null) ? "" : prefix;
+        String pattern = search.isEmpty() ? "*" : "*" + search + "*";
         final String startCursor = (cursor == null || cursor.isEmpty()) ? "0" : cursor;
 
         try {
@@ -203,8 +204,22 @@ public class RedisMonitor implements CacheMonitor {
                     String keyName = new String(keyBytes, StandardCharsets.UTF_8);
                     String type = sync.type(keyBytes);
                     Long ttlSec = sync.ttl(keyBytes);
-                    long ttl = (ttlSec != null && ttlSec >= 0) ? ttlSec * 1000 : (ttlSec != null ? ttlSec : -2);
+                    long ttl = (ttlSec != null && ttlSec >= 0) ? ttlSec * 1000
+                            : (ttlSec != null ? ttlSec : -2);
                     keys.add(new KeyInfo(keyName, type, 0, ttl));
+                }
+
+                // "Öncelik başındakiler": arama terimiyle BAŞLAYAN key'ler önce,
+                // sadece İÇEREN key'ler sonra. Her grup kendi içinde alfabetik.
+                if (!search.isEmpty()) {
+                    keys.sort((a, b) -> {
+                        boolean aStarts = a.getKeyName().startsWith(search);
+                        boolean bStarts = b.getKeyName().startsWith(search);
+                        if (aStarts != bStarts) {
+                            return aStarts ? -1 : 1;   // başlayan öne
+                        }
+                        return a.getKeyName().compareTo(b.getKeyName()); // ikincil: alfabetik
+                    });
                 }
 
                 String nextCursor = result.getCursor();

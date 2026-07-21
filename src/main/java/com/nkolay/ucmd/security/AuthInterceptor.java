@@ -22,6 +22,11 @@ public class AuthInterceptor implements HandlerInterceptor {
                              HttpServletResponse response,
                              Object handler) throws Exception {
 
+        // CORS preflight (OPTIONS) istekleri auth'tan muaf
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
         String path = request.getRequestURI();
 
         if (path.contains("/auth/login") ||
@@ -66,6 +71,25 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         request.setAttribute("currentUser", user);
+
+        if (handler instanceof org.springframework.web.method.HandlerMethod handlerMethod) {
+            RequireRole requireRole = handlerMethod.getMethodAnnotation(RequireRole.class);
+            if (requireRole == null) {
+                // Metotta yoksa sınıf seviyesinde ara
+                requireRole = handlerMethod.getBeanType().getAnnotation(RequireRole.class);
+            }
+            if (requireRole != null) {
+                String requiredRole = requireRole.value();
+                if (!requiredRole.equalsIgnoreCase(user.getRole())) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write(
+                            "{\"error\": \"Bu işlem için '" + requiredRole + "' yetkisi gerekli\"}");
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 }

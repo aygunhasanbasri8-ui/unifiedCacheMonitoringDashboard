@@ -15,6 +15,7 @@ import com.nkolay.ucmd.model.dto.DataStats;
 import com.nkolay.ucmd.model.dto.ConnectionStats;
 import com.nkolay.ucmd.model.dto.ClusterInfo;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -143,5 +144,13 @@ public class SnapshotScheduler {
         } catch (Exception e) {
             auditService.logError("METRICS_COLLECTION_FAILED", e.getMessage());
         }
+    }
+    public List<MetricSnapshot> getSnapshotsForInstance(Long instanceId, Integer lastMinutes) {
+        if (lastMinutes != null && lastMinutes > 0) {
+            LocalDateTime after = LocalDateTime.now().minusMinutes(lastMinutes);
+            return snapshotRepository
+                    .findByInstanceIdAndCollectedAtAfterOrderByCollectedAtAsc(instanceId, after);
+        }
+        return snapshotRepository.findByInstanceIdOrderByCollectedAtAsc(instanceId);
     }
 }

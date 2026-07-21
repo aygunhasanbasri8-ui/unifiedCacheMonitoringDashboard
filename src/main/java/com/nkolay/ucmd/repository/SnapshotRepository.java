@@ -18,4 +18,9 @@ public interface SnapshotRepository extends JpaRepository<MetricSnapshot, Long>{
             LocalDateTime end
     );
 
+    List<MetricSnapshot> findByInstanceIdOrderByCollectedAtAsc(Long instanceId);
+
+    List<MetricSnapshot> findByInstanceIdAndCollectedAtAfterOrderByCollectedAtAsc(
+            Long instanceId, LocalDateTime after);
+
 }

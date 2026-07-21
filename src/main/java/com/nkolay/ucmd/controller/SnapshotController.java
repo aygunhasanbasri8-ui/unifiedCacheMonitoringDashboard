@@ -15,7 +15,10 @@ public class SnapshotController {
     private SnapshotScheduler snapshotScheduler;
 
     @GetMapping("/{id}/snapshots")
-    public ResponseEntity<List<MetricSnapshot>> getSnapshots(@PathVariable Long id) {
-        return ResponseEntity.ok(snapshotScheduler.getSnapshotsForInstance(id));
+    public ResponseEntity<List<MetricSnapshot>> getSnapshots(
+            @PathVariable Long id,
+            @RequestParam(required = false) Integer lastMinutes) {
+        return ResponseEntity.ok(
+                snapshotScheduler.getSnapshotsForInstance(id, lastMinutes));
     }
 }
