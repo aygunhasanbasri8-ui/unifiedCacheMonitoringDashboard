@@ -241,8 +241,25 @@ public class RedisMonitor implements CacheMonitor {
                     while (cursor.hasNext() && keys.size() < n * 3) {
                         byte[] keyBytes = cursor.next();
                         String keyName = new String(keyBytes, StandardCharsets.UTF_8);
-                        // MEMORY USAGE — sizeBytes şimdilik 0, ilerleyen fazda native komutla eklenecek
-                        long sizeBytes = 0;
+                        // MEMORY USAGE <key> ile gerçek key boyutu
+                        long sizeBytes = 0L;
+                        try {
+                            Object nativeConn = conn.getNativeConnection();
+                            if (nativeConn instanceof io.lettuce.core.api.async.RedisAsyncCommands) {
+                                @SuppressWarnings("unchecked")
+                                io.lettuce.core.api.async.RedisAsyncCommands<byte[], byte[]> async =
+                                        (io.lettuce.core.api.async.RedisAsyncCommands<byte[], byte[]>) nativeConn;
+                                // async komuttan sync komutlara geç
+                                io.lettuce.core.api.sync.RedisCommands<byte[], byte[]> sync =
+                                        async.getStatefulConnection().sync();
+                                Long usage = sync.memoryUsage(keyBytes);
+                                if (usage != null) sizeBytes = usage;
+                            }
+                        } catch (Exception ex) {
+                            logger.warn("MEMORY USAGE failed for key '{}': {}",
+                                    new String(keyBytes, StandardCharsets.UTF_8), ex.getMessage());
+                        }
+
                         String type = conn.type(keyBytes).code();
                         long ttl = conn.ttl(keyBytes) * 1000;
                         keys.add(new KeyInfo(keyName, type, sizeBytes, ttl));
@@ -263,4 +280,24 @@ public class RedisMonitor implements CacheMonitor {
         keys.sort((a, b) -> Long.compare(b.getSizeBytes(), a.getSizeBytes()));
         return keys.stream().limit(n).toList();
     }
+
+    @Override
+    public CacheEfficiencyStats getCacheEfficiency(InstanceRef instance) {
+        try {
+            return redisTemplate.execute((RedisCallback<CacheEfficiencyStats>) conn -> {
+                Properties stats = conn.info("stats");
+                if (stats == null) return new CacheEfficiencyStats(0, 0);
+
+                long hits = Long.parseLong(stats.getProperty("keyspace_hits", "0"));
+                long misses = Long.parseLong(stats.getProperty("keyspace_misses", "0"));
+
+                return new CacheEfficiencyStats(hits, misses);
+            });
+        } catch (Exception e) {
+            logger.error("Error fetching cache efficiency for {}: {}",
+                    instance.getName(), e.getMessage(), e);
+            return new CacheEfficiencyStats(0, 0);
+        }
+    }
+
 }

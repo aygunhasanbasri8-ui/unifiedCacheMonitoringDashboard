@@ -116,4 +116,16 @@ public class MonitoringServiceImpl implements MonitoringService {
             return null;
         }
     }
+
+    @Override
+    public CacheEfficiencyStats getCacheEfficiency(Long id) {
+        InstanceRef instance = instanceRepository.findById(id).orElse(null);
+        if (instance == null) return null;
+
+        try {
+            return monitorRegistry.getMonitor(instance).getCacheEfficiency(instance);
+        } catch (Exception e) {
+            return new CacheEfficiencyStats(0, 0);
+        }
+    }
 }

@@ -1,0 +1,5 @@
+$kind: http-request
+name: Hit/Miss
+url: "{{baseUrl}}/api/v1/instances/1/efficiency"
+method: GET
+order: 1834611690704355

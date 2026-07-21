@@ -34,4 +34,6 @@ public interface CacheMonitor {
     List<KeyInfo> getTopNKeys(InstanceRef instance, int n);
 
     long getKeyTTL(InstanceRef instance, String key);
+
+    CacheEfficiencyStats getCacheEfficiency(InstanceRef instance);
 }

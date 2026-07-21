@@ -1,9 +1,6 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.dto.HealthInfo;
-import com.nkolay.ucmd.model.dto.ResourceStats;
-import com.nkolay.ucmd.model.dto.ConnectionStats;
-import com.nkolay.ucmd.model.dto.DataStats;
+import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -46,6 +43,15 @@ public class MetricsController {
     @GetMapping("/{id}/data-stats")
     public ResponseEntity<DataStats> getDataStats(@PathVariable Long id) {
         DataStats stats = monitoringService.getDataStats(id);
+        if (stats != null) {
+            return ResponseEntity.ok(stats);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{id}/efficiency")
+    public ResponseEntity<CacheEfficiencyStats> getCacheEfficiency(@PathVariable Long id) {
+        CacheEfficiencyStats stats = monitoringService.getCacheEfficiency(id);
         if (stats != null) {
             return ResponseEntity.ok(stats);
         }

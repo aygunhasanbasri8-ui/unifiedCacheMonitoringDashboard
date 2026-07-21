@@ -215,6 +215,10 @@ public class HazelcastMonitor implements CacheMonitor {
         }
     }
 
+    @Override
+    public CacheEfficiencyStats getCacheEfficiency(InstanceRef instance) {
+        return new CacheEfficiencyStats(0, 0);
+    }
 
 
 }
