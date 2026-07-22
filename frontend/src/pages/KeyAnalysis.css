@@ -1,0 +1,118 @@
+.key-analysis-page {
+  padding: 28px 32px;
+}
+
+.key-analysis-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.key-analysis-search {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.key-analysis-search-input {
+  flex: 1;
+  max-width: 360px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.key-analysis-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.key-analysis-search-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.key-analysis-search-button:hover {
+  background: var(--accent-hover);
+}
+
+.key-analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.key-analysis-table th,
+.key-analysis-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.key-analysis-table th {
+  color: var(--text-dim);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.key-analysis-table tr:last-child td {
+  border-bottom: none;
+}
+
+.key-analysis-empty {
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.key-analysis-load-more {
+  margin-top: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.key-analysis-load-more:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.key-analysis-load-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.key-analysis-top {
+  margin-top: 36px;
+}
+
+.key-analysis-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: var(--text-dim);
+}
+
+.key-analysis-status {
+  color: var(--text-dim);
+}
+
+.key-analysis-error {
+  color: var(--red);
+}

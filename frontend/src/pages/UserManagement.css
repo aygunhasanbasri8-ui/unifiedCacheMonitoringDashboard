@@ -1,0 +1,176 @@
+.user-management-page {
+  padding: 28px 32px;
+}
+
+.user-management-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.user-management-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: var(--text-dim);
+}
+
+.user-management-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.user-management-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.user-management-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-management-field label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.user-management-field input,
+.user-management-field select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  min-width: 160px;
+}
+
+.user-management-field input:focus,
+.user-management-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.user-management-create-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.user-management-create-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.user-management-create-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.user-management-success {
+  color: var(--green);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.user-management-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.user-management-table th,
+.user-management-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.user-management-table th {
+  color: var(--text-dim);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.user-management-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.user-management-table tr:last-child td {
+  border-bottom: none;
+}
+
+.user-management-role {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.user-management-role-admin {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+}
+
+.user-management-role-monitor {
+  background: var(--bg-hover);
+  color: var(--text-dim);
+}
+
+.user-management-active {
+  color: var(--green);
+}
+
+.user-management-inactive {
+  color: var(--text-dim);
+}
+
+.user-management-delete-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--red);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.user-management-delete-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--red);
+}
+
+.user-management-delete-disabled {
+  color: var(--text-dim);
+}
+
+.user-management-empty {
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.user-management-status {
+  color: var(--text-dim);
+}
+
+.user-management-error {
+  color: var(--red);
+  font-size: 13px;
+  margin-bottom: 12px;
+}

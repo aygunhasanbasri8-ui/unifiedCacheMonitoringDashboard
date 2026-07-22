@@ -1,0 +1,88 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 56px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.navbar-hamburger {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.navbar-hamburger:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.navbar-back {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.navbar-back:hover {
+  color: var(--text);
+}
+
+.navbar-links {
+  display: flex;
+  gap: 20px;
+}
+
+.navbar-links a {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.navbar-links a:hover {
+  color: var(--text);
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar-username {
+  color: var(--text-dim);
+}
+
+.navbar-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.navbar-logout:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
