@@ -1,5 +1,9 @@
 $kind: http-request
 name: New Request
-url: ""
+url: "{{baseUrl}}/api/v1/instances/1/keys?prefix=test:&count=10&cursor=16"
 method: GET
+queryParams:
+  prefix: "test:"
+  count: "10"
+  cursor: "16"
 order: 3634777264705671
