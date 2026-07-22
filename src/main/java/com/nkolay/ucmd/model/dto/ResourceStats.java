@@ -2,6 +2,10 @@
 package com.nkolay.ucmd.model.dto;
 
 public class ResourceStats {
+
+    private long memoryRssBytes;   // İşletim sisteminin gördüğü gerçek bellek
+    public long getMemoryRssBytes() { return memoryRssBytes; }
+    public void setMemoryRssBytes(long memoryRssBytes) { this.memoryRssBytes = memoryRssBytes; }
     private double cpuUsagePercent;
     private long memoryUsedBytes;
     private long memoryMaxBytes;
@@ -14,7 +18,9 @@ public class ResourceStats {
         this.cpuUsagePercent = cpuUsagePercent;
         this.memoryUsedBytes = memoryUsedBytes;
         this.memoryMaxBytes = memoryMaxBytes;
-        this.memoryUsagePercent = memoryMaxBytes > 0 ? (double) memoryUsedBytes / memoryMaxBytes * 100 : 0;}
+        this.memoryUsagePercent = memoryMaxBytes > 0 ? (double) memoryUsedBytes / memoryMaxBytes * 100 : 0;
+        
+    }
 
     public double getCpuUsagePercent() { return cpuUsagePercent; }
     public void setCpuUsagePercent(double cpuUsagePercent) { this.cpuUsagePercent = cpuUsagePercent; }

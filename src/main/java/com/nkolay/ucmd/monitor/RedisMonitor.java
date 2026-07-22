@@ -17,6 +17,8 @@ import java.util.*;
 @Component
 public class RedisMonitor implements CacheMonitor {
 
+    private final java.util.Map<Long, double[]> lastCpuSample = new java.util.concurrent.ConcurrentHashMap<>();
+
     private static final Logger logger = LoggerFactory.getLogger(RedisMonitor.class);
 
     private final RedisTemplate<String, String> redisTemplate;
@@ -74,6 +76,7 @@ public class RedisMonitor implements CacheMonitor {
         try {
             return redisTemplate.execute((RedisCallback<ResourceStats>) conn -> {
                 Properties memInfo = conn.info("memory");
+                Properties cpuInfo = conn.info("cpu");
                 if (memInfo == null) return new ResourceStats(0, 0, 0);
 
                 long usedMemory = Long.parseLong(
@@ -82,17 +85,61 @@ public class RedisMonitor implements CacheMonitor {
                         memInfo.getProperty("maxmemory", "0"));
                 double fragRatio = Double.parseDouble(
                         memInfo.getProperty("mem_fragmentation_ratio", "1.0"));
+                long usedMemoryRss = Long.parseLong(
+                        memInfo.getProperty("used_memory_rss", "0"));
 
-                if (maxMemory == 0) maxMemory = usedMemory * 3;
+                // --- CPU delta hesabı ---
+                double cpuPercent = calculateCpuPercent(instance.getId(), cpuInfo);
 
-                ResourceStats stats = new ResourceStats(0.0, usedMemory, maxMemory);
+                ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
                 stats.setFragmentationRatio(fragRatio);
+                stats.setMemoryRssBytes(usedMemoryRss);   // YENİ
+
                 return stats;
             });
         } catch (Exception e) {
             logger.error("Error fetching resource stats for {}: {}",
                     instance.getName(), e.getMessage(), e);
             return new ResourceStats(0, 0, 0);
+        }
+    }
+
+    /**
+     * Redis'in kümülatif CPU sayaçlarından anlık CPU yüzdesi hesaplar.
+     * İlk çağrıda referans yok, 0 döner; sonraki çağrılarda delta kullanılır.
+     */
+    private double calculateCpuPercent(Long instanceId, Properties cpuInfo) {
+        if (cpuInfo == null || instanceId == null) return 0.0;
+
+        try {
+            double sys = Double.parseDouble(cpuInfo.getProperty("used_cpu_sys", "0"));
+            double user = Double.parseDouble(cpuInfo.getProperty("used_cpu_user", "0"));
+            double totalCpuSeconds = sys + user;
+            long now = System.currentTimeMillis();
+
+            double[] previous = lastCpuSample.get(instanceId);
+            lastCpuSample.put(instanceId, new double[]{totalCpuSeconds, now});
+
+            if (previous == null) {
+                return 0.0;
+            }
+
+            double cpuDelta = totalCpuSeconds - previous[0];
+            double timeDeltaSeconds = (now - previous[1]) / 1000.0;
+
+            if (timeDeltaSeconds <= 0) return 0.0;
+
+            double percent = (cpuDelta / timeDeltaSeconds) * 100.0;
+
+            // Negatif (Redis restart olmuşsa sayaç sıfırlanır) veya saçma değerleri düzelt
+            if (percent < 0) return 0.0;
+            if (percent > 100) return 100.0;
+
+            return Math.round(percent * 100.0) / 100.0;
+
+        } catch (Exception e) {
+            logger.warn("CPU delta hesaplanamadı: {}", e.getMessage());
+            return 0.0;
         }
     }
 
@@ -131,8 +178,6 @@ public class RedisMonitor implements CacheMonitor {
                         memInfo.getProperty("used_memory", "0"));
                 long maxMemory = Long.parseLong(
                         memInfo.getProperty("maxmemory", "0"));
-                if (maxMemory == 0) maxMemory = usedMemory * 3;
-
                 double fragRatio = Double.parseDouble(
                         memInfo.getProperty("mem_fragmentation_ratio", "1.0"));
 
