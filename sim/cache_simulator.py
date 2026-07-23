@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 # --- Bağlantı ---
-r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+r = redis.Redis(host='localhost', port=6380, decode_responses=True)
 
 # --- Sabitler ---
 PREFIX = "ucmd"

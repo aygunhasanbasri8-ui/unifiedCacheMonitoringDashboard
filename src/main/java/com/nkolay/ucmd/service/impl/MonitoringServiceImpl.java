@@ -28,12 +28,12 @@ public class MonitoringServiceImpl implements MonitoringService {
     }
 
     @PostConstruct
-    public void initDefaultInstance () {
-        if (instanceRepository.count() == 0){
-            instanceRepository.save(new InstanceRef(null,"Redis-prod", "REDIS", "localhost", 6379, true));
-            instanceRepository.save(new InstanceRef(null,"Hazelcast-cluster", "HAZELCAST", "localhost", 5701, true));
+    public void initDefaultInstance() {
+        if (instanceRepository.count() == 0) {
+            instanceRepository.save(new InstanceRef(null, "Redis-prod", "REDIS", "localhost", 6379, true));
+            instanceRepository.save(new InstanceRef(null, "Hazelcast-cluster", "HAZELCAST", "localhost", 5701, true));
+            instanceRepository.save(new InstanceRef(null, "Redis-cache", "REDIS", "localhost", 6380, true));
         }
-
     }
 
     // ===== Instance CRUD =====

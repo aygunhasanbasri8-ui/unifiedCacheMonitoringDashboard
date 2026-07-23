@@ -45,7 +45,7 @@ hazelcast:
   username: ${HAZELCAST_USERNAME:}
   password: ${HAZELCAST_PASSWORD:}
   tls-enabled: ${HAZELCAST_TLS_ENABLED:false}
-  metrics-url: http://localhost:9404/metrics
+  metrics-urls: http://localhost:9404/metrics, http://localhost:9405/metrics
 
 app:
   environment: ${APP_ENVIRONMENT:development}

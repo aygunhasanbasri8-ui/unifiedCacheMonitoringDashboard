@@ -2,8 +2,18 @@ services:
   redis:
     image: redis:7
     container_name: redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
+    networks:
+      - ucmd-net
+
+  redis-2:
+    image: redis:7
+    container_name: redis-2
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
     networks:
       - ucmd-net
 
@@ -13,12 +23,27 @@ services:
     ports:
       - "5701:5701"
       - "9404:9404"
-
     environment:
-      HZ_CLUSTERNAME: dev
-      JAVA_OPTS: "-javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/opt/jmx/config.yaml"
+      HZ_NETWORK_PUBLICADDRESS: "hazelcast:5701"
+      JAVA_OPTS: "-Dhazelcast.config=/opt/hazelcast/config/hazelcast.xml -javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/opt/jmx/config.yaml"
     volumes:
       - ./jmx:/opt/jmx:ro
+      - ./hazelcast/hazelcast.xml:/opt/hazelcast/config/hazelcast.xml:ro
+    networks:
+      - ucmd-net
+
+  hazelcast-2:
+    image: hazelcast/hazelcast:5.3.8
+    container_name: hazelcast-2
+    ports:
+      - "5702:5701"
+      - "9405:9404"
+    environment:
+      HZ_NETWORK_PUBLICADDRESS: "hazelcast-2:5701"
+      JAVA_OPTS: "-Dhazelcast.config=/opt/hazelcast/config/hazelcast.xml -javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/opt/jmx/config.yaml"
+    volumes:
+      - ./jmx:/opt/jmx:ro
+      - ./hazelcast/hazelcast.xml:/opt/hazelcast/config/hazelcast.xml:ro
     networks:
       - ucmd-net
 

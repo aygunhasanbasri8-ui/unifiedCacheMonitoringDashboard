@@ -10,7 +10,9 @@ variables:
     secret: true
   - key: json_web_token_02jt
     secret: true
+  - key: supabase_service_role_api_key_0p36
+    secret: true
 auth:
   type: bearer
   credentials:
-    token: "{{json_web_token_02jt}}"
+    token: "{{supabase_service_role_api_key_0p36}}"

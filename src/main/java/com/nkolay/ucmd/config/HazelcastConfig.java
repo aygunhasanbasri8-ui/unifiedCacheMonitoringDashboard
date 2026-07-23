@@ -30,6 +30,11 @@ public class HazelcastConfig {
         config.setClusterName(clusterName);
         logger.info("Connecting to Hazelcast cluster: {}", clusterName);
 
+
+        //Unisocket Ayarı
+        config.getNetworkConfig().setSmartRouting(false);
+
+
         // Member adresleri
         String[] memberList = members.split(",");
         for (String member : memberList) {
@@ -55,6 +60,7 @@ public class HazelcastConfig {
                 .setInitialBackoffMillis(1000)
                 .setMaxBackoffMillis(30000)
                 .setMultiplier(1.5);
+
 
         logger.info("Hazelcast client configuration complete");
         return HazelcastClient.newHazelcastClient(config);

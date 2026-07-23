@@ -73,27 +73,27 @@ public class HazelcastMonitor implements CacheMonitor {
     @Override
     public ResourceStats getResourceStats(InstanceRef instance) {
         try {
-            Map<String, Double> metrics = metricsClient.fetchMetrics();
+            List<Map<String, Double>> nodes = metricsClient.fetchAllNodes();
 
-            if (metrics.isEmpty()) {
+            if (nodes.isEmpty()) {
                 logger.debug("Hazelcast metrics unavailable, returning zeros");
                 return new ResourceStats(0, 0, 0);
             }
 
-            // Gerçek heap kullanımı (jmx_exporter'dan)
-            long usedMemory = (long) metricsClient.findMetric(
-                    metrics, "jvm_memory_bytes_used", "area=\"heap\"");
-            long maxMemory = (long) metricsClient.findMetric(
-                    metrics, "jvm_memory_bytes_max", "area=\"heap\"");
+            // Cluster toplam heap kullanımı (tüm node'lar toplanır)
+            long usedMemory = (long) metricsClient.sumAcrossNodes(
+                    nodes, "jvm_memory_bytes_used", "area=\"heap\"");
+            long maxMemory = (long) metricsClient.sumAcrossNodes(
+                    nodes, "jvm_memory_bytes_max", "area=\"heap\"");
 
-            // CPU: Hazelcast processcpuload 0-1 arası, yüzdeye çevir
-            double cpuPercent = metricsClient.findMetric(
-                    metrics, "com_hazelcast_metrics_processcpuload", null) * 100;
+            // CPU: node ortalaması (oransal değer, toplanmaz)
+            double cpuPercent = metricsClient.avgAcrossNodes(
+                    nodes, "com_hazelcast_metrics_processcpuload", null) * 100;
             cpuPercent = Math.round(cpuPercent * 100.0) / 100.0;
 
-            ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
-            // Hazelcast'te fragmentasyon kavramı yok, 0 bırak
-            return stats;
+            logger.info(">>> HZ resources: {} node, heap {} bytes", nodes.size(), usedMemory);
+
+            return new ResourceStats(cpuPercent, usedMemory, maxMemory);
 
         } catch (Exception e) {
             logger.error("Error fetching Hazelcast resource stats: {}", e.getMessage(), e);
@@ -283,7 +283,8 @@ public class HazelcastMonitor implements CacheMonitor {
     }
 
     private boolean matchesPatternHz(String mapName, String pattern) {
-        return  false;
+
+        return matchesPattern(mapName, pattern);
     }
 
     private boolean matchesPattern(String keyName, String pattern) {

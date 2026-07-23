@@ -9,4 +9,4 @@ scrape_configs:
 
   - job_name: 'hazelcast'
     static_configs:
-      - targets: ['hazelcast:9404']
+      - targets: ['hazelcast:9404', 'hazelcast-2:9404']
