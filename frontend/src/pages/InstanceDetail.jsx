@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import client from "../api/client";
 import MetricCard from "../components/MetricCard";
+import DonutMetric from "../components/DonutMetric";
 import RefreshIndicator from "../components/RefreshIndicator";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
 import { formatBytes, formatUptime, formatPercent, formatTime } from "../utils/format";
@@ -163,6 +164,8 @@ export default function InstanceDetail() {
     return <div className="instance-detail-error">{error}</div>;
   }
 
+  const isHazelcast = instance?.type === "HAZELCAST";
+
   return (
     <div className="instance-detail-page">
       <div className="instance-detail-header">
@@ -173,9 +176,30 @@ export default function InstanceDetail() {
             onRefresh={() => fetchMetrics(instance?.type)}
           />
           <Link className="instance-detail-link" to={`/instances/${id}/keys`}>
-            Key Analizi →
+            {isHazelcast ? "IMap Listesi →" : "Key Analizi →"}
           </Link>
         </div>
+      </div>
+
+      <div className="instance-detail-donuts">
+        <DonutMetric
+          title="CPU Kullanımı"
+          percent={resources?.cpuUsagePercent}
+          status={resources ? evaluateStatus("cpuUsagePercent", resources.cpuUsagePercent) : "ok"}
+        />
+        <DonutMetric
+          title="Bellek Kullanım Yüzdesi"
+          percent={resources?.memoryUsagePercent}
+          status={resources ? evaluateStatus("memoryUsagePercent", resources.memoryUsagePercent) : "ok"}
+        />
+        {!isHazelcast && (
+          <DonutMetric
+            title="Hit Ratio"
+            percent={efficiency?.hitRatio != null ? efficiency.hitRatio * 100 : null}
+            status={efficiency ? evaluateStatus("hitRatio", efficiency.hitRatio) : "ok"}
+            subtitle={efficiency?.missRatio != null ? `Miss: ${formatPercent(efficiency.missRatio * 100)}` : ""}
+          />
+        )}
       </div>
 
       <div className="instance-detail-grid">
@@ -196,35 +220,31 @@ export default function InstanceDetail() {
           status={resources ? evaluateStatus("memoryUsagePercent", resources.memoryUsagePercent) : "ok"}
         />
         <MetricCard
-          title="CPU Kullanımı"
-          value={resources ? formatPercent(resources.cpuUsagePercent) : "-"}
-        />
-        <MetricCard
           title="Aktif Bağlantılar"
           value={connections?.activeClients ?? "-"}
           subtitle={
-            connections
+            connections && !isHazelcast
               ? `Hata: ${connections.totalConnectionErrors} · Reddedilen: ${connections.rejectedConnections}`
               : ""
           }
-          status={connections ? evaluateStatus("connectionErrors", connections.totalConnectionErrors) : "ok"}
+          status={
+            connections && !isHazelcast
+              ? evaluateStatus("connectionErrors", connections.totalConnectionErrors)
+              : "ok"
+          }
         />
         <MetricCard
           title="Toplam Key Sayısı"
           value={dataStats?.totalKeyCount ?? "-"}
-          subtitle={dataStats ? `Fragmentasyon: ${dataStats.fragmentationRatio}` : ""}
+          subtitle={dataStats && !isHazelcast ? `Fragmentasyon: ${dataStats.fragmentationRatio}` : ""}
         />
-        <MetricCard
-          title="Hit Ratio"
-          value={efficiency ? formatPercent(efficiency.hitRatio * 100) : "-"}
-          subtitle={efficiency ? `Miss: ${formatPercent(efficiency.missRatio * 100)}` : ""}
-          status={efficiency ? evaluateStatus("hitRatio", efficiency.hitRatio) : "ok"}
-        />
-        <MetricCard
-          title="Fragmentasyon Oranı"
-          value={resources ? resources.fragmentationRatio.toFixed(2) : "-"}
-          status={resources ? evaluateStatus("fragmentationRatio", resources.fragmentationRatio) : "ok"}
-        />
+        {!isHazelcast && (
+          <MetricCard
+            title="Fragmentasyon Oranı"
+            value={resources ? resources.fragmentationRatio.toFixed(2) : "-"}
+            status={resources ? evaluateStatus("fragmentationRatio", resources.fragmentationRatio) : "ok"}
+          />
+        )}
       </div>
 
       <div className="instance-detail-cluster">
@@ -277,13 +297,15 @@ export default function InstanceDetail() {
               color="var(--yellow)"
               seriesName="Bağlantı"
             />
-            <TimeSeriesChart
-              title="Bellek Fragmentasyon Oranı"
-              data={snapshots}
-              dataKey="fragmentationRatio"
-              color="var(--red)"
-              seriesName="Fragmentasyon"
-            />
+            {!isHazelcast && (
+              <TimeSeriesChart
+                title="Bellek Fragmentasyon Oranı"
+                data={snapshots}
+                dataKey="fragmentationRatio"
+                color="var(--red)"
+                seriesName="Fragmentasyon"
+              />
+            )}
           </div>
         )}
       </div>

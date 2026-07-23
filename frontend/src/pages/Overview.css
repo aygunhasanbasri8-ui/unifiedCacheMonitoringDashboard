@@ -41,6 +41,12 @@
   margin-top: 2px;
 }
 
+.overview-summary-caption {
+  color: var(--text-dim);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
 .overview-summary-up .overview-summary-value {
   color: var(--green);
 }
@@ -95,6 +101,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+  margin-bottom: 24px;
 }
 
 .overview-status {

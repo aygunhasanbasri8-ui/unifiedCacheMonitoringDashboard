@@ -114,5 +114,30 @@
 .sidebar-footer {
   margin-top: auto;
   padding: 8px;
-  border-top: 1px solid var(--border);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.sidebar-item-overview {
+  font-weight: 600;
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.sidebar-group-title {
+  padding: 6px 12px 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

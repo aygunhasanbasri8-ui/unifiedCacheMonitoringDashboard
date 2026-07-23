@@ -45,6 +45,16 @@ export default function InstanceCard({ instance, health, keyCount, hitRatio, act
           <span className="instance-card-metric-value">{activeClients ?? "-"}</span>
         </div>
       </div>
+      <button
+        type="button"
+        className="instance-card-action"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/instances/${instance.id}/keys`);
+        }}
+      >
+        {instance.type === "HAZELCAST" ? "IMap Listesi →" : "Key Analizi →"}
+      </button>
     </div>
   );
 }

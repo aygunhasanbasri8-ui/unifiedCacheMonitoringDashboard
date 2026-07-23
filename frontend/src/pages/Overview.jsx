@@ -45,7 +45,7 @@ function buildAlerts(instances, metricsById) {
       }
     }
 
-    if (m.efficiency?.hitRatio != null) {
+    if (instance.type === "REDIS" && m.efficiency?.hitRatio != null) {
       const s = evaluateStatus("hitRatio", m.efficiency.hitRatio);
       if (s !== "ok") {
         alerts.push({
@@ -57,7 +57,7 @@ function buildAlerts(instances, metricsById) {
       }
     }
 
-    if (m.resources?.fragmentationRatio != null) {
+    if (instance.type === "REDIS" && m.resources?.fragmentationRatio != null) {
       const s = evaluateStatus("fragmentationRatio", m.resources.fragmentationRatio);
       if (s !== "ok") {
         alerts.push({
@@ -215,6 +215,7 @@ export default function Overview() {
   }, 0);
 
   const hitRatios = instances
+    .filter((i) => i.type === "REDIS")
     .map((i) => metricsById[i.id]?.efficiency?.hitRatio)
     .filter((v) => v != null);
   const avgHitRatio =
@@ -242,6 +243,19 @@ export default function Overview() {
 
       {!loading && !error && (
         <>
+          <div className="overview-grid">
+            {instances.map((instance) => (
+              <InstanceCard
+                key={instance.id}
+                instance={instance}
+                health={metricsById[instance.id]?.health?.status ?? null}
+                keyCount={metricsById[instance.id]?.dataStats?.totalKeyCount}
+                hitRatio={metricsById[instance.id]?.efficiency?.hitRatio}
+                activeClients={metricsById[instance.id]?.connections?.activeClients}
+              />
+            ))}
+          </div>
+
           <div className="overview-summary">
             <div className="overview-summary-box">
               <div className="overview-summary-value">{instances.length}</div>
@@ -265,9 +279,10 @@ export default function Overview() {
             </div>
             <div className="overview-summary-box">
               <div className="overview-summary-value">
-                {avgHitRatio != null ? formatPercent(avgHitRatio * 100) : "-"}
+                {avgHitRatio != null ? formatPercent(avgHitRatio * 100) : "—"}
               </div>
               <div className="overview-summary-label">Ortalama Hit Ratio</div>
+              <div className="overview-summary-caption">(yalnızca Redis)</div>
             </div>
             <div className={`overview-summary-box ${criticalCount > 0 ? "overview-summary-down" : ""}`}>
               <div className="overview-summary-value">{criticalCount}</div>
@@ -353,19 +368,6 @@ export default function Overview() {
                 ))}
               </ul>
             )}
-          </div>
-
-          <div className="overview-grid">
-            {instances.map((instance) => (
-              <InstanceCard
-                key={instance.id}
-                instance={instance}
-                health={metricsById[instance.id]?.health?.status ?? null}
-                keyCount={metricsById[instance.id]?.dataStats?.totalKeyCount}
-                hitRatio={metricsById[instance.id]?.efficiency?.hitRatio}
-                activeClients={metricsById[instance.id]?.connections?.activeClients}
-              />
-            ))}
           </div>
         </>
       )}

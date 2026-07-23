@@ -230,3 +230,33 @@
   color: var(--text-dim);
   font-weight: 500;
 }
+
+.key-analysis-pattern-row-static {
+  cursor: default;
+}
+
+.key-analysis-pattern-row-static:hover {
+  border-color: var(--border);
+  background: var(--bg-card);
+}
+
+.key-analysis-row-clickable {
+  cursor: pointer;
+}
+
+.key-analysis-row-clickable:hover {
+  background: var(--bg-hover);
+}
+
+.key-analysis-expand-row td {
+  background: var(--bg);
+  padding: 8px 14px;
+}
+
+.key-analysis-expand-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+}

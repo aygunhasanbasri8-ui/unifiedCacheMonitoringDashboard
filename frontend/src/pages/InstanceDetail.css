@@ -31,6 +31,13 @@
   gap: 16px;
 }
 
+.instance-detail-donuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
 .instance-detail-cluster {
   margin-top: 32px;
 }

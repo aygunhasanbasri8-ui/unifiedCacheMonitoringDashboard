@@ -106,3 +106,19 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+.instance-card-action {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.instance-card-action:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { useParams } from "react-router-dom";
 import client from "../api/client";
 import { formatBytes, formatTtl } from "../utils/format";
@@ -28,8 +28,11 @@ export default function KeyAnalysis() {
   const [patternsLoading, setPatternsLoading] = useState(true);
   const [patternsError, setPatternsError] = useState("");
 
+  const [expandedMaps, setExpandedMaps] = useState(() => new Set());
+
   const instanceName = instance?.name ?? "";
   const isHazelcast = instance?.type === "HAZELCAST";
+  const unitWord = isHazelcast ? "IMap" : "key";
 
   useEffect(() => {
     client
@@ -118,17 +121,33 @@ export default function KeyAnalysis() {
     fetchPage(prefix, "0", false);
   }
 
+  function toggleExpand(name) {
+    setExpandedMaps((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  }
+
   const sortedPatterns = [...patterns].sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);
   const totalPatternKeyCount = patterns.reduce((sum, p) => sum + p.keyCount, 0);
   const totalPatternSize = patterns.reduce((sum, p) => sum + p.totalSizeBytes, 0);
 
   return (
     <div className="key-analysis-page">
-      <h1 className="key-analysis-title">Key Analizi - {instanceName || `#${id}`}</h1>
+      <h1 className="key-analysis-title">
+        {isHazelcast ? "IMap Listesi" : "Key Analizi"} - {instanceName || `#${id}`}
+      </h1>
 
       <div className="key-analysis-patterns">
         <div className="key-analysis-patterns-header">
-          <h2 className="key-analysis-section-title">Key Desen Dağılımı</h2>
+          <h2 className="key-analysis-section-title">
+            {isHazelcast ? "IMap Dağılımı" : "Key Desen Dağılımı"}
+          </h2>
           <button
             type="button"
             className="key-analysis-patterns-refresh"
@@ -144,7 +163,7 @@ export default function KeyAnalysis() {
           <div className="key-analysis-error">{patternsError}</div>
         )}
         {!patternsLoading && !patternsError && patterns.length === 0 && (
-          <div className="key-analysis-empty-patterns">Bu instance'ta henüz key bulunmuyor.</div>
+          <div className="key-analysis-empty-patterns">Bu instance'ta henüz {unitWord} bulunmuyor.</div>
         )}
 
         {!patternsLoading && !patternsError && patterns.length > 0 && (
@@ -158,9 +177,9 @@ export default function KeyAnalysis() {
                 return (
                   <li
                     key={p.pattern}
-                    className="key-analysis-pattern-row"
-                    onClick={() => handlePatternClick(p.pattern)}
-                    title={`"${p.pattern}" ile ara`}
+                    className={`key-analysis-pattern-row ${isHazelcast ? "key-analysis-pattern-row-static" : ""}`}
+                    onClick={isHazelcast ? undefined : () => handlePatternClick(p.pattern)}
+                    title={isHazelcast ? undefined : `"${p.pattern}" ile ara`}
                   >
                     <div className="key-analysis-pattern-info">
                       <span className="key-analysis-pattern-label">{p.label}</span>
@@ -173,7 +192,7 @@ export default function KeyAnalysis() {
                       />
                     </div>
                     <div className="key-analysis-pattern-stats">
-                      <span>{p.keyCount} key ({countPercent.toFixed(1)}%)</span>
+                      <span>{p.keyCount} {unitWord} ({countPercent.toFixed(1)}%)</span>
                       <span>
                         {isHazelcast ? `Entry: ${p.totalSizeBytes}` : formatBytes(p.totalSizeBytes)}
                         {" "}({sizePercent.toFixed(1)}%)
@@ -185,25 +204,27 @@ export default function KeyAnalysis() {
             </ul>
 
             <div className="key-analysis-pattern-total">
-              Toplam: {totalPatternKeyCount} key,{" "}
+              Toplam: {totalPatternKeyCount} {unitWord},{" "}
               {isHazelcast ? `${totalPatternSize} entry` : formatBytes(totalPatternSize)}
             </div>
           </>
         )}
       </div>
 
-      <form className="key-analysis-search" onSubmit={handleSearch}>
-        <input
-          className="key-analysis-search-input"
-          type="text"
-          placeholder="Key prefix'i ile ara (örn: user:)"
-          value={prefixInput}
-          onChange={(e) => setPrefixInput(e.target.value)}
-        />
-        <button type="submit" className="key-analysis-search-button">
-          Ara
-        </button>
-      </form>
+      {!isHazelcast && (
+        <form className="key-analysis-search" onSubmit={handleSearch}>
+          <input
+            className="key-analysis-search-input"
+            type="text"
+            placeholder="Key prefix'i ile ara (örn: user:)"
+            value={prefixInput}
+            onChange={(e) => setPrefixInput(e.target.value)}
+          />
+          <button type="submit" className="key-analysis-search-button">
+            Ara
+          </button>
+        </form>
+      )}
 
       {loading && <div className="key-analysis-status">Yükleniyor...</div>}
       {error && <div className="key-analysis-error">{error}</div>}
@@ -213,24 +234,43 @@ export default function KeyAnalysis() {
           <table className="key-analysis-table">
             <thead>
               <tr>
-                <th>Key Adı</th>
-                <th>Tip</th>
-                <th>Boyut</th>
-                <th>TTL</th>
+                <th>{isHazelcast ? "IMap Adı" : "Key Adı"}</th>
+                {!isHazelcast && <th>Tip</th>}
+                <th>{isHazelcast ? "Entry Sayısı" : "Boyut"}</th>
+                {!isHazelcast && <th>TTL</th>}
               </tr>
             </thead>
             <tbody>
-              {keys.map((key) => (
-                <tr key={key.keyName}>
-                  <td>{key.keyName}</td>
-                  <td>{key.keyType}</td>
-                  <td>{formatBytes(key.sizeBytes)}</td>
-                  <td>{formatTtl(key.ttlMillis)}</td>
-                </tr>
-              ))}
+              {keys.map((key) => {
+                const isExpanded = expandedMaps.has(key.keyName);
+                return (
+                  <Fragment key={key.keyName}>
+                    <tr
+                      className={isHazelcast ? "key-analysis-row-clickable" : ""}
+                      onClick={isHazelcast ? () => toggleExpand(key.keyName) : undefined}
+                    >
+                      <td>{key.keyName}</td>
+                      {!isHazelcast && <td>{key.keyType}</td>}
+                      <td>{isHazelcast ? key.sizeBytes : formatBytes(key.sizeBytes)}</td>
+                      {!isHazelcast && <td>{formatTtl(key.ttlMillis)}</td>}
+                    </tr>
+                    {isHazelcast && isExpanded && (
+                      <tr className="key-analysis-expand-row">
+                        <td colSpan={2}>
+                          <div className="key-analysis-expand-detail">
+                            <span>Map Adı: {key.keyName}</span>
+                            <span>Entry Sayısı: {key.sizeBytes}</span>
+                            <span>Tip: {key.keyType ?? "-"}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
               {keys.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="key-analysis-empty">
+                  <td colSpan={isHazelcast ? 2 : 4} className="key-analysis-empty">
                     Sonuç bulunamadı.
                   </td>
                 </tr>
@@ -252,7 +292,9 @@ export default function KeyAnalysis() {
       )}
 
       <div className="key-analysis-top">
-        <h2 className="key-analysis-section-title">En Büyük Key'ler</h2>
+        <h2 className="key-analysis-section-title">
+          {isHazelcast ? "En Büyük IMap'ler" : "En Büyük Key'ler"}
+        </h2>
 
         {topLoading && <div className="key-analysis-status">Yükleniyor...</div>}
         {topError && <div className="key-analysis-error">{topError}</div>}
@@ -261,19 +303,19 @@ export default function KeyAnalysis() {
           <table className="key-analysis-table">
             <thead>
               <tr>
-                <th>Key Adı</th>
-                <th>Tip</th>
-                <th>Boyut</th>
-                <th>TTL</th>
+                <th>{isHazelcast ? "IMap Adı" : "Key Adı"}</th>
+                {!isHazelcast && <th>Tip</th>}
+                <th>{isHazelcast ? "Entry Sayısı" : "Boyut"}</th>
+                {!isHazelcast && <th>TTL</th>}
               </tr>
             </thead>
             <tbody>
               {topKeys.map((key) => (
                 <tr key={key.keyName}>
                   <td>{key.keyName}</td>
-                  <td>{key.keyType}</td>
-                  <td>{formatBytes(key.sizeBytes)}</td>
-                  <td>{formatTtl(key.ttlMillis)}</td>
+                  {!isHazelcast && <td>{key.keyType}</td>}
+                  <td>{isHazelcast ? key.sizeBytes : formatBytes(key.sizeBytes)}</td>
+                  {!isHazelcast && <td>{formatTtl(key.ttlMillis)}</td>}
                 </tr>
               ))}
             </tbody>
