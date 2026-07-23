@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import client from "../api/client";
 import InstanceCard from "../components/InstanceCard";
 import RefreshIndicator from "../components/RefreshIndicator";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
-import { formatPercent } from "../utils/format";
+import { formatBytes, formatPercent } from "../utils/format";
 import "./Overview.css";
 
 const REFRESH_INTERVAL_MS = 15000;
@@ -90,12 +90,48 @@ function buildAlerts(instances, metricsById) {
   return alerts;
 }
 
+const TOP_PATTERN_COUNT = 5;
+
+async function aggregatePatterns(instances) {
+  const results = await Promise.allSettled(
+    instances.map((inst) => client.get(`/v1/instances/${inst.id}/key-patterns`))
+  );
+
+  const byKey = new Map();
+  let hazelcastExcluded = false;
+
+  results.forEach((result, idx) => {
+    if (result.status !== "fulfilled") return;
+    const inst = instances[idx];
+
+    result.value.data.forEach((p) => {
+      const key = `${p.label}|||${p.pattern}`;
+      const existing = byKey.get(key) ?? { label: p.label, pattern: p.pattern, keyCount: 0, totalSizeBytes: 0 };
+      existing.keyCount += p.keyCount;
+      if (inst.type === "HAZELCAST") {
+        hazelcastExcluded = true;
+      } else {
+        existing.totalSizeBytes += p.totalSizeBytes;
+      }
+      byKey.set(key, existing);
+    });
+  });
+
+  return { rows: Array.from(byKey.values()), hazelcastExcluded };
+}
+
 export default function Overview() {
   const [instances, setInstances] = useState([]);
   const [metricsById, setMetricsById] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  const [patternRows, setPatternRows] = useState([]);
+  const [patternHazelcastExcluded, setPatternHazelcastExcluded] = useState(false);
+  const [patternLoading, setPatternLoading] = useState(true);
+  const [patternError, setPatternError] = useState("");
+  const patternFetchedOnce = useRef(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -143,6 +179,28 @@ export default function Overview() {
     return () => clearInterval(intervalId);
   }, [fetchAll]);
 
+  const fetchPatternSummary = useCallback(async (instancesList) => {
+    setPatternLoading(true);
+    setPatternError("");
+    try {
+      const { rows, hazelcastExcluded } = await aggregatePatterns(instancesList);
+      setPatternRows(rows);
+      setPatternHazelcastExcluded(hazelcastExcluded);
+    } catch {
+      setPatternError("Desen özeti alınamadı.");
+    } finally {
+      setPatternLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Ağır bir işlem olduğu için 15s auto-refresh döngüsüne dahil edilmez; sadece ilk yüklemede çalışır.
+    if (instances.length > 0 && !patternFetchedOnce.current) {
+      patternFetchedOnce.current = true;
+      fetchPatternSummary(instances);
+    }
+  }, [instances, fetchPatternSummary]);
+
   const upCount = instances.filter((i) => metricsById[i.id]?.health?.status === "UP").length;
   const downCount = instances.length - upCount;
 
@@ -164,6 +222,13 @@ export default function Overview() {
 
   const alerts = buildAlerts(instances, metricsById);
   const criticalCount = alerts.filter((a) => a.status === "critical").length;
+
+  const patternTotalSize = patternRows.reduce((sum, p) => sum + p.totalSizeBytes, 0);
+  const patternTotalKeyCount = patternRows.reduce((sum, p) => sum + p.keyCount, 0);
+  const rankBySize = patternTotalSize > 0;
+  const topPatternRows = [...patternRows]
+    .sort((a, b) => (rankBySize ? b.totalSizeBytes - a.totalSizeBytes : b.keyCount - a.keyCount))
+    .slice(0, TOP_PATTERN_COUNT);
 
   return (
     <div className="overview-page">
@@ -208,6 +273,67 @@ export default function Overview() {
               <div className="overview-summary-value">{criticalCount}</div>
               <div className="overview-summary-label">Aktif Kritik Uyarı</div>
             </div>
+          </div>
+
+          <div className="overview-patterns">
+            <div className="overview-patterns-header">
+              <h2 className="overview-section-title">Key Desen Özeti (Fleet)</h2>
+              <button
+                type="button"
+                className="overview-patterns-refresh"
+                onClick={() => fetchPatternSummary(instances)}
+                disabled={patternLoading}
+              >
+                {patternLoading ? "Yükleniyor..." : "⟳ Yenile"}
+              </button>
+            </div>
+
+            {patternLoading && (
+              <div className="overview-status">Desen özeti hesaplanıyor...</div>
+            )}
+            {!patternLoading && patternError && (
+              <div className="overview-error">{patternError}</div>
+            )}
+            {!patternLoading && !patternError && patternRows.length === 0 && (
+              <div className="overview-patterns-empty">Henüz key bulunmuyor.</div>
+            )}
+
+            {!patternLoading && !patternError && patternRows.length > 0 && (
+              <>
+                <ul className="overview-pattern-list">
+                  {topPatternRows.map((p) => {
+                    const sizePercent = rankBySize ? (p.totalSizeBytes / patternTotalSize) * 100 : 0;
+                    const countPercent =
+                      patternTotalKeyCount > 0 ? (p.keyCount / patternTotalKeyCount) * 100 : 0;
+                    const percent = rankBySize ? sizePercent : countPercent;
+
+                    return (
+                      <li key={`${p.label}|||${p.pattern}`} className="overview-pattern-row">
+                        <span className="overview-pattern-label" title={p.pattern}>
+                          {p.label}
+                        </span>
+                        <div className="overview-pattern-bar-track">
+                          <div
+                            className="overview-pattern-bar-fill"
+                            style={{ width: `${percent.toFixed(2)}%` }}
+                          />
+                        </div>
+                        <span className="overview-pattern-stat">
+                          {percent.toFixed(1)}% · {p.keyCount} key
+                          {rankBySize ? ` · ${formatBytes(p.totalSizeBytes)}` : ""}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {patternHazelcastExcluded && (
+                  <div className="overview-patterns-note">
+                    * Boyut yüzdeleri yalnızca Redis instance'larını kapsar; Hazelcast entry sayıları
+                    key sayısına dahildir ancak boyuta dahil değildir.
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="overview-alerts">

@@ -9,7 +9,7 @@ const PAGE_SIZE = 20;
 export default function KeyAnalysis() {
   const { id } = useParams();
 
-  const [instanceName, setInstanceName] = useState("");
+  const [instance, setInstance] = useState(null);
 
   const [prefixInput, setPrefixInput] = useState("");
   const [activePrefix, setActivePrefix] = useState("");
@@ -24,12 +24,37 @@ export default function KeyAnalysis() {
   const [topLoading, setTopLoading] = useState(true);
   const [topError, setTopError] = useState("");
 
+  const [patterns, setPatterns] = useState([]);
+  const [patternsLoading, setPatternsLoading] = useState(true);
+  const [patternsError, setPatternsError] = useState("");
+
+  const instanceName = instance?.name ?? "";
+  const isHazelcast = instance?.type === "HAZELCAST";
+
   useEffect(() => {
     client
       .get(`/v1/instances/${id}`)
-      .then((res) => setInstanceName(res.data.name))
-      .catch(() => setInstanceName(""));
+      .then((res) => setInstance(res.data))
+      .catch(() => setInstance(null));
   }, [id]);
+
+  const fetchPatterns = useCallback(async () => {
+    setPatternsLoading(true);
+    setPatternsError("");
+    try {
+      const res = await client.get(`/v1/instances/${id}/key-patterns`);
+      setPatterns(res.data);
+    } catch {
+      setPatternsError("Desen dağılımı alınamadı.");
+    } finally {
+      setPatternsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı, sonrası manuel
+    fetchPatterns();
+  }, [fetchPatterns]);
 
   const fetchPage = useCallback(
     async (prefixValue, cursorValue, append) => {
@@ -85,9 +110,87 @@ export default function KeyAnalysis() {
     fetchPage(activePrefix, cursor, true);
   }
 
+  function handlePatternClick(pattern) {
+    const prefix = pattern.endsWith("*") ? pattern.slice(0, -1) : pattern;
+    setPrefixInput(prefix);
+    setActivePrefix(prefix);
+    setCursor("0");
+    fetchPage(prefix, "0", false);
+  }
+
+  const sortedPatterns = [...patterns].sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);
+  const totalPatternKeyCount = patterns.reduce((sum, p) => sum + p.keyCount, 0);
+  const totalPatternSize = patterns.reduce((sum, p) => sum + p.totalSizeBytes, 0);
+
   return (
     <div className="key-analysis-page">
       <h1 className="key-analysis-title">Key Analizi - {instanceName || `#${id}`}</h1>
+
+      <div className="key-analysis-patterns">
+        <div className="key-analysis-patterns-header">
+          <h2 className="key-analysis-section-title">Key Desen Dağılımı</h2>
+          <button
+            type="button"
+            className="key-analysis-patterns-refresh"
+            onClick={fetchPatterns}
+            disabled={patternsLoading}
+          >
+            {patternsLoading ? "Yükleniyor..." : "⟳ Yenile"}
+          </button>
+        </div>
+
+        {patternsLoading && <div className="key-analysis-status">Desen dağılımı hesaplanıyor...</div>}
+        {!patternsLoading && patternsError && (
+          <div className="key-analysis-error">{patternsError}</div>
+        )}
+        {!patternsLoading && !patternsError && patterns.length === 0 && (
+          <div className="key-analysis-empty-patterns">Bu instance'ta henüz key bulunmuyor.</div>
+        )}
+
+        {!patternsLoading && !patternsError && patterns.length > 0 && (
+          <>
+            <ul className="key-analysis-pattern-list">
+              {sortedPatterns.map((p) => {
+                const sizePercent = totalPatternSize > 0 ? (p.totalSizeBytes / totalPatternSize) * 100 : 0;
+                const countPercent =
+                  totalPatternKeyCount > 0 ? (p.keyCount / totalPatternKeyCount) * 100 : 0;
+
+                return (
+                  <li
+                    key={p.pattern}
+                    className="key-analysis-pattern-row"
+                    onClick={() => handlePatternClick(p.pattern)}
+                    title={`"${p.pattern}" ile ara`}
+                  >
+                    <div className="key-analysis-pattern-info">
+                      <span className="key-analysis-pattern-label">{p.label}</span>
+                      <span className="key-analysis-pattern-technical">{p.pattern}</span>
+                    </div>
+                    <div className="key-analysis-pattern-bar-track">
+                      <div
+                        className="key-analysis-pattern-bar-fill"
+                        style={{ width: `${sizePercent.toFixed(2)}%` }}
+                      />
+                    </div>
+                    <div className="key-analysis-pattern-stats">
+                      <span>{p.keyCount} key ({countPercent.toFixed(1)}%)</span>
+                      <span>
+                        {isHazelcast ? `Entry: ${p.totalSizeBytes}` : formatBytes(p.totalSizeBytes)}
+                        {" "}({sizePercent.toFixed(1)}%)
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="key-analysis-pattern-total">
+              Toplam: {totalPatternKeyCount} key,{" "}
+              {isHazelcast ? `${totalPatternSize} entry` : formatBytes(totalPatternSize)}
+            </div>
+          </>
+        )}
+      </div>
 
       <form className="key-analysis-search" onSubmit={handleSearch}>
         <input

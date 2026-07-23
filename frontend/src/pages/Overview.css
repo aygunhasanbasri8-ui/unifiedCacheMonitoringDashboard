@@ -104,3 +104,94 @@
 .overview-error {
   color: var(--red);
 }
+
+.overview-patterns {
+  margin-bottom: 28px;
+}
+
+.overview-patterns-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.overview-patterns-header .overview-section-title {
+  margin-bottom: 0;
+}
+
+.overview-patterns-refresh {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.overview-patterns-refresh:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.overview-patterns-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.overview-patterns-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.overview-pattern-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.overview-pattern-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr auto;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+
+.overview-pattern-label {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-pattern-bar-track {
+  height: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.overview-pattern-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px 0 0 3px;
+}
+
+.overview-pattern-stat {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.overview-patterns-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
