@@ -390,10 +390,18 @@ public class RedisMonitor implements CacheMonitor {
      */
     private boolean matchesPattern(String keyName, String pattern) {
         if (pattern == null || pattern.equals("*")) return true;
-        // Redis glob'unu regex'e çevir: * → .*  ve diğer özel karakterleri kaçır
-        String regex = java.util.regex.Pattern.quote(pattern)
-                .replace("*", "\\E.*\\Q");
-        return keyName.matches(regex);
+        StringBuilder regex = new StringBuilder("^");
+        for (char c : pattern.toCharArray()) {
+            if (c == '*') {
+                regex.append(".*");
+            } else if ("\\.[]{}()+-?^$|".indexOf(c) >= 0) {
+                regex.append('\\').append(c);
+            } else {
+                regex.append(c);
+            }
+        }
+        regex.append("$");
+        return keyName.matches(regex.toString());
     }
 
     @Override

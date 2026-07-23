@@ -262,11 +262,25 @@ public class HazelcastMonitor implements CacheMonitor {
         return result;
     }
 
-    private boolean matchesPatternHz(String name, String pattern) {
-        if (pattern == null || pattern.equals("*")) return true;
-        String regex = java.util.regex.Pattern.quote(pattern)
-                .replace("*", "\\E.*\\Q");
-        return name.matches(regex);
+    private boolean matchesPatternHz(String mapName, String pattern) {
+        return  false;
     }
+
+    private boolean matchesPattern(String keyName, String pattern) {
+        if (pattern == null || pattern.equals("*")) return true;
+        StringBuilder regex = new StringBuilder("^");
+        for (char c : pattern.toCharArray()) {
+            if (c == '*') {
+                regex.append(".*");
+            } else if ("\\.[]{}()+-?^$|".indexOf(c) >= 0) {
+                regex.append('\\').append(c);
+            } else {
+                regex.append(c);
+            }
+        }
+        regex.append("$");
+        return keyName.matches(regex.toString());
+    }
+
 
 }

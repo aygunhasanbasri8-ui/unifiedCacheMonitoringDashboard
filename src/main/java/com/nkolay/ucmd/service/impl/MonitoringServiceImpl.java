@@ -139,12 +139,19 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = instanceRepository.findById(id).orElse(null);
         if (instance == null) return new ArrayList<>();
 
+        var patterns = keyPatternConfig.getKeyPatterns();
+        System.out.println(">>> Yüklenen desen sayısı: " + patterns.size());
+        patterns.forEach(p -> System.out.println(">>>   " + p.getPattern() + " → " + p.getLabel()));
+
         try {
             return monitorRegistry.getMonitor(instance)
                     .getKeyPatternStats(instance, keyPatternConfig.getKeyPatterns());
         } catch (Exception e) {
             return new ArrayList<>();
         }
+
+
+
     }
 
 }
