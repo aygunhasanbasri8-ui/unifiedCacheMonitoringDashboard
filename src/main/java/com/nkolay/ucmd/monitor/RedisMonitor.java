@@ -252,7 +252,15 @@ public class RedisMonitor implements CacheMonitor {
                     Long ttlSec = sync.ttl(keyBytes);
                     long ttl = (ttlSec != null && ttlSec >= 0) ? ttlSec * 1000
                             : (ttlSec != null ? ttlSec : -2);
-                    keys.add(new KeyInfo(keyName, type, 0, ttl));
+                    long sizeBytes = 0;
+                    try {
+                        Long usage = sync.memoryUsage(keyBytes);
+                        if (usage != null) sizeBytes = usage;
+                    } catch (Exception ignored) {
+                        // MEMORY USAGE desteklenmiyorsa 0 bırak
+                    }
+
+                    keys.add(new KeyInfo(keyName, type, sizeBytes, ttl));
                 }
 
                 // "Öncelik başındakiler": arama terimiyle BAŞLAYAN key'ler önce,
