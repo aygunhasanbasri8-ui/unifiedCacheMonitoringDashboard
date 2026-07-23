@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -19,11 +20,13 @@ import java.util.Set;
 public class HazelcastMonitor implements CacheMonitor {
 
     private static final Logger logger = LoggerFactory.getLogger(HazelcastMonitor.class);
-
     private final HazelcastInstance hazelcastClient;
+    private final HazelcastMetricsClient metricsClient;
 
-    public HazelcastMonitor(HazelcastInstance hazelcastClient) {
+
+    public HazelcastMonitor(HazelcastInstance hazelcastClient, HazelcastMetricsClient metricsClient) {
         this.hazelcastClient =  hazelcastClient;
+        this.metricsClient = metricsClient;
     }
 
     @Override
@@ -45,9 +48,7 @@ public class HazelcastMonitor implements CacheMonitor {
 
     @Override
     public HealthInfo getHealth(InstanceRef instance) {
-        String version = hazelcastClient.getCluster().getMembers()
-                .stream().findFirst().map(m -> m.getVersion()
-                        .toString()).orElse("unknown");
+
         try {
             if (!isReachable(instance)) {
                 return new HealthInfo("DOWN", "unknown", 0);
@@ -57,7 +58,11 @@ public class HazelcastMonitor implements CacheMonitor {
             long clusterUptime = System.currentTimeMillis()
                     - cluster.getClusterTime();
 
-            return new HealthInfo("UP", "5.3.6", clusterUptime / 1000);
+            String version = cluster.getMembers().stream()
+                    .findFirst()
+                    .map(m -> m.getVersion().toString())
+                    .orElse("unknown");
+            return new HealthInfo("UP", version, clusterUptime / 1000);
 
         } catch (Exception e) {
             logger.error("Error fetching Hazelcast health: {}", e.getMessage(), e);
@@ -68,16 +73,31 @@ public class HazelcastMonitor implements CacheMonitor {
     @Override
     public ResourceStats getResourceStats(InstanceRef instance) {
         try {
+            Map<String, Double> metrics = metricsClient.fetchMetrics();
 
-            int memberCount = hazelcastClient.getCluster().getMembers().size();
+            if (metrics.isEmpty()) {
+                logger.debug("Hazelcast metrics unavailable, returning zeros");
+                return new ResourceStats(0, 0, 0);
+            }
 
-            long estimatedMemory = memberCount * 512L * 1024 * 1024;
-            long usedMemory = (long) (estimatedMemory * 0.5);
+            // Gerçek heap kullanımı (jmx_exporter'dan)
+            long usedMemory = (long) metricsClient.findMetric(
+                    metrics, "jvm_memory_bytes_used", "area=\"heap\"");
+            long maxMemory = (long) metricsClient.findMetric(
+                    metrics, "jvm_memory_bytes_max", "area=\"heap\"");
 
-            return new ResourceStats(0.0, usedMemory, estimatedMemory);
+            // CPU: Hazelcast processcpuload 0-1 arası, yüzdeye çevir
+            double cpuPercent = metricsClient.findMetric(
+                    metrics, "com_hazelcast_metrics_processcpuload", null) * 100;
+            cpuPercent = Math.round(cpuPercent * 100.0) / 100.0;
+
+            ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
+            // Hazelcast'te fragmentasyon kavramı yok, 0 bırak
+            return stats;
+
         } catch (Exception e) {
-            logger.error("Error fetching resource stats: {}", e.getMessage(), e);
-            return new ResourceStats(0,0,0);
+            logger.error("Error fetching Hazelcast resource stats: {}", e.getMessage(), e);
+            return new ResourceStats(0, 0, 0);
         }
     }
 

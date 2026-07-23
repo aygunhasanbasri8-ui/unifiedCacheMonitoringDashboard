@@ -12,8 +12,13 @@ services:
     container_name: hazelcast
     ports:
       - "5701:5701"
+      - "9404:9404"
+
     environment:
       HZ_CLUSTERNAME: dev
+      JAVA_OPTS: "-javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/opt/jmx/config.yaml"
+    volumes:
+      - ./jmx:/opt/jmx:ro
     networks:
       - ucmd-net
 
