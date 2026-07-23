@@ -79,16 +79,67 @@ management:
 
 ucmd:
   key-patterns:
-    - pattern: "ucmd:merchant:*"
-      label: "Üye İşyeri Kayıtları"
-    - pattern: "ucmd:merchantlist:city:*"
-      label: "Şehir Listeleri"
-    - pattern: "ucmd:merchantlist:sector:*"
-      label: "Sektör Listeleri"
+    # ── Kritik hot field'lar (en spesifik — önce gelmeli) ──
+    - pattern: "ucmd:merchant:*:commission"
+      label: "Komisyon Oranları"
+    - pattern: "ucmd:merchant:*:status"
+      label: "Üye İşyeri Durumları"
+    - pattern: "ucmd:merchant:*:risk"
+      label: "Risk Skorları"
+    - pattern: "ucmd:merchant:*:settlement"
+      label: "Valör Periyotları"
+    - pattern: "ucmd:merchant:*:dailyvolume"
+      label: "Günlük İşlem Hacimleri"
+    - pattern: "ucmd:merchant:*:dailycount"
+      label: "Günlük İşlem Adetleri"
+    - pattern: "ucmd:merchant:*:terminals"
+      label: "Üye İşyeri Terminal Listeleri"
+
+    # ── Terminal hot field'ları ──
+    - pattern: "ucmd:terminal:*:status"
+      label: "Terminal Durumları"
+    - pattern: "ucmd:terminal:*:daily"
+      label: "Terminal Günlük Aktiflik"
+    - pattern: "ucmd:terminal:*:lasttx"
+      label: "Terminal Son İşlem Zamanları"
+
+    # ── İşlem özetleri ──
+    - pattern: "ucmd:transaction:daily:*"
+      label: "Günlük İşlem Özetleri"
+
+    # ── Listeler (gruplu görünümler) ──
     - pattern: "ucmd:merchantlist:status:*"
-      label: "Askıdaki Üye İşyerleri"
-    - pattern: "ucmd:merchantlist:status:SUSPENDED"
-      label: "Diğer Listeler"
+      label: "Üye İşyeri Durum Listeleri"
+    - pattern: "ucmd:merchantlist:city:*"
+      label: "Şehir Bazlı Listeler"
+    - pattern: "ucmd:merchantlist:sector:*"
+      label: "Sektör Bazlı Listeler"
+    - pattern: "ucmd:merchantlist:highrisk"
+      label: "Yüksek Riskli İşyerleri"
+    - pattern: "ucmd:terminallist:status:*"
+      label: "Terminal Durum Listeleri"
+    - pattern: "ucmd:terminallist:daily:*"
+      label: "Terminal Aktiflik Listeleri"
+
+    # ── İstatistikler ──
+    - pattern: "ucmd:stats:sector:*"
+      label: "Sektör İstatistikleri"
+    - pattern: "ucmd:stats:daily:*"
+      label: "Global Günlük İstatistikler"
+
+    # ── Tam kayıtlar (genel — hot field'lardan SONRA gelmeli) ──
+    - pattern: "ucmd:merchant:*"
+      label: "Üye İşyeri Kayıtları (tam)"
+    - pattern: "ucmd:terminal:*"
+      label: "Terminal Kayıtları (tam)"
+    - pattern: "ucmd:merchantlist:*"
+      label: "Diğer İşyeri Listeleri"
+    - pattern: "ucmd:terminallist:*"
+      label: "Diğer Terminal Listeleri"
+
+    # ── Eski/test key'leri (Hazelcast feeder veya manuel testler) ──
+    - pattern: "ucmd-*"
+      label: "Hazelcast IMap'leri"
     - pattern: "ucmd:session:*"
       label: "Oturumlar"
     - pattern: "ucmd:user:*"
