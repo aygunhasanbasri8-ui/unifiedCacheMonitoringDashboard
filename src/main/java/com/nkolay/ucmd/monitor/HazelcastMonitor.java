@@ -3,6 +3,7 @@ package com.nkolay.ucmd.monitor;
 import com.hazelcast.cluster.Cluster;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.core.HazelcastInstance;
+import com.nkolay.ucmd.config.KeyPatternConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.springframework.stereotype.Component;
@@ -220,5 +221,52 @@ public class HazelcastMonitor implements CacheMonitor {
         return new CacheEfficiencyStats(0, 0);
     }
 
+    @Override
+    public List<KeyPatternStats> getKeyPatternStats(InstanceRef instance,
+                                                    List<KeyPatternConfig.PatternDef> patterns) {
+        // Hazelcast'te "key" = IMap adı. Map'leri desenlere göre grupla.
+        List<KeyPatternStats> result = new ArrayList<>();
+        for (KeyPatternConfig.PatternDef def : patterns) {
+            result.add(new KeyPatternStats(def.getPattern(), def.getLabel()));
+        }
+        KeyPatternStats other = new KeyPatternStats("*", "Diğer");
+
+        try {
+            hazelcastClient.getDistributedObjects().stream()
+                    .filter(obj -> obj instanceof com.hazelcast.map.IMap)
+                    .forEach(obj -> {
+                        String mapName = obj.getName();
+                        long entryCount = hazelcastClient.getMap(mapName).size();
+
+                        boolean matched = false;
+                        for (KeyPatternStats stats : result) {
+                            if (matchesPatternHz(mapName, stats.getPattern())) {
+                                stats.increment(entryCount);   // boyut yerine entry sayısı
+                                matched = true;
+                                break;
+                            }
+                        }
+                        if (!matched) {
+                            other.increment(entryCount);
+                        }
+                    });
+        } catch (Exception e) {
+            logger.error("Error scanning key patterns for {}: {}",
+                    instance.getName(), e.getMessage(), e);
+        }
+
+        if (other.getKeyCount() > 0) {
+            result.add(other);
+        }
+        result.removeIf(s -> s.getKeyCount() == 0);
+        return result;
+    }
+
+    private boolean matchesPatternHz(String name, String pattern) {
+        if (pattern == null || pattern.equals("*")) return true;
+        String regex = java.util.regex.Pattern.quote(pattern)
+                .replace("*", "\\E.*\\Q");
+        return name.matches(regex);
+    }
 
 }

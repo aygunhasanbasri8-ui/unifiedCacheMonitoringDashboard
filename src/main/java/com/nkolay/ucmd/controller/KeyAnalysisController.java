@@ -1,9 +1,11 @@
 package com.nkolay.ucmd.controller;
 
 import com.nkolay.ucmd.model.dto.KeyInfo;
+import com.nkolay.ucmd.model.dto.KeyPatternStats;
 import com.nkolay.ucmd.model.dto.PageInfo;
 import com.nkolay.ucmd.service.KeyAnalysisService;
 import com.nkolay.ucmd.model.dto.KeyTtlResponse;
+import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,9 @@ public class KeyAnalysisController {
 
     @Autowired
     private KeyAnalysisService keyAnalysisService;
+
+    @Autowired
+    private MonitoringService monitoringService;
 
     @GetMapping("/{id}/keys")
     public ResponseEntity<PageInfo<KeyInfo>> scanKeys(
@@ -55,6 +60,11 @@ public class KeyAnalysisController {
         long ttlMillis = keyAnalysisService.getKeyTTL(id, key);
         return ResponseEntity.ok(new KeyTtlResponse(key, ttlMillis));
 
+    }
+
+    @GetMapping("/{id}/key-patterns")
+    public ResponseEntity<List<KeyPatternStats>> getKeyPatternStats(@PathVariable Long id) {
+        return ResponseEntity.ok(monitoringService.getKeyPatternStats(id));
     }
 
 }

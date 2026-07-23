@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.service.impl;
 
+import com.nkolay.ucmd.config.KeyPatternConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
@@ -8,18 +9,22 @@ import com.nkolay.ucmd.service.MonitoringService;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class MonitoringServiceImpl implements MonitoringService {
 
     private final MonitorRegistry monitorRegistry;
-
     private final InstanceRepository instanceRepository;
+    private final KeyPatternConfig keyPatternConfig;
 
-    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository) {
+
+    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig) {
         this.monitorRegistry = monitorRegistry;
         this.instanceRepository = instanceRepository;
+        this.keyPatternConfig = keyPatternConfig;
+
     }
 
     @PostConstruct
@@ -128,4 +133,18 @@ public class MonitoringServiceImpl implements MonitoringService {
             return new CacheEfficiencyStats(0, 0);
         }
     }
+
+    @Override
+    public List<KeyPatternStats> getKeyPatternStats(Long id) {
+        InstanceRef instance = instanceRepository.findById(id).orElse(null);
+        if (instance == null) return new ArrayList<>();
+
+        try {
+            return monitorRegistry.getMonitor(instance)
+                    .getKeyPatternStats(instance, keyPatternConfig.getKeyPatterns());
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
 }

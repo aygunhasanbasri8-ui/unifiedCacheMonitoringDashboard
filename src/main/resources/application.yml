@@ -75,3 +75,19 @@ management:
   metrics:
     tags:
       application: ucmd
+
+key-patterns:
+  - pattern: "ucmd:merchant:*"
+    label: "Üye İşyeri Kayıtları"
+  - pattern: "ucmd:merchantlist:city:*"
+    label: "Şehir Listeleri"
+  - pattern: "ucmd:merchantlist:sector:*"
+    label: "Sektör Listeleri"
+  - pattern: "ucmd:merchantlist:status:*"
+    label: "Durum Listeleri"
+  - pattern: "ucmd:merchantlist:*"
+    label: "Diğer Listeler"
+  - pattern: "ucmd:session:*"
+    label: "Oturumlar"
+  - pattern: "ucmd:user:*"
+    label: "Kullanıcılar"

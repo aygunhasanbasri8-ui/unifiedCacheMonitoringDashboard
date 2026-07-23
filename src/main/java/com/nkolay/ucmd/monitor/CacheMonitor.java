@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.monitor;
 
+import com.nkolay.ucmd.config.KeyPatternConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 
@@ -36,4 +37,6 @@ public interface CacheMonitor {
     long getKeyTTL(InstanceRef instance, String key);
 
     CacheEfficiencyStats getCacheEfficiency(InstanceRef instance);
+
+    List<KeyPatternStats> getKeyPatternStats(InstanceRef instance, List<KeyPatternConfig.PatternDef> patterns);
 }

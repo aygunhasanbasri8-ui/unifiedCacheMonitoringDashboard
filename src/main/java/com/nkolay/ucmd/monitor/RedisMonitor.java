@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.monitor;
 
+import com.nkolay.ucmd.config.KeyPatternConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.slf4j.Logger;
@@ -297,6 +298,102 @@ public class RedisMonitor implements CacheMonitor {
                     key, instance.getName(), e.getMessage(), e);
             return -2;
         }
+    }
+
+    @Override
+    public List<KeyPatternStats> getKeyPatternStats(InstanceRef instance,
+                                                    List<KeyPatternConfig.PatternDef> patterns) {
+        // Her desen için bir sayaç hazırla (sıra korunur — ilk eşleşen kazanır)
+        List<KeyPatternStats> result = new ArrayList<>();
+        for (KeyPatternConfig.PatternDef def : patterns) {
+            result.add(new KeyPatternStats(def.getPattern(), def.getLabel()));
+        }
+        // Hiçbir desene uymayanlar için
+        KeyPatternStats other = new KeyPatternStats("*", "Diğer");
+
+        try {
+            redisTemplate.execute((RedisCallback<Void>) conn -> {
+                Object nativeConn = conn.getNativeConnection();
+                if (!(nativeConn instanceof io.lettuce.core.api.async.RedisAsyncCommands)) {
+                    logger.warn("Native connection is not RedisAsyncCommands, cannot scan patterns");
+                    return null;
+                }
+
+                @SuppressWarnings("unchecked")
+                io.lettuce.core.api.async.RedisAsyncCommands<byte[], byte[]> async =
+                        (io.lettuce.core.api.async.RedisAsyncCommands<byte[], byte[]>) nativeConn;
+                io.lettuce.core.api.sync.RedisCommands<byte[], byte[]> sync =
+                        async.getStatefulConnection().sync();
+
+                // Tüm keyspace'i cursor ile tara (sayfa sayfa, bellek dostu)
+                io.lettuce.core.ScanCursor cursor = io.lettuce.core.ScanCursor.INITIAL;
+                io.lettuce.core.ScanArgs args = io.lettuce.core.ScanArgs.Builder.limit(500);
+                int scanned = 0;
+                final int MAX_KEYS = 50_000;   // güvenlik sınırı (çok büyük keyspace'te durur)
+
+                do {
+                    io.lettuce.core.KeyScanCursor<byte[]> page = sync.scan(cursor, args);
+
+                    for (byte[] keyBytes : page.getKeys()) {
+                        String keyName = new String(keyBytes, StandardCharsets.UTF_8);
+
+                        long size = 0;
+                        try {
+                            Long usage = sync.memoryUsage(keyBytes);
+                            if (usage != null) size = usage;
+                        } catch (Exception ignored) {
+                            // MEMORY USAGE desteklenmiyorsa 0 say
+                        }
+
+                        // İlk eşleşen desene ekle
+                        boolean matched = false;
+                        for (KeyPatternStats stats : result) {
+                            if (matchesPattern(keyName, stats.getPattern())) {
+                                stats.increment(size);
+                                matched = true;
+                                break;
+                            }
+                        }
+                        if (!matched) {
+                            other.increment(size);
+                        }
+                        scanned++;
+                    }
+
+                    cursor = io.lettuce.core.ScanCursor.of(page.getCursor());
+                    if (page.isFinished()) break;
+
+                } while (scanned < MAX_KEYS);
+
+                logger.debug("Pattern scan completed: {} keys scanned on {}",
+                        scanned, instance.getName());
+                return null;
+            });
+
+        } catch (Exception e) {
+            logger.error("Error scanning key patterns for {}: {}",
+                    instance.getName(), e.getMessage(), e);
+        }
+
+        // "Diğer" grubu boş değilse listeye ekle
+        if (other.getKeyCount() > 0) {
+            result.add(other);
+        }
+        // Boş desenleri ele (hiç key'i olmayanları gösterme)
+        result.removeIf(s -> s.getKeyCount() == 0);
+
+        return result;
+    }
+
+    /**
+     * Redis glob deseni ile key adını eşleştirir (basit * desteği).
+     */
+    private boolean matchesPattern(String keyName, String pattern) {
+        if (pattern == null || pattern.equals("*")) return true;
+        // Redis glob'unu regex'e çevir: * → .*  ve diğer özel karakterleri kaçır
+        String regex = java.util.regex.Pattern.quote(pattern)
+                .replace("*", "\\E.*\\Q");
+        return keyName.matches(regex);
     }
 
     @Override

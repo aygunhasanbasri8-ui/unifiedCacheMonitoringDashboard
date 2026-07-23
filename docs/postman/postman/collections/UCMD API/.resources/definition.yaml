@@ -8,7 +8,9 @@ variables:
     secret: true
   - key: json_web_token_15u7
     secret: true
+  - key: json_web_token_02jt
+    secret: true
 auth:
   type: bearer
   credentials:
-    token: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJtb25pdG9yIiwicm9sZSI6Ik1PTklUT1IiLCJpYXQiOjE3ODQ2OTg0ODEsImV4cCI6MTc4NDc4NDg4MX0.IPs6fmzR78ytml8ZcqLGDZvhOztUF4ZF-B5tlqzSPxq5Ciwb0J2lJztEeNze9i3E
+    token: "{{json_web_token_02jt}}"
