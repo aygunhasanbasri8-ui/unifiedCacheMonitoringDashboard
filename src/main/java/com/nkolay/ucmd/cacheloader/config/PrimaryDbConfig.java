@@ -1,0 +1,77 @@
+package com.nkolay.ucmd.cacheloader.config;
+
+import jakarta.persistence.EntityManagerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import javax.sql.DataSource;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * CORE (ucmd_db) veritabanının PRIMARY JPA konfigürasyonu.
+ *
+ * Neden burada? CacheLoaderDbConfig kendi @EnableJpaRepositories'ini tanımlayınca
+ * Spring Boot'un otomatik repository taraması devre dışı kalır; bu yüzden core
+ * repository'lerini (com.nkolay.ucmd.repository) primary datasource'a bu sınıf bağlar.
+ *
+ * Modülü silmek: bu sınıf + CacheLoaderDbConfig + cacheloader paketi kaldırıldığında
+ * Boot otomatik JPA konfigürasyonu tekrar devreye girer ve core eskisi gibi çalışır.
+ */
+@Configuration
+@EnableJpaRepositories(
+        basePackages = "com.nkolay.ucmd.repository",
+        entityManagerFactoryRef = "primaryEntityManagerFactory",
+        transactionManagerRef = "primaryTransactionManager"
+)
+public class PrimaryDbConfig {
+
+    @Primary
+    @Bean
+    @ConfigurationProperties("spring.datasource")
+    public DataSourceProperties primaryDataSourceProperties() {
+        return new DataSourceProperties();
+    }
+
+    @Primary
+    @Bean
+    public DataSource primaryDataSource(
+            @Qualifier("primaryDataSourceProperties") DataSourceProperties properties) {
+        return properties.initializeDataSourceBuilder().build();
+    }
+
+    @Primary
+    @Bean(name = "primaryEntityManagerFactory")
+    public LocalContainerEntityManagerFactoryBean primaryEntityManagerFactory(
+            EntityManagerFactoryBuilder builder,
+            @Qualifier("primaryDataSource") DataSource dataSource) {
+
+        Map<String, Object> props = new HashMap<>();
+        // Core davranışı korunur (application.yml'deki eski ayarlarla aynı).
+        props.put("hibernate.hbm2ddl.auto", "update");
+        props.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
+
+        return builder
+                .dataSource(dataSource)
+                .packages("com.nkolay.ucmd.model.entity")
+                .persistenceUnit("primary")
+                .properties(props)
+                .build();
+    }
+
+    @Primary
+    @Bean(name = "primaryTransactionManager")
+    public PlatformTransactionManager primaryTransactionManager(
+            @Qualifier("primaryEntityManagerFactory") EntityManagerFactory emf) {
+        return new JpaTransactionManager(emf);
+    }
+}

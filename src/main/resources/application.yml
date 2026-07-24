@@ -136,6 +136,8 @@ ucmd:
       label: "Diğer İşyeri Listeleri"
     - pattern: "ucmd:terminallist:*"
       label: "Diğer Terminal Listeleri"
+    - pattern: "ucmd:transaction:*"
+      label:  "Transaction Kayıtları"
 
     # ── Eski/test key'leri (Hazelcast feeder veya manuel testler) ──
     - pattern: "ucmd-*"

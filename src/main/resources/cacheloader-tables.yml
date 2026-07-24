@@ -1,0 +1,32 @@
+# ============================================================================
+#  CacheLoader modülü - Tablo tanımları
+#  Bu dosya SADECE cacheloader modülü tarafından okunur (YamlPropertySourceFactory).
+#  Modülü sistemden çıkarmak için: com.nkolay.ucmd.cacheloader paketini ve bu
+#  dosyayı silmek yeterlidir. application.yml'e hiçbir bağımlılık yoktur.
+#
+#  Yeni tablo eklemek için:
+#    1) Bir JPA entity yaz (model/entity altında)
+#    2) Bir TableAccessor implementasyonu ekle (@Component)
+#    3) Buraya tablo adıyla bir kayıt ekle
+# ============================================================================
+cacheloader:
+  # Modüle özel ikinci datasource (merchant_db). Core ucmd_db'ye dokunmaz.
+  datasource:
+    url: ${CACHELOADER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/merchant_db}
+    username: ${CACHELOADER_DATASOURCE_USERNAME:ucmd_user}
+    password: ${CACHELOADER_DATASOURCE_PASSWORD:ucmd_pass}
+    driver-class-name: org.postgresql.Driver
+
+  tables:
+    merchants:
+      key-prefix: "ucmd:merchant:"
+      ttl-seconds: 3600          # 1 saat
+      filter-fields: [id, name, tckn, status]
+    terminals:
+      key-prefix: "ucmd:terminal:"
+      ttl-seconds: 3600
+      filter-fields: [id, name, status, merchantId]
+    transactions:
+      key-prefix: "ucmd:transaction:"
+      ttl-seconds: 900           # 15 dakika (hacimli tablo)
+      filter-fields: [id, name, status, merchantId]
