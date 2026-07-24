@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Overview from "./pages/Overview";
 import InstanceDetail from "./pages/InstanceDetail";
 import KeyAnalysis from "./pages/KeyAnalysis";
+import CacheLoader from "./pages/CacheLoader";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
 
@@ -40,6 +41,7 @@ function App() {
             <Route path="/overview" element={<Overview />} />
             <Route path="/instances/:id" element={<InstanceDetail />} />
             <Route path="/instances/:id/keys" element={<KeyAnalysis />} />
+            <Route path="/cacheloader" element={<CacheLoader />} />
             <Route
               path="/audit"
               element={

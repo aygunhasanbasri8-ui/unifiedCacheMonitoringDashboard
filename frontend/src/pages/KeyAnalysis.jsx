@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { formatBytes, formatTtl } from "../utils/format";
 import "./KeyAnalysis.css";
@@ -8,6 +8,7 @@ const PAGE_SIZE = 20;
 
 export default function KeyAnalysis() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [instance, setInstance] = useState(null);
 
@@ -139,9 +140,16 @@ export default function KeyAnalysis() {
 
   return (
     <div className="key-analysis-page">
-      <h1 className="key-analysis-title">
-        {isHazelcast ? "IMap Listesi" : "Key Analizi"} - {instanceName || `#${id}`}
-      </h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <h1 className="key-analysis-title">
+          {isHazelcast ? "IMap Listesi" : "Key Analizi"} - {instanceName || `#${id}`}
+        </h1>
+        {!isHazelcast && (
+          <button type="button" className="btn-secondary" onClick={() => navigate("/cacheloader")}>
+            Cache Loader
+          </button>
+        )}
+      </div>
 
       <div className="key-analysis-patterns">
         <div className="key-analysis-patterns-header">
