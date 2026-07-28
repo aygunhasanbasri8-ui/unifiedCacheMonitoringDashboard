@@ -133,7 +133,7 @@ export default function InstanceDetail() {
           }
         } else {
           setCluster(null);
-          setClusterNote("Cluster bilgisi yok (Redis)");
+          setClusterNote("Cluster bilgisi yalnızca Hazelcast için geçerlidir.");
         }
 
         setError("");
@@ -186,19 +186,24 @@ export default function InstanceDetail() {
           title="CPU Kullanımı"
           percent={resources?.cpuUsagePercent}
           status={resources ? evaluateStatus("cpuUsagePercent", resources.cpuUsagePercent) : "ok"}
+          metricStatus={resources?.cpuStats}
+
         />
         <DonutMetric
           title="Bellek Kullanım Yüzdesi"
           percent={resources?.memoryUsagePercent}
           status={resources ? evaluateStatus("memoryUsagePercent", resources.memoryUsagePercent) : "ok"}
+          metricStatus={resources?.memoryStatus}
         />
-        {!isHazelcast && (
+
+         {!isHazelcast && (
           <DonutMetric
-            title="Hit Ratio"
-            percent={efficiency?.hitRatio != null ? efficiency.hitRatio * 100 : null}
-            status={efficiency ? evaluateStatus("hitRatio", efficiency.hitRatio) : "ok"}
-            subtitle={efficiency?.missRatio != null ? `Miss: ${formatPercent(efficiency.missRatio * 100)}` : ""}
-          />
+          title="Hit Ratio"
+          percent={efficiency?.hitRatio != null ? efficiency.hitRatio * 100 : null}
+          status={efficiency ? evaluateStatus("hitRatio", efficiency.hitRatio) : "ok"}
+          subtitle={efficiency?.missRatio != null ? `Miss: ${formatPercent(efficiency.missRatio * 100)}` : ""}
+          metricStatus={efficiency?.overallStatus}
+        />
         )}
       </div>
 
@@ -218,51 +223,64 @@ export default function InstanceDetail() {
               : ""
           }
           status={resources ? evaluateStatus("memoryUsagePercent", resources.memoryUsagePercent) : "ok"}
+          metricStatus={resources?.memoryStatus}
         />
         <MetricCard
           title="Aktif Bağlantılar"
           value={connections?.activeClients ?? "-"}
           subtitle={
-            connections && !isHazelcast
+            connections && connections.errorStatus !== "NOT_APPLICABLE"
               ? `Hata: ${connections.totalConnectionErrors} · Reddedilen: ${connections.rejectedConnections}`
               : ""
           }
           status={
-            connections && !isHazelcast
+            connections && connections.errorStatus !== "NOT_APPLICABLE"
               ? evaluateStatus("connectionErrors", connections.totalConnectionErrors)
               : "ok"
           }
+          metricStatus={connections?.overallStatus}
         />
         <MetricCard
           title="Toplam Key Sayısı"
           value={dataStats?.totalKeyCount ?? "-"}
-          subtitle={dataStats && !isHazelcast ? `Fragmentasyon: ${dataStats.fragmentationRatio}` : ""}
+          subtitle={
+            dataStats && dataStats.fragmentationStatus !== "NOT_APPLICABLE"
+              ? `Fragmentasyon: ${dataStats.fragmentationRatio}`
+              : ""
+          }
+          metricStatus={dataStats?.overallStatus}
         />
-        {!isHazelcast && (
-          <MetricCard
-            title="Fragmentasyon Oranı"
-            value={resources ? resources.fragmentationRatio.toFixed(2) : "-"}
-            status={resources ? evaluateStatus("fragmentationRatio", resources.fragmentationRatio) : "ok"}
-          />
-        )}
+        <MetricCard
+          title="Fragmentasyon Oranı"
+          value={resources ? resources.fragmentationRatio.toFixed(2) : "-"}
+          status={resources ? evaluateStatus("fragmentationRatio", resources.fragmentationRatio) : "ok"}
+          metricStatus={resources?.fragmentationStatus}
+        />
       </div>
 
-      <div className="instance-detail-cluster">
+      {isHazelcast && (
+        <div className="instance-detail-cluster">
         <h2 className="instance-detail-section-title">Cluster</h2>
         {cluster ? (
           <div className="instance-detail-grid">
-            <MetricCard title="Node Sayısı" value={cluster.nodeCount} />
-            <MetricCard title="Partition Sayısı" value={cluster.partitionCount} />
+            <MetricCard title="Node Sayısı" value={cluster.nodeCount} metricStatus={cluster.overallStatus} />
+            <MetricCard
+              title="Partition Sayısı"
+              value={cluster.partitionCount}
+              metricStatus={cluster.partitionCountStatus}
+            />
             <MetricCard
               title="Durum"
               value={cluster.balanced ? "Dengeli" : "Dengesiz"}
               subtitle={cluster.clusterName}
+              metricStatus={cluster.balancedStatus}
             />
           </div>
         ) : (
           <div className="instance-detail-cluster-note">{clusterNote}</div>
         )}
       </div>
+    )}
 
       <div className="instance-detail-timeseries">
         <h2 className="instance-detail-section-title">Zaman Serisi</h2>

@@ -187,7 +187,7 @@ export default function Overview() {
       setPatternRows(rows);
       setPatternHazelcastExcluded(hazelcastExcluded);
     } catch {
-      setPatternError("Desen özeti alınamadı.");
+      setPatternError("Pattern özeti alınamadı.");
     } finally {
       setPatternLoading(false);
     }
@@ -292,7 +292,7 @@ export default function Overview() {
 
           <div className="overview-patterns">
             <div className="overview-patterns-header">
-              <h2 className="overview-section-title">Key Desen Özeti (Fleet)</h2>
+              <h2 className="overview-section-title">Key Pattern Özeti (Fleet)</h2>
               <button
                 type="button"
                 className="overview-patterns-refresh"
@@ -304,7 +304,7 @@ export default function Overview() {
             </div>
 
             {patternLoading && (
-              <div className="overview-status">Desen özeti hesaplanıyor...</div>
+              <div className="overview-status">Pattern özeti hesaplanıyor...</div>
             )}
             {!patternLoading && patternError && (
               <div className="overview-error">{patternError}</div>

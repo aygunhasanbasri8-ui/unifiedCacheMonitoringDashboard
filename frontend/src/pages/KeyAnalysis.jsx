@@ -49,7 +49,7 @@ export default function KeyAnalysis() {
       const res = await client.get(`/v1/instances/${id}/key-patterns`);
       setPatterns(res.data);
     } catch {
-      setPatternsError("Desen dağılımı alınamadı.");
+      setPatternsError("Pattern dağılımı alınamadı.");
     } finally {
       setPatternsLoading(false);
     }
@@ -134,6 +134,24 @@ export default function KeyAnalysis() {
     });
   }
 
+  function renderSize(key) {
+    const text = isHazelcast ? key.sizeBytes : formatBytes(key.sizeBytes);
+    const estimated = key.sizeStatus === "ESTIMATED";
+    return (
+      <>
+        {text}
+        {estimated && (
+          <span
+            title="yaklaşık değer"
+            style={{ color: "var(--text-dim)", marginLeft: 4 }}
+          >
+            ~
+          </span>
+        )}
+      </>
+    );
+  }
+
   const sortedPatterns = [...patterns].sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);
   const totalPatternKeyCount = patterns.reduce((sum, p) => sum + p.keyCount, 0);
   const totalPatternSize = patterns.reduce((sum, p) => sum + p.totalSizeBytes, 0);
@@ -154,7 +172,7 @@ export default function KeyAnalysis() {
       <div className="key-analysis-patterns">
         <div className="key-analysis-patterns-header">
           <h2 className="key-analysis-section-title">
-            {isHazelcast ? "IMap Dağılımı" : "Key Desen Dağılımı"}
+            {isHazelcast ? "IMap Dağılımı" : "Key Pattern Dağılımı"}
           </h2>
           <button
             type="button"
@@ -166,7 +184,7 @@ export default function KeyAnalysis() {
           </button>
         </div>
 
-        {patternsLoading && <div className="key-analysis-status">Desen dağılımı hesaplanıyor...</div>}
+        {patternsLoading && <div className="key-analysis-status">Pattern dağılımı hesaplanıyor...</div>}
         {!patternsLoading && patternsError && (
           <div className="key-analysis-error">{patternsError}</div>
         )}
@@ -259,7 +277,7 @@ export default function KeyAnalysis() {
                     >
                       <td>{key.keyName}</td>
                       {!isHazelcast && <td>{key.keyType}</td>}
-                      <td>{isHazelcast ? key.sizeBytes : formatBytes(key.sizeBytes)}</td>
+                      <td>{renderSize(key)}</td>
                       {!isHazelcast && <td>{formatTtl(key.ttlMillis)}</td>}
                     </tr>
                     {isHazelcast && isExpanded && (
@@ -322,7 +340,7 @@ export default function KeyAnalysis() {
                 <tr key={key.keyName}>
                   <td>{key.keyName}</td>
                   {!isHazelcast && <td>{key.keyType}</td>}
-                  <td>{isHazelcast ? key.sizeBytes : formatBytes(key.sizeBytes)}</td>
+                  <td>{renderSize(key)}</td>
                   {!isHazelcast && <td>{formatTtl(key.ttlMillis)}</td>}
                 </tr>
               ))}
