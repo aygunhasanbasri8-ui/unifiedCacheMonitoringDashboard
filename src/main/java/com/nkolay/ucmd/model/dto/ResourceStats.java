@@ -12,6 +12,11 @@ public class ResourceStats {
     private double memoryUsagePercent;
     private double fragmentationRatio;
 
+    private MetricStatus overallStatus;
+    private MetricStatus cpuStats;
+    private MetricStatus memoryStatus;
+    private MetricStatus fragmentationStatus;
+
     public ResourceStats() {}
 
     public ResourceStats(double cpuUsagePercent, long memoryUsedBytes, long memoryMaxBytes) {
@@ -36,5 +41,17 @@ public class ResourceStats {
 
     public double getFragmentationRatio() { return fragmentationRatio; }
     public void setFragmentationRatio(double fragmentationRatio) { this.fragmentationRatio = fragmentationRatio; }
+
+    public MetricStatus getOverallStatus() { return overallStatus; }
+    public void setOverallStatus(MetricStatus overallStatus) { this.overallStatus = overallStatus; }
+
+    public MetricStatus getCpuStats() { return cpuStats; }
+    public void setCpuStats(MetricStatus cpuStats) { this.cpuStats = cpuStats; }
+
+    public MetricStatus getMemoryStatus() { return memoryStatus; }
+    public void setMemoryStatus(MetricStatus memoryStatus) { this.memoryStatus = memoryStatus; }
+
+    public MetricStatus getFragmentationStatus() { return fragmentationStatus; }
+    public void setFragmentationStatus(MetricStatus fragmentationStatus) { this.fragmentationStatus = fragmentationStatus; }
 }
  

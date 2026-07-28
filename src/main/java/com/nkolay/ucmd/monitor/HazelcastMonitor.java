@@ -77,7 +77,13 @@ public class HazelcastMonitor implements CacheMonitor {
 
             if (nodes.isEmpty()) {
                 logger.debug("Hazelcast metrics unavailable, returning zeros");
-                return new ResourceStats(0, 0, 0);
+                ResourceStats down = new ResourceStats(0,0,0);
+                down.setOverallStatus(MetricStatus.UNAVAILABLE);
+                down.setCpuStats(MetricStatus.UNAVAILABLE);
+                down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+                down.setFragmentationStatus(MetricStatus.NOT_APPLICABLE);
+
+                return down;
             }
 
             // Cluster toplam heap kullanımı (tüm node'lar toplanır)
@@ -93,7 +99,12 @@ public class HazelcastMonitor implements CacheMonitor {
 
             logger.info(">>> HZ resources: {} node, heap {} bytes", nodes.size(), usedMemory);
 
-            return new ResourceStats(cpuPercent, usedMemory, maxMemory);
+            ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
+            stats.setOverallStatus(MetricStatus.AVAILABLE);
+            stats.setCpuStats(MetricStatus.AVAILABLE);
+            stats.setMemoryStatus(MetricStatus.AVAILABLE);
+            stats.setFragmentationStatus(MetricStatus.NOT_APPLICABLE);
+            return stats;
 
         } catch (Exception e) {
             logger.error("Error fetching Hazelcast resource stats: {}", e.getMessage(), e);
@@ -106,9 +117,17 @@ public class HazelcastMonitor implements CacheMonitor {
         try {
             int memberCount = hazelcastClient
                     .getCluster().getMembers().size();
-            return new ConnectionStats(memberCount, 0, 0);
+            ConnectionStats stats = new ConnectionStats(memberCount, 0, 0);
+            stats.setOverallStatus(MetricStatus.AVAILABLE);
+            stats.setActiveClientStatus(MetricStatus.ESTIMATED);
+            stats.setErrorStatus(MetricStatus.AVAILABLE);
+            return stats;
         } catch (Exception e) {
-            return new ConnectionStats(0, 0, 0);
+            ConnectionStats down = new ConnectionStats(0, 0, 0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
+            down.setErrorStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 
@@ -125,11 +144,19 @@ public class HazelcastMonitor implements CacheMonitor {
                 totalEntries += hazelcastClient.getMap(mapName).size();
 
             }
-            return new DataStats(totalEntries, 0, 0);
+            DataStats stats = new DataStats(totalEntries, 0, 0);
+            stats.setOverallStatus(MetricStatus.AVAILABLE);
+            stats.setMemoryStatus(MetricStatus.NOT_APPLICABLE);
+            stats.setFragmentationStatus(MetricStatus.NOT_APPLICABLE);
+            return stats;
 
 
         } catch (Exception e) {
-            return new DataStats(0,0,0);
+            DataStats down = new DataStats(0,0,0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
 
     }
@@ -144,6 +171,9 @@ public class HazelcastMonitor implements CacheMonitor {
             ClusterInfo clusterInfo = new ClusterInfo(
                     members.size(), 271, hazelcastClient.getConfig().getClusterName()
             );
+            clusterInfo.setOverallStatus(MetricStatus.AVAILABLE);
+            clusterInfo.setBalancedStatus(MetricStatus.ESTIMATED);
+            clusterInfo.setPartitionCountStatus(MetricStatus.ESTIMATED);
             clusterInfo.setBalanced(true);
 
             List<ClusterInfo.MemberInfo> memberInfoList = new ArrayList<>();
@@ -180,12 +210,10 @@ public class HazelcastMonitor implements CacheMonitor {
                     .forEach(obj -> {
                         com.hazelcast.map.IMap<?, ?> map =
                                 hazelcastClient.getMap(obj.getName());
-                        keys.add(new KeyInfo(
-                                obj.getName(),
-                                "map",
-                                map.size(),
-                                -1
-                        ));
+                        KeyInfo ki = new KeyInfo(obj.getName(), "map", map.size(), -1);
+                        ki.setSizeStatus(MetricStatus.ESTIMATED);
+                        keys.add(ki);
+
                     });
         } catch (Exception e) {
             return new PageInfo<>(new ArrayList<>(), "0", false, count);
@@ -205,12 +233,9 @@ public class HazelcastMonitor implements CacheMonitor {
                     .forEach(obj -> {
                         com.hazelcast.map.IMap<?, ?> map =
                                 hazelcastClient.getMap(obj.getName());
-                        keys.add(new KeyInfo(
-                                obj.getName(),
-                                "map",
-                                map.size(),
-                                -1
-                        ));
+                        KeyInfo ki = new KeyInfo(obj.getName(), "map", map.size(), -1);
+                        ki.setSizeStatus(MetricStatus.ESTIMATED);
+                        keys.add(ki);
                     });
         } catch (Exception e) {
             return new ArrayList<>();
@@ -238,9 +263,10 @@ public class HazelcastMonitor implements CacheMonitor {
 
     @Override
     public CacheEfficiencyStats getCacheEfficiency(InstanceRef instance) {
-        return new CacheEfficiencyStats(0, 0);
+        CacheEfficiencyStats stats = new CacheEfficiencyStats(0, 0);
+        stats.setOverallStatus(MetricStatus.NOT_APPLICABLE);
+        return stats;
     }
-
     @Override
     public List<KeyPatternStats> getKeyPatternStats(InstanceRef instance,
                                                     List<KeyPatternConfig.PatternDef> patterns) {

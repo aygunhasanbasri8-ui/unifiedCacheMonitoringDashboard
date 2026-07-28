@@ -8,6 +8,10 @@ public class DataStats {
     private double memoryUsagePercent;
     private double fragmentationRatio;
 
+    private MetricStatus overallStatus;
+    private MetricStatus memoryStatus;
+    private MetricStatus fragmentationStatus;
+
     public DataStats() {}
 
     public DataStats(long totalKeyCount, long usedMemoryBytes, long maxMemoryBytes) {
@@ -31,5 +35,14 @@ public class DataStats {
 
     public double getFragmentationRatio() { return fragmentationRatio; }
     public void setFragmentationRatio(double fragmentationRatio) { this.fragmentationRatio = fragmentationRatio; }
+
+    public MetricStatus getOverallStatus() {return overallStatus;}
+    public void setOverallStatus(MetricStatus overallStatus) { this.overallStatus = overallStatus;}
+
+    public MetricStatus getMemoryStatus() {return memoryStatus;}
+    public void setMemoryStatus(MetricStatus memoryStatus) {this.memoryStatus = memoryStatus;}
+
+    public MetricStatus getFragmentationStatus() { return fragmentationStatus;}
+    public void setFragmentationStatus(MetricStatus fragmentationStatus) { this.fragmentationStatus = fragmentationStatus;}
 }
  

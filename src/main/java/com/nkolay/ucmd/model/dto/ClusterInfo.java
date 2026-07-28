@@ -11,6 +11,10 @@ public class ClusterInfo {
     private String clusterName;
     private boolean balanced;
 
+    private MetricStatus overallStatus;
+    private MetricStatus partitionCountStatus;
+    private MetricStatus balancedStatus;
+
     public ClusterInfo() {}
 
     public ClusterInfo(int nodeCount, int partitionCount, String clusterName) {
@@ -33,6 +37,15 @@ public class ClusterInfo {
 
     public boolean isBalanced() { return balanced; }
     public void setBalanced(boolean balanced) { this.balanced = balanced; }
+
+    public MetricStatus getOverallStatus() { return overallStatus;}
+    public void setOverallStatus(MetricStatus overallStatus) { this.overallStatus = overallStatus;}
+
+    public MetricStatus getPartitionCountStatus() { return partitionCountStatus;}
+    public void setPartitionCountStatus(MetricStatus partitionCountStatus) { this.partitionCountStatus = partitionCountStatus;}
+
+    public MetricStatus getBalancedStatus() { return balancedStatus;}
+    public void setBalancedStatus(MetricStatus balancedStatus) { this.balancedStatus = balancedStatus;}
 
     // Inner class for member info
     public static class MemberInfo {
@@ -62,5 +75,6 @@ public class ClusterInfo {
         public boolean isLeader() { return isLeader; }
         public void setLeader(boolean leader) { isLeader = leader; }
     }
+
 }
  

@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.service;
 
+import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.MetricSnapshot;
 import com.nkolay.ucmd.repository.SnapshotRepository;
 import org.slf4j.LoggerFactory;
@@ -9,11 +10,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PreDestroy;
-import com.nkolay.ucmd.model.dto.HealthInfo;
-import com.nkolay.ucmd.model.dto.ResourceStats;
-import com.nkolay.ucmd.model.dto.DataStats;
-import com.nkolay.ucmd.model.dto.ConnectionStats;
-import com.nkolay.ucmd.model.dto.ClusterInfo;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -83,6 +79,7 @@ public class SnapshotScheduler {
                                         snapshot.setStatus("DOWN");
                                         snapshot.setVersion(health != null ? health.getVersion() : "unknown");
                                         snapshot.setUptimeSeconds(0);
+                                        snapshot.setOverallStatus(MetricStatus.UNAVAILABLE);
                                         currentSnapshots.add(snapshot);
                                         logger.debug("Instance {} is DOWN, recorded DOWN snapshot", instance.getName());
                                         return;
@@ -92,6 +89,7 @@ public class SnapshotScheduler {
                                     snapshot.setStatus("UP");
                                     snapshot.setVersion(health.getVersion());
                                     snapshot.setUptimeSeconds(health.getUptimeSeconds());
+                                    snapshot.setOverallStatus(MetricStatus.AVAILABLE);
 
                                     ResourceStats resources = monitoringService.getResourceStats(id);
                                     if (resources != null) {

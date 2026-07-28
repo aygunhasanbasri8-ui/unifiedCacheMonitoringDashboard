@@ -25,6 +25,8 @@ public class RedisMonitor implements CacheMonitor {
     // CPU delta hesabı: instanceId -> [cpuSeconds, timestampMillis]
     private final Map<Long, double[]> lastCpuSample = new ConcurrentHashMap<>();
 
+    private volatile boolean hadPreviousCpuSample = false;
+
     public RedisMonitor(RedisConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
     }
@@ -116,7 +118,14 @@ public class RedisMonitor implements CacheMonitor {
     public ResourceStats getResourceStats(InstanceRef instance) {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
-            if (cmd == null) return new ResourceStats(0, 0, 0);
+            if (cmd == null) {
+                    ResourceStats down = new ResourceStats(0,0,0);
+                    down.setOverallStatus(MetricStatus.UNAVAILABLE);
+                    down.setCpuStats(MetricStatus.UNAVAILABLE);
+                    down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+                    down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+                    return down;
+            }
 
             String memInfo = cmd.info("memory");
             String cpuInfo = cmd.info("cpu");
@@ -131,6 +140,14 @@ public class RedisMonitor implements CacheMonitor {
             ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
             stats.setFragmentationRatio(fragRatio);
             stats.setMemoryRssBytes(usedMemoryRss);
+
+            stats.setOverallStatus(MetricStatus.AVAILABLE);
+            stats.setMemoryStatus(MetricStatus.AVAILABLE);
+            stats.setFragmentationStatus(MetricStatus.AVAILABLE);
+
+            boolean cpuReady = lastCpuSample.containsKey(instance.getId())
+                    && cpuPercent >= 0 && hadPreviousCpuSample;
+            stats.setCpuStats(cpuReady ? MetricStatus.AVAILABLE : MetricStatus.NOT_READY);
             return stats;
 
         } catch (Exception e) {
@@ -151,8 +168,12 @@ public class RedisMonitor implements CacheMonitor {
             double[] previous = lastCpuSample.get(instanceId);
             lastCpuSample.put(instanceId, new double[]{totalCpuSeconds, now});
 
-            if (previous == null) return 0.0;
+            if (previous == null) {
+                hadPreviousCpuSample = false;
+                return 0.0;
 
+            }
+            hadPreviousCpuSample = true;
             double cpuDelta = totalCpuSeconds - previous[0];
             double timeDeltaSeconds = (now - previous[1]) / 1000.0;
             if (timeDeltaSeconds <= 0) return 0.0;
@@ -175,16 +196,24 @@ public class RedisMonitor implements CacheMonitor {
     public ConnectionStats getConnectionStats(InstanceRef instance) {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
-            if (cmd == null) return new ConnectionStats(0, 0, 0);
-
+            if (cmd == null) {
+                ConnectionStats down = new ConnectionStats(0, 0, 0);
+                down.setOverallStatus(MetricStatus.UNAVAILABLE);
+                down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
+                down.setErrorStatus(MetricStatus.UNAVAILABLE);
+                return down;
+            }
             String clientInfo = cmd.info("clients");
             String statsInfo = cmd.info("stats");
 
             int connectedClients = (int) infoLong(clientInfo, "connected_clients", 0);
-            long totalConnections = infoLong(statsInfo, "total_connections_received", 0);
             long rejectedConn = infoLong(statsInfo, "rejected_connections", 0);
 
-            return new ConnectionStats(connectedClients, totalConnections, rejectedConn);
+            ConnectionStats cs = new ConnectionStats(connectedClients,0, rejectedConn);
+            cs.setOverallStatus(MetricStatus.AVAILABLE);
+            cs.setActiveClientStatus(MetricStatus.AVAILABLE);
+            cs.setErrorStatus(MetricStatus.NOT_APPLICABLE);
+            return cs;
 
         } catch (Exception e) {
             logger.error("Error fetching connection stats for {}: {}",
@@ -199,8 +228,13 @@ public class RedisMonitor implements CacheMonitor {
     public DataStats getDataStats(InstanceRef instance) {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
-            if (cmd == null) return new DataStats(0, 0, 0);
-
+            if (cmd == null) {
+                DataStats down = new DataStats(0, 0, 0);
+                down.setOverallStatus(MetricStatus.UNAVAILABLE);
+                down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+                down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+                return down;
+            }
             String memInfo = cmd.info("memory");
             String keyspaceInfo = cmd.info("keyspace");
 
@@ -228,6 +262,9 @@ public class RedisMonitor implements CacheMonitor {
 
             DataStats stats = new DataStats(totalKeys, usedMemory, maxMemory);
             stats.setFragmentationRatio(fragRatio);
+            stats.setOverallStatus(MetricStatus.AVAILABLE);
+            stats.setMemoryStatus(MetricStatus.AVAILABLE);
+            stats.setFragmentationStatus(MetricStatus.AVAILABLE);
             return stats;
 
         } catch (Exception e) {
@@ -241,9 +278,12 @@ public class RedisMonitor implements CacheMonitor {
 
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
+
         logger.debug("Redis doesn't support cluster info for instance: {}",
                 instance.getName());
-        return null;
+        ClusterInfo stats = new ClusterInfo();
+                stats.setOverallStatus(MetricStatus.NOT_APPLICABLE);
+        return stats;
     }
 
     // ═══════════════ Cache verimliliği ═══════════════
@@ -252,13 +292,18 @@ public class RedisMonitor implements CacheMonitor {
     public CacheEfficiencyStats getCacheEfficiency(InstanceRef instance) {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
-            if (cmd == null) return new CacheEfficiencyStats(0, 0);
-
+            if (cmd == null) {
+                CacheEfficiencyStats down = new CacheEfficiencyStats(0,0);
+                down.setOverallStatus(MetricStatus.UNAVAILABLE);
+                return down;
+            }
             String statsInfo = cmd.info("stats");
             long hits = infoLong(statsInfo, "keyspace_hits", 0);
             long misses = infoLong(statsInfo, "keyspace_misses", 0);
 
-            return new CacheEfficiencyStats(hits, misses);
+            CacheEfficiencyStats ce = new CacheEfficiencyStats(hits, misses);
+            ce.setOverallStatus(MetricStatus.AVAILABLE);
+            return ce;
 
         } catch (Exception e) {
             logger.error("Error fetching cache efficiency for {}: {}",
@@ -297,7 +342,9 @@ public class RedisMonitor implements CacheMonitor {
                         : (ttlSec != null ? ttlSec : -2);
                 long sizeBytes = safeMemoryUsage(cmd, keyBytes);
 
-                keys.add(new KeyInfo(keyName, type, sizeBytes, ttl));
+                KeyInfo ki = new KeyInfo(keyName, type, sizeBytes, ttl);
+                ki.setSizeStatus(MetricStatus.AVAILABLE);
+                keys.add(ki);
             }
 
             // Arama terimiyle BAŞLAYANLAR öne (sayfa içi sıralama)
@@ -351,7 +398,9 @@ public class RedisMonitor implements CacheMonitor {
                             : (ttlSec != null ? ttlSec : -2);
                     long sizeBytes = safeMemoryUsage(cmd, keyBytes);
 
-                    keys.add(new KeyInfo(keyName, type, sizeBytes, ttl));
+                    KeyInfo ki = new KeyInfo(keyName, type, sizeBytes, ttl);
+                    ki.setSizeStatus(MetricStatus.AVAILABLE);
+                    keys.add(ki);
                     scanned++;
                 }
 

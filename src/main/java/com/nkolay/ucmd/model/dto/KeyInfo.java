@@ -7,6 +7,7 @@ public class KeyInfo {
     private long ttlMillis;        // -1 = no expire, -2 = key doesn't exist
     private long lastAccessTime;
     private long accessCount;
+    private MetricStatus sizeStatus;
 
     public KeyInfo() {}
 
@@ -41,4 +42,11 @@ public class KeyInfo {
         if (ttlMillis == -2) return "Key doesn't exist";
         return ttlMillis / 1000 + " seconds";
     }
+
+    public MetricStatus getSizeStatus() { return sizeStatus;}
+    public void setSizeStatus(MetricStatus sizeStatus) { this.sizeStatus = sizeStatus;}
+    
 }
+
+
+ 

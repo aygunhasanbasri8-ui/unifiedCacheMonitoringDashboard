@@ -6,6 +6,9 @@ public class CacheEfficiencyStats {
     private double hitRatio;
     private double missRatio;
 
+
+    private MetricStatus overallStatus;
+
     public CacheEfficiencyStats() {}
     public CacheEfficiencyStats(long keyspaceHits, long keyspaceMisses) {
         this.keyspaceHits = keyspaceHits;
@@ -27,4 +30,6 @@ public class CacheEfficiencyStats {
     public double getMissRatio() { return missRatio; }
     public void setMissRatio(double missRatio) { this.missRatio = missRatio; }
 
+    public MetricStatus getOverallStatus() {return overallStatus;}
+    public void setOverallStatus(MetricStatus overallStatus) {this.overallStatus = overallStatus;}
 }

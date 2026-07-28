@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.model.entity;
 
 import java.time.LocalDateTime;
+
+import com.nkolay.ucmd.model.dto.MetricStatus;
 import jakarta.persistence.*;
 
 @Entity
@@ -9,6 +11,7 @@ public class MetricSnapshot {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+
 
     private Long id;
     private Long instanceId;
@@ -25,6 +28,9 @@ public class MetricSnapshot {
     private double fragmentationRatio;
     private int nodeCount;
     private String partitionJson;   // Hazelcast partition dağılımı
+
+    @Enumerated(EnumType.STRING)
+    private com.nkolay.ucmd.model.dto.MetricStatus overallStatus;
 
     public MetricSnapshot() {
         this.collectedAt = LocalDateTime.now();
@@ -75,4 +81,7 @@ public class MetricSnapshot {
 
     public String getPartitionJson() { return partitionJson; }
     public void setPartitionJson(String partitionJson) { this.partitionJson = partitionJson; }
+
+    public com.nkolay.ucmd.model.dto.MetricStatus getOverallStatus() { return overallStatus;}
+    public void setOverallStatus (com.nkolay.ucmd.model.dto.MetricStatus overallStatus) {this.overallStatus = overallStatus;}
 }
