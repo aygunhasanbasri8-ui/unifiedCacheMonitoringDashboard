@@ -1,19 +1,21 @@
 package com.nkolay.ucmd.controller;
 
 import com.nkolay.ucmd.model.dto.*;
+import com.nkolay.ucmd.security.RequireRole;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequireRole("MONITOR")
 @RequestMapping("/v1/instances")
 public class MetricsController {
 
     @Autowired
     private MonitoringService monitoringService;
 
-    @GetMapping("/{id}/health")
+    @PostMapping("/{id}/health")
     public ResponseEntity<HealthInfo> getInstanceHealth(@PathVariable Long id) {
         HealthInfo health = monitoringService.getInstanceHealth(id);
         if (health != null) {
@@ -22,7 +24,7 @@ public class MetricsController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/{id}/resources")
+    @PostMapping("/{id}/resources")
     public ResponseEntity<ResourceStats> getResourceStats(@PathVariable Long id) {
         ResourceStats stats = monitoringService.getResourceStats(id);
         if (stats != null) {
@@ -31,7 +33,7 @@ public class MetricsController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/{id}/connections")
+    @PostMapping("/{id}/connections")
     public ResponseEntity<ConnectionStats> getConnectionStats(@PathVariable Long id) {
         ConnectionStats stats = monitoringService.getConnectionStats(id);
         if (stats != null) {
@@ -40,7 +42,7 @@ public class MetricsController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/{id}/data-stats")
+    @PostMapping("/{id}/data-stats")
     public ResponseEntity<DataStats> getDataStats(@PathVariable Long id) {
         DataStats stats = monitoringService.getDataStats(id);
         if (stats != null) {
@@ -49,7 +51,7 @@ public class MetricsController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/{id}/efficiency")
+    @PostMapping("/{id}/efficiency")
     public ResponseEntity<CacheEfficiencyStats> getCacheEfficiency(@PathVariable Long id) {
         CacheEfficiencyStats stats = monitoringService.getCacheEfficiency(id);
         if (stats != null) {

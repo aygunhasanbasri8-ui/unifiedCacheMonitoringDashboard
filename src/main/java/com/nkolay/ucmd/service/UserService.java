@@ -9,7 +9,7 @@ public interface UserService {
 
     LoginResponse authenticate(String username, String password);
     User getUserFromToken(String token);
-    User createUser(String username, String password, String email, String role);
+    User createUser(String username, String password, String role);
     java.util.Collection<User> getAllUsers();
     void deleteUser(String username);
 

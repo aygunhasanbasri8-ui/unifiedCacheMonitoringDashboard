@@ -80,7 +80,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
             if (requireRole != null) {
                 String requiredRole = requireRole.value();
-                if (!requiredRole.equalsIgnoreCase(user.getRole())) {
+                String userRole = user.getRole();
+                boolean allowed = requiredRole.equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole);
+                if (!allowed) {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json");
                     response.getWriter().write(

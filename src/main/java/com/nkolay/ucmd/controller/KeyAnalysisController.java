@@ -3,15 +3,20 @@ package com.nkolay.ucmd.controller;
 import com.nkolay.ucmd.model.dto.KeyInfo;
 import com.nkolay.ucmd.model.dto.KeyPatternStats;
 import com.nkolay.ucmd.model.dto.PageInfo;
+import com.nkolay.ucmd.security.RequireRole;
 import com.nkolay.ucmd.service.KeyAnalysisService;
 import com.nkolay.ucmd.model.dto.KeyTtlResponse;
 import com.nkolay.ucmd.service.MonitoringService;
+import com.nkolay.ucmd.model.dto.SearchKeysRequest;
+import com.nkolay.ucmd.model.dto.TopKeysRequest;
+import com.nkolay.ucmd.model.dto.KeyTtlRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@RequireRole("MONITOR")
 @RequestMapping("/v1/instances")
 public class KeyAnalysisController {
 
@@ -21,26 +26,28 @@ public class KeyAnalysisController {
     @Autowired
     private MonitoringService monitoringService;
 
-    @GetMapping("/{id}/keys")
+    @PostMapping("/{id}/keys")
     public ResponseEntity<PageInfo<KeyInfo>> scanKeys(
             @PathVariable Long id,
-            @RequestParam(required = false, defaultValue = "") String prefix,
-            @RequestParam(required = false, defaultValue = "0") String cursor,
-            @RequestParam(required = false, defaultValue = "20") int count) {
+            @RequestBody(required = false) SearchKeysRequest request) {
 
+        SearchKeysRequest req = (request != null) ? request : new SearchKeysRequest();
+        String prefix = req.getPrefix();
         if (prefix.length() > 512) {
             return ResponseEntity.badRequest().build();
         }
 
-        PageInfo<KeyInfo> result = keyAnalysisService.scanKeys(id, prefix, cursor, count);
+        PageInfo<KeyInfo> result =
+                keyAnalysisService.scanKeys(id, prefix, req.getCursor(), req.getCount());
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/{id}/keys/top")
+    @PostMapping("/{id}/keys/top")
     public ResponseEntity<List<KeyInfo>> getTopNKeys(
             @PathVariable Long id,
-            @RequestParam(required = false, defaultValue = "20") int n) {
+            @RequestBody(required = false) TopKeysRequest request) {
 
+        int n = (request!=null) ? request.getN() : 20;
         if (n > 1000) {
             return ResponseEntity.badRequest().build();
         }
@@ -49,10 +56,12 @@ public class KeyAnalysisController {
         return ResponseEntity.ok(topKeys);
     }
 
-    @GetMapping("/{id}/keys/ttl")
+    @PostMapping("/{id}/keys/ttl")
     public ResponseEntity<KeyTtlResponse> getKeyTTL(
             @PathVariable Long id,
-            @RequestParam String key) {
+            @RequestBody KeyTtlRequest request){
+
+        String key = (request!=null) ? request.getKey() : null;
         if (key == null || key.isEmpty() || key.length()>512) {
             return ResponseEntity.badRequest().build();
         }
@@ -62,7 +71,7 @@ public class KeyAnalysisController {
 
     }
 
-    @GetMapping("/{id}/key-patterns")
+    @PostMapping("/{id}/key-patterns")
     public ResponseEntity<List<KeyPatternStats>> getKeyPatternStats(@PathVariable Long id) {
         return ResponseEntity.ok(monitoringService.getKeyPatternStats(id));
     }

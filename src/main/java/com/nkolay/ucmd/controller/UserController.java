@@ -26,7 +26,6 @@ public class UserController {
                     Map<String, Object> m = new java.util.HashMap<>();
                     m.put("id", u.getId());
                     m.put("username", u.getUsername());
-                    m.put("email", u.getEmail());
                     m.put("role", u.getRole());
                     m.put("active", u.isActive());
                     m.put("createdAt", u.getCreatedAt());
@@ -45,7 +44,7 @@ public class UserController {
         }
         String role = (request.role != null && !request.role.isEmpty()) ? request.role : "MONITOR";
         User created = userService.createUser(
-                request.username, request.password, request.email, role);
+                request.username, request.password, role);
         return ResponseEntity.ok(Map.of(
                 "id", created.getId(),
                 "username", created.getUsername(),
@@ -61,7 +60,6 @@ public class UserController {
     public static class CreateUserRequest {
         public String username;
         public String password;
-        public String email;
         public String role;
     }
 }

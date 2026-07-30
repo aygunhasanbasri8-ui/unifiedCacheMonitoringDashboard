@@ -42,14 +42,12 @@ public class UserServiceImpl implements UserService {
         // DB boşsa varsayılan kullanıcıları ekle (BCrypt ile)
         if (!userRepository.existsByUsername("monitor")) {
             User monitor = new User("monitor",
-                    passwordEncoder.encode(monitorPass),
-                    "monitor@ucmd.local", "MONITOR");
+                    passwordEncoder.encode(monitorPass), "MONITOR");
             userRepository.save(monitor);
         }
         if (!userRepository.existsByUsername("admin")) {
             User admin = new User("admin",
-                    passwordEncoder.encode(adminPass),
-                    "admin@ucmd.local", "ADMIN");
+                    passwordEncoder.encode(adminPass), "ADMIN");
             userRepository.save(admin);
         }
     }
@@ -79,13 +77,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User createUser(String username, String password, String email, String role) {
+    public User createUser(String username, String password, String role) {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Kullanıcı adı zaten mevcut: " + username);
         }
         User user = new User(username,
                 passwordEncoder.encode(password),
-                email, role);
+                 role);
         return userRepository.save(user);
     }
 
@@ -100,6 +98,9 @@ public class UserServiceImpl implements UserService {
         // Varsayılan monitor kullanıcısı silinemez
         if ("monitor".equalsIgnoreCase(username)) {
             throw new IllegalArgumentException("Varsayılan 'monitor' kullanıcısı silinemez");
+        }
+        if("admin".equalsIgnoreCase(username)) {
+            throw new IllegalArgumentException("Varsayılan 'admin' kullanıcısı silinemez");
         }
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) {

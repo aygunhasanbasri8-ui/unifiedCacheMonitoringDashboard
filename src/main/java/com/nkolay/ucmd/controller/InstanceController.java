@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.controller;
 
 import com.nkolay.ucmd.model.entity.InstanceRef;
+import com.nkolay.ucmd.security.RequireRole;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -9,20 +10,21 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@RequireRole("MONITOR")
 @RequestMapping("/v1/instances")
 public class InstanceController {
 
     @Autowired
     private MonitoringService monitoringService;
 
-    @GetMapping
+    @PostMapping("/list")
     public ResponseEntity<List<InstanceRef>> getAllInstances() {
         List<InstanceRef> instances = monitoringService.getAllInstances();
 
         return ResponseEntity.ok(instances);
     }
 
-    @GetMapping("/{id}")
+    @PostMapping("/{id}/detail")
     public ResponseEntity<InstanceRef> getInstanceById(@PathVariable Long id) {
         InstanceRef instance = monitoringService.getInstanceById(id);
         if (instance != null) {
