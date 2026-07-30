@@ -15,7 +15,6 @@ export default function UserManagement() {
 
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState("MONITOR");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -53,13 +52,11 @@ export default function UserManagement() {
       await client.post("/v1/users", {
         username: newUsername,
         password: newPassword,
-        email: newEmail,
         role: newRole,
       });
       setCreateSuccess("Kullanıcı oluşturuldu");
       setNewUsername("");
       setNewPassword("");
-      setNewEmail("");
       setNewRole("MONITOR");
       fetchUsers();
     } catch (err) {
@@ -119,15 +116,6 @@ export default function UserManagement() {
             />
           </div>
           <div className="user-management-field">
-            <label htmlFor="new-email">E-posta</label>
-            <input
-              id="new-email"
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-            />
-          </div>
-          <div className="user-management-field">
             <label htmlFor="new-role">Rol</label>
             <select
               id="new-role"
@@ -158,7 +146,6 @@ export default function UserManagement() {
           <thead>
             <tr>
               <th>Kullanıcı Adı</th>
-              <th>E-posta</th>
               <th>Rol</th>
               <th>Durum</th>
               <th>Oluşturulma</th>
@@ -174,7 +161,6 @@ export default function UserManagement() {
               return (
                 <tr key={user.id}>
                   <td>{user.username}</td>
-                  <td>{user.email}</td>
                   <td>
                     <span
                       className={`user-management-role user-management-role-${user.role?.toLowerCase()}`}
@@ -205,7 +191,7 @@ export default function UserManagement() {
             })}
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} className="user-management-empty">
+                <td colSpan={6} className="user-management-empty">
                   Kullanıcı bulunamadı.
                 </td>
               </tr>

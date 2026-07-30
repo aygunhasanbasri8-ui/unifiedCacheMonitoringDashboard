@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import client from "../api/client";
 import { formatBytes, formatTtl } from "../utils/format";
 import "./KeyAnalysis.css";
@@ -8,7 +8,6 @@ const PAGE_SIZE = 20;
 
 export default function KeyAnalysis() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const [instance, setInstance] = useState(null);
 
@@ -37,7 +36,7 @@ export default function KeyAnalysis() {
 
   useEffect(() => {
     client
-      .get(`/v1/instances/${id}`)
+      .post(`/v1/instances/${id}/detail`, {})
       .then((res) => setInstance(res.data))
       .catch(() => setInstance(null));
   }, [id]);
@@ -46,7 +45,7 @@ export default function KeyAnalysis() {
     setPatternsLoading(true);
     setPatternsError("");
     try {
-      const res = await client.get(`/v1/instances/${id}/key-patterns`);
+      const res = await client.post(`/v1/instances/${id}/key-patterns`, {});
       setPatterns(res.data);
     } catch {
       setPatternsError("Pattern dağılımı alınamadı.");
@@ -70,8 +69,8 @@ export default function KeyAnalysis() {
       setError("");
 
       try {
-        const res = await client.get(`/v1/instances/${id}/keys`, {
-          params: { prefix: prefixValue, cursor: cursorValue, count: PAGE_SIZE },
+        const res = await client.post(`/v1/instances/${id}/keys`, {
+          prefix: prefixValue, cursor: cursorValue, count: PAGE_SIZE,
         });
         const page = res.data;
 
@@ -97,7 +96,7 @@ export default function KeyAnalysis() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı
     setTopLoading(true);
     client
-      .get(`/v1/instances/${id}/keys/top`, { params: { n: 10 } })
+      .post(`/v1/instances/${id}/keys/top`, { n: 10 })
       .then((res) => setTopKeys(res.data))
       .catch(() => setTopError("En büyük key'ler alınamadı."))
       .finally(() => setTopLoading(false));
@@ -162,11 +161,6 @@ export default function KeyAnalysis() {
         <h1 className="key-analysis-title">
           {isHazelcast ? "IMap Listesi" : "Key Analizi"} - {instanceName || `#${id}`}
         </h1>
-        {!isHazelcast && (
-          <button type="button" className="btn-secondary" onClick={() => navigate("/cacheloader")}>
-            Cache Loader
-          </button>
-        )}
       </div>
 
       <div className="key-analysis-patterns">

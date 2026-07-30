@@ -83,7 +83,7 @@ export default function InstanceDetail() {
     let cancelled = false;
 
     client
-      .get(`/v1/instances/${id}`)
+      .post(`/v1/instances/${id}/detail`)
       .then((res) => {
         if (!cancelled) setInstance(res.data);
       })
@@ -104,14 +104,12 @@ export default function InstanceDetail() {
       try {
         const [healthRes, resourcesRes, connectionsRes, dataStatsRes, efficiencyRes, snapshotsRes] =
           await Promise.all([
-            client.get(`/v1/instances/${id}/health`),
-            client.get(`/v1/instances/${id}/resources`),
-            client.get(`/v1/instances/${id}/connections`),
-            client.get(`/v1/instances/${id}/data-stats`),
-            client.get(`/v1/instances/${id}/efficiency`),
-            client.get(`/v1/instances/${id}/snapshots`, {
-              params: { lastMinutes: SNAPSHOT_LAST_MINUTES },
-            }),
+            client.post(`/v1/instances/${id}/health`, {}),
+            client.post(`/v1/instances/${id}/resources`, {}),
+            client.post(`/v1/instances/${id}/connections`, {}),
+            client.post(`/v1/instances/${id}/data-stats`, {}),
+            client.post(`/v1/instances/${id}/efficiency`, {}),
+            client.post(`/v1/instances/${id}/snapshots`, { lastMinutes: SNAPSHOT_LAST_MINUTES }),
           ]);
 
         setHealth(healthRes.data);
@@ -124,7 +122,7 @@ export default function InstanceDetail() {
 
         if (instanceType === "HAZELCAST") {
           try {
-            const clusterRes = await client.get(`/v1/instances/${id}/cluster`);
+            const clusterRes = await client.post(`/v1/instances/${id}/cluster`, {});
             setCluster(clusterRes.data);
             setClusterNote("");
           } catch {

@@ -94,7 +94,7 @@ const TOP_PATTERN_COUNT = 5;
 
 async function aggregatePatterns(instances) {
   const results = await Promise.allSettled(
-    instances.map((inst) => client.get(`/v1/instances/${inst.id}/key-patterns`))
+    instances.map((inst) => client.post(`/v1/instances/${inst.id}/key-patterns`, {}))
   );
 
   const byKey = new Map();
@@ -135,18 +135,18 @@ export default function Overview() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const instancesRes = await client.get("/v1/instances");
+      const instancesRes = await client.post("/v1/instances/list", {});
       const list = instancesRes.data;
       setInstances(list);
 
       const entries = await Promise.all(
         list.map(async (inst) => {
           const [healthR, resourcesR, connectionsR, dataStatsR, efficiencyR] = await Promise.allSettled([
-            client.get(`/v1/instances/${inst.id}/health`),
-            client.get(`/v1/instances/${inst.id}/resources`),
-            client.get(`/v1/instances/${inst.id}/connections`),
-            client.get(`/v1/instances/${inst.id}/data-stats`),
-            client.get(`/v1/instances/${inst.id}/efficiency`),
+            client.post(`/v1/instances/${inst.id}/health`, {}),
+            client.post(`/v1/instances/${inst.id}/resources`, {}),
+            client.post(`/v1/instances/${inst.id}/connections`, {}),
+            client.post(`/v1/instances/${inst.id}/data-stats`, {}),
+            client.post(`/v1/instances/${inst.id}/efficiency`, {}),
           ]);
 
           return [

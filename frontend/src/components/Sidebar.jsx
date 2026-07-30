@@ -14,7 +14,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   useEffect(() => {
     client
-      .get("/v1/instances")
+      .post("/v1/instances/list", {})
       .then((res) => setInstances(res.data))
       .catch(() => setInstances([]));
   }, []);
@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, onClose }) {
     Promise.all(
       instances.map((instance) =>
         client
-          .get(`/v1/instances/${instance.id}/health`)
+          .post(`/v1/instances/${instance.id}/health`, {})
           .then((res) => [instance.id, res.data.status])
           .catch(() => [instance.id, "DOWN"])
       )
