@@ -29,12 +29,6 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         String path = request.getRequestURI();
 
-        if (path.contains("/auth/login") ||
-                path.contains("/health") ||
-                path.contains("/actuator")||
-                path.contains("/h2-console")) {
-            return true;
-        }
 
         String authHeader = request.getHeader("Authorization");
 

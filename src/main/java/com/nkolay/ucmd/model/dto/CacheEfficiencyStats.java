@@ -5,7 +5,9 @@ public class CacheEfficiencyStats {
     private long keyspaceMisses;
     private double hitRatio;
     private double missRatio;
-
+    public boolean hasTraffic() {
+        return (keyspaceHits + keyspaceMisses) > 0;
+    }
 
     private MetricStatus overallStatus;
 
@@ -14,8 +16,15 @@ public class CacheEfficiencyStats {
         this.keyspaceHits = keyspaceHits;
         this.keyspaceMisses = keyspaceMisses;
         long total = keyspaceHits + keyspaceMisses;
-        this.hitRatio = total > 0 ? (double) keyspaceHits / total : 0.0;
-        this.missRatio = total > 0 ? (double) keyspaceMisses / total : 0.0;
+        if (total > 0) {
+            this.hitRatio = (double) keyspaceHits / total;
+            this.missRatio = (double) keyspaceMisses / total;
+            this.overallStatus = MetricStatus.AVAILABLE;
+        } else {
+            this.hitRatio = Double.NaN;
+            this.missRatio = Double.NaN;
+            this.overallStatus = MetricStatus.NOT_APPLICABLE;
+        }
     }
 
     public long getKeyspaceHits() { return keyspaceHits; }

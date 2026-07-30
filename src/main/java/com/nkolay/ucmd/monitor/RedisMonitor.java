@@ -302,7 +302,6 @@ public class RedisMonitor implements CacheMonitor {
             long misses = infoLong(statsInfo, "keyspace_misses", 0);
 
             CacheEfficiencyStats ce = new CacheEfficiencyStats(hits, misses);
-            ce.setOverallStatus(MetricStatus.AVAILABLE);
             return ce;
 
         } catch (Exception e) {
