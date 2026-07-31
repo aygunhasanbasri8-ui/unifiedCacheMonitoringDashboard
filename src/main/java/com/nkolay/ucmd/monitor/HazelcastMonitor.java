@@ -108,7 +108,12 @@ public class HazelcastMonitor implements CacheMonitor {
 
         } catch (Exception e) {
             logger.error("Error fetching Hazelcast resource stats: {}", e.getMessage(), e);
-            return new ResourceStats(0, 0, 0);
+            ResourceStats down = new ResourceStats(0,0,0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setCpuStats(MetricStatus.UNAVAILABLE);
+            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 
@@ -191,7 +196,9 @@ public class HazelcastMonitor implements CacheMonitor {
             return clusterInfo;
         } catch (Exception e) {
             logger.error("Error fetching cluster info: {}", e.getMessage(), e);
-            return null;
+            ClusterInfo down = new ClusterInfo();
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 

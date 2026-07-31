@@ -25,7 +25,7 @@ public class RedisMonitor implements CacheMonitor {
     // CPU delta hesabı: instanceId -> [cpuSeconds, timestampMillis]
     private final Map<Long, double[]> lastCpuSample = new ConcurrentHashMap<>();
 
-    private volatile boolean hadPreviousCpuSample = false;
+    public static final double CPU_NOT_READY = -1.0;
 
     public RedisMonitor(RedisConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
@@ -35,6 +35,8 @@ public class RedisMonitor implements CacheMonitor {
     public String getSupportedType() {
         return "REDIS";
     }
+
+
 
     // ═══════════════ Yardımcılar ═══════════════
 
@@ -135,7 +137,9 @@ public class RedisMonitor implements CacheMonitor {
             long usedMemoryRss = infoLong(memInfo, "used_memory_rss", 0);
             double fragRatio = infoDouble(memInfo, "mem_fragmentation_ratio", 1.0);
 
-            double cpuPercent = calculateCpuPercent(instance.getId(), cpuInfo);
+            double cpuRaw = calculateCpuPercent(instance.getId(), cpuInfo);
+            boolean cpuReady = cpuRaw >= 0;
+            double cpuPercent = cpuReady ? cpuRaw : 0.0;
 
             ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
             stats.setFragmentationRatio(fragRatio);
@@ -145,20 +149,24 @@ public class RedisMonitor implements CacheMonitor {
             stats.setMemoryStatus(MetricStatus.AVAILABLE);
             stats.setFragmentationStatus(MetricStatus.AVAILABLE);
 
-            boolean cpuReady = lastCpuSample.containsKey(instance.getId())
-                    && cpuPercent >= 0 && hadPreviousCpuSample;
-            stats.setCpuStats(cpuReady ? MetricStatus.AVAILABLE : MetricStatus.NOT_READY);
+            stats.setCpuStats(cpuReady ? MetricStatus.AVAILABLE : MetricStatus.UNAVAILABLE);
             return stats;
 
         } catch (Exception e) {
             logger.error("Error fetching resource stats for {}: {}",
                     instance.getName(), e.getMessage());
-            return new ResourceStats(0, 0, 0);
+            ResourceStats down = new ResourceStats(0,0,0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setCpuStats(MetricStatus.UNAVAILABLE);
+            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 
+
     private double calculateCpuPercent(Long instanceId, String cpuInfo) {
-        if (cpuInfo == null || instanceId == null) return 0.0;
+        if (cpuInfo == null || instanceId == null) return CPU_NOT_READY;
         try {
             double sys = infoDouble(cpuInfo, "used_cpu_sys", 0);
             double user = infoDouble(cpuInfo, "used_cpu_user", 0);
@@ -168,15 +176,11 @@ public class RedisMonitor implements CacheMonitor {
             double[] previous = lastCpuSample.get(instanceId);
             lastCpuSample.put(instanceId, new double[]{totalCpuSeconds, now});
 
-            if (previous == null) {
-                hadPreviousCpuSample = false;
-                return 0.0;
+            if (previous == null) return CPU_NOT_READY;
 
-            }
-            hadPreviousCpuSample = true;
             double cpuDelta = totalCpuSeconds - previous[0];
             double timeDeltaSeconds = (now - previous[1]) / 1000.0;
-            if (timeDeltaSeconds <= 0) return 0.0;
+            if (timeDeltaSeconds <= 0) return CPU_NOT_READY;
 
             double percent = (cpuDelta / timeDeltaSeconds) * 100.0;
             if (percent < 0) return 0.0;
@@ -186,7 +190,7 @@ public class RedisMonitor implements CacheMonitor {
 
         } catch (Exception e) {
             logger.warn("CPU delta hesaplanamadı: {}", e.getMessage());
-            return 0.0;
+            return CPU_NOT_READY;
         }
     }
 
@@ -218,7 +222,11 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching connection stats for {}: {}",
                     instance.getName(), e.getMessage());
-            return new ConnectionStats(0, 0, 0);
+            ConnectionStats down = new ConnectionStats(0,0,0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setErrorStatus(MetricStatus.UNAVAILABLE);
+            down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 
@@ -270,7 +278,11 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching data stats for {}: {}",
                     instance.getName(), e.getMessage());
-            return new DataStats(0, 0, 0);
+            DataStats down = new DataStats(0,0,0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 
