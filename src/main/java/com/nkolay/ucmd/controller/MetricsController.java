@@ -17,46 +17,26 @@ public class MetricsController {
 
     @PostMapping("/{id}/health")
     public ResponseEntity<HealthInfo> getInstanceHealth(@PathVariable Long id) {
-        HealthInfo health = monitoringService.getInstanceHealth(id);
-        if (health != null) {
-            return ResponseEntity.ok(health);
-        }
         return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{id}/resources")
     public ResponseEntity<ResourceStats> getResourceStats(@PathVariable Long id) {
-        ResourceStats stats = monitoringService.getResourceStats(id);
-        if (stats != null) {
-            return ResponseEntity.ok(stats);
-        }
         return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{id}/connections")
     public ResponseEntity<ConnectionStats> getConnectionStats(@PathVariable Long id) {
-        ConnectionStats stats = monitoringService.getConnectionStats(id);
-        if (stats != null) {
-            return ResponseEntity.ok(stats);
-        }
         return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{id}/data-stats")
     public ResponseEntity<DataStats> getDataStats(@PathVariable Long id) {
-        DataStats stats = monitoringService.getDataStats(id);
-        if (stats != null) {
-            return ResponseEntity.ok(stats);
-        }
         return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{id}/efficiency")
     public ResponseEntity<CacheEfficiencyStats> getCacheEfficiency(@PathVariable Long id) {
-        CacheEfficiencyStats stats = monitoringService.getCacheEfficiency(id);
-        if (stats != null) {
-            return ResponseEntity.ok(stats);
-        }
         return ResponseEntity.notFound().build();
     }
 }

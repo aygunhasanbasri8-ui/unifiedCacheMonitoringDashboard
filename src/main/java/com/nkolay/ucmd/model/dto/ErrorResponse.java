@@ -19,6 +19,12 @@ public class ErrorResponse {
         this.timestamp = System.currentTimeMillis();
     }
 
+    public ErrorResponse(String type, String title, int status, String detail, String instance, String traceId) {
+        this(type, title, status, detail);
+        this.instance = instance;
+        this.traceId = traceId;
+    }
+
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 

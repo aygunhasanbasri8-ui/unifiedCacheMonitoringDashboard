@@ -31,8 +31,6 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
 
     public PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instance == null) return new PageInfo<>(new ArrayList<>(), "0", false, count);
-
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
         return monitor.scanKeys(instance, prefix, cursor, count);
     }
@@ -41,8 +39,6 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
 
     public List<KeyInfo> getTopNKeys(Long instanceId, int n) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instance == null) return new ArrayList<>();
-
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
         return monitor.getTopNKeys(instance, n);
     }
@@ -53,8 +49,6 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
      */
     public long getKeyTTL(Long instanceId, String key) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instance == null) return -2;
-
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
         return monitor.getKeyTTL(instance, key);
     }

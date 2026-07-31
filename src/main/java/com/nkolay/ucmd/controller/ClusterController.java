@@ -17,10 +17,6 @@ public class ClusterController {
 
     @PostMapping("/{id}/cluster")
     public ResponseEntity<ClusterInfo> getClusterInfo(@PathVariable Long id) {
-        ClusterInfo clusterInfo = monitoringService.getClusterInfo(id);
-        if (clusterInfo != null) {
-            return ResponseEntity.ok(clusterInfo);
-        }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.getClusterInfo(id));
     }
 }

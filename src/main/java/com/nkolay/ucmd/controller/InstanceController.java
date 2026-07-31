@@ -26,11 +26,7 @@ public class InstanceController {
 
     @PostMapping("/{id}/detail")
     public ResponseEntity<InstanceRef> getInstanceById(@PathVariable Long id) {
-        InstanceRef instance = monitoringService.getInstanceById(id);
-        if (instance != null) {
-            return ResponseEntity.ok(instance);
-        }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.getInstanceById(id));
     }
 
     @PostMapping
@@ -44,11 +40,7 @@ public class InstanceController {
             @PathVariable Long id,
             @RequestBody InstanceRef instance) {
         instance.setId(id);
-        InstanceRef updated = monitoringService.updateInstance(instance);
-        if (updated != null) {
-            return ResponseEntity.ok(updated);
-        }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.updateInstance(instance));
     }
 
     @DeleteMapping("/{id}")

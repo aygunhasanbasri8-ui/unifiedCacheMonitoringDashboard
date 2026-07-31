@@ -34,7 +34,7 @@ public class KeyAnalysisController {
         SearchKeysRequest req = (request != null) ? request : new SearchKeysRequest();
         String prefix = req.getPrefix();
         if (prefix.length() > 512) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("Prefix en fazla 512 karakter olabilir");
         }
 
         PageInfo<KeyInfo> result =
@@ -49,7 +49,7 @@ public class KeyAnalysisController {
 
         int n = (request!=null) ? request.getN() : 20;
         if (n > 1000) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("N en fazla 1000 olabilir.");
         }
 
         List<KeyInfo> topKeys = keyAnalysisService.getTopNKeys(id, n);
@@ -62,8 +62,13 @@ public class KeyAnalysisController {
             @RequestBody KeyTtlRequest request){
 
         String key = (request!=null) ? request.getKey() : null;
-        if (key == null || key.isEmpty() || key.length()>512) {
-            return ResponseEntity.badRequest().build();
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("Key boş olamaz.");
+        }
+
+        if (key.length()>512) {
+            throw new IllegalArgumentException("Key uzunluğu 512'swn büyük olamaz.");
+
         }
 
         long ttlMillis = keyAnalysisService.getKeyTTL(id, key);
