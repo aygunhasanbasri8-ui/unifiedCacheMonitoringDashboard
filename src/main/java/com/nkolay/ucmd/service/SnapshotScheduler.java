@@ -52,7 +52,7 @@ public class SnapshotScheduler {
         shuttingDown.set(true);
     }
 
-    @Scheduled(fixedRate = 15000)
+    @Scheduled(fixedRate = 30000)
     public void collectMetrics() {
 
         if (shuttingDown.get()) {

@@ -71,6 +71,40 @@ public class GlobalExceptionHandler {
                 "Null value encountered", request);
     }
 
+    // ═══════════════ Koruma katmanı ═══════════════
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(
+            RateLimitExceededException e, HttpServletRequest request) {
+        logger.warn("Rate limit exceeded: {}", e.getMessage());
+        return build(HttpStatus.TOO_MANY_REQUESTS, "rate-limit-exceeded", "Too Many Requests",
+                "Bu instance için sorgu limiti aşıldı, lütfen biraz bekleyin", request);
+    }
+
+    @ExceptionHandler(InstanceBusyException.class)
+    public ResponseEntity<ErrorResponse> handleInstanceBusy(
+            InstanceBusyException e, HttpServletRequest request) {
+        logger.warn("Instance busy: {}", e.getMessage());
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "instance-busy", "Instance Busy",
+                "Bu instance üzerinde eş zamanlı sorgu limiti dolu", request);
+    }
+
+    @ExceptionHandler(CircuitOpenException.class)
+    public ResponseEntity<ErrorResponse> handleCircuitOpen(
+            CircuitOpenException e, HttpServletRequest request) {
+        logger.warn("Circuit open: {}", e.getMessage());
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "circuit-open", "Instance Temporarily Unavailable",
+                "Bu instance tekrarlayan hatalar nedeniyle geçici olarak devre dışı", request);
+    }
+
+    @ExceptionHandler(MonitorTimeoutException.class)
+    public ResponseEntity<ErrorResponse> handleMonitorTimeout(
+            MonitorTimeoutException e, HttpServletRequest request) {
+        logger.warn("Monitor timeout: {}", e.getMessage());
+        return build(HttpStatus.GATEWAY_TIMEOUT, "monitor-timeout", "Operation Timed Out",
+                "Sorgu zaman aşımına uğradı", request);
+    }
+
     // ═══════════════ Spring framework hataları ═══════════════
 
     /** Gövde okunamadı: bozuk JSON, eksik body, tip hatası. */

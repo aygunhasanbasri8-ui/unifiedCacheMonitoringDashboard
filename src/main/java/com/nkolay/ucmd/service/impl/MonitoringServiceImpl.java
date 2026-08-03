@@ -6,6 +6,7 @@ import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.CacheMonitor;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
+import com.nkolay.ucmd.monitor.ProtectedMonitorExecutor;
 import com.nkolay.ucmd.repository.InstanceRepository;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.hibernate.Cache;
@@ -27,12 +28,14 @@ public class MonitoringServiceImpl implements MonitoringService {
     private final MonitorRegistry monitorRegistry;
     private final InstanceRepository instanceRepository;
     private final KeyPatternConfig keyPatternConfig;
+    private final ProtectedMonitorExecutor executor;
 
 
-    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig) {
+    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig, ProtectedMonitorExecutor executor) {
         this.monitorRegistry = monitorRegistry;
         this.instanceRepository = instanceRepository;
         this.keyPatternConfig = keyPatternConfig;
+        this.executor = executor;
 
     }
 
@@ -63,14 +66,17 @@ public class MonitoringServiceImpl implements MonitoringService {
 
     @Override
     public InstanceRef updateInstance(InstanceRef instance) {
-        if (instanceRepository.existsById(instance.getId())){
-            return instanceRepository.save(instance);
+        if (instance.getId() == null || !instanceRepository.existsById(instance.getId())) {
+            throw new InstanceNotFoundException(instance.getId());
         }
-        return null;
+        InstanceRef saved = instanceRepository.save(instance);
+        executor.invalidate(saved);
+        return saved;
     }
 
     @Override
     public void deleteInstance(Long id) {
+        instanceRepository.findById(id).ifPresent(executor::invalidate);
         instanceRepository.deleteById(id);
     }
 
@@ -81,13 +87,19 @@ public class MonitoringServiceImpl implements MonitoringService {
     public HealthInfo getInstanceHealth(Long id) {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-        try {
-            HealthInfo health = monitor.getHealth(instance);
-            return health != null ? health : new HealthInfo("DOWN", "unknown", 0);
-        } catch (Exception e) {
-            logger.warn("Health check failed for {}: {}", instance.getName(), e.getMessage() );
+
+        var result = executor.executeCachedMetric(instance, "health",
+                () -> monitor.getHealth(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
             return new HealthInfo("DOWN", "unknown", 0);
         }
+        if (result.isStale()) {
+            HealthInfo stale = result.value();
+            // Bayat sağlık bilgisi UP gösterilmemeli
+            return new HealthInfo("DOWN", stale.getVersion(), stale.getUptimeSeconds());
+        }
+        return result.value();
     }
 
     @Override
@@ -95,13 +107,17 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        try {
-            ResourceStats stats = monitor.getResourceStats(instance);
-            return stats != null ? stats : unavailableResourceStats();
-        } catch (Exception e) {
-            logger.warn("Resource check failed for {}: {}", instance.getName(), e.getMessage());
+        var result = executor.executeCachedMetric(instance, "resources",
+                () -> monitor.getResourceStats(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
             return unavailableResourceStats();
         }
+        ResourceStats stats = result.value();
+        if (result.isStale()) {
+            stats.setOverallStatus(MetricStatus.STALE);
+        }
+        return stats;
     }
 
     @Override
@@ -109,13 +125,17 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        try {
-            ConnectionStats stats = monitor.getConnectionStats(instance);
-            return stats != null ? stats : unavailableConnectionStats();
-        } catch (Exception e) {
-            logger.warn("Connection stats check failed for {}: {}", instance.getName(), e.getMessage());
+        var result = executor.executeCachedMetric(instance, "connections",
+                () -> monitor.getConnectionStats(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
             return unavailableConnectionStats();
         }
+        ConnectionStats stats = result.value();
+        if (result.isStale()) {
+            stats.setOverallStatus(MetricStatus.STALE);
+        }
+        return stats;
     }
 
     @Override
@@ -123,13 +143,17 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        try {
-            DataStats stats = monitor.getDataStats(instance);
-            return stats != null ? stats : unavailableDataStats();
-        } catch (Exception e) {
-            logger.warn("Data Stats check failed for {}: {}", instance.getName(), e.getMessage());
+        var result = executor.executeCachedMetric(instance, "data-stats",
+                () -> monitor.getDataStats(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
             return unavailableDataStats();
         }
+        DataStats stats = result.value();
+        if (result.isStale()) {
+            stats.setOverallStatus(MetricStatus.STALE);
+        }
+        return stats;
     }
 
     @Override
@@ -137,13 +161,17 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        try {
-            ClusterInfo info = monitor.getClusterInfo(instance);
-            return info != null ? info : unavailableClusterInfo();
-        } catch (Exception e) {
-            logger.warn("Cluster info check failed for {}: {}", instance.getName(), e.getMessage());
+        var result = executor.executeCachedMetric(instance, "cluster",
+                () -> monitor.getClusterInfo(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
             return unavailableClusterInfo();
         }
+        ClusterInfo info = result.value();
+        if (result.isStale()) {
+            info.setOverallStatus(MetricStatus.STALE);
+        }
+        return info;
     }
 
     @Override
@@ -151,30 +179,29 @@ public class MonitoringServiceImpl implements MonitoringService {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        try {
-            CacheEfficiencyStats stats = monitor.getCacheEfficiency(instance);
-            return stats != null ? stats : unavailableCacheEfficiencyStats();
-        } catch (Exception e) {
-            logger.warn("Cache Efficiency Stats check failed for {}: {}", instance.getName(), e.getMessage());
+        var result = executor.executeCachedMetric(instance, "efficiency",
+                () -> monitor.getCacheEfficiency(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
             return unavailableCacheEfficiencyStats();
         }
+        CacheEfficiencyStats stats = result.value();
+        if (result.isStale()) {
+            stats.setOverallStatus(MetricStatus.STALE);
+        }
+        return stats;
     }
 
+    /** SCAN tabanlı — pahalı işlem, tüm korumalar aktif, cache yok. */
     @Override
     public List<KeyPatternStats> getKeyPatternStats(Long id) {
         InstanceRef instance = getInstanceById(id);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        try {
-            List<KeyPatternStats> stats = monitor.getKeyPatternStats(instance, keyPatternConfig.getKeyPatterns());
-            return stats != null ? stats : new ArrayList<>();
-        } catch (Exception e) {
-            logger.warn("Key Patterr Stats check failed for {}{}", instance.getName(), e.getMessage());
-            return new ArrayList<>();
-        }
+        List<KeyPatternStats> stats = executor.executeExpensive(instance, "key-patterns",
+                () -> monitor.getKeyPatternStats(instance, keyPatternConfig.getKeyPatterns()));
 
-
-
+        return stats != null ? stats : new ArrayList<>();
     }
 
     ///=== Unavailable DTO ===

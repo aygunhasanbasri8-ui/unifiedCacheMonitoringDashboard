@@ -82,6 +82,20 @@ ucmd:
     max-entries: 5000
   key-search:
     min-prefix-length: 3
+  cache:
+    ttl-seconds: 10
+    stale-ttl-minutes: 30
+    max-size: 500
+  protection:
+    cheap-concurrency: 5
+    expensive-concurrency: 2
+    cheap-timeout-ms: 5000
+    expensive-timeout-ms: 15000
+    expensive-rate-limit-per-minute: 10
+    circuit-failure-rate-percent: 50
+    circuit-sliding-window: 10
+    circuit-open-duration-seconds: 30
+    bulkhead-max-wait-ms: 0
   key-patterns:
     # ── Kritik hot field'lar (en spesifik — önce gelmeli) ──
     - pattern: "ucmd:merchant:*:commission"
