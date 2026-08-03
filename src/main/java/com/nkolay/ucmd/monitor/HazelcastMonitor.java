@@ -3,6 +3,7 @@ package com.nkolay.ucmd.monitor;
 import com.hazelcast.cluster.Cluster;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.map.IMap;
 import com.nkolay.ucmd.config.KeyPatternConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
@@ -203,16 +204,18 @@ public class HazelcastMonitor implements CacheMonitor {
     }
 
     @Override
-    public PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count) {
+    public PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count, MatchMode matchMode) {
 
         List<KeyInfo> keys = new ArrayList<>();
+        final String search = (prefix == null) ? "" : prefix.trim();
+        final MatchMode mode = (matchMode == null ) ? MatchMode.STARTS_WITH : matchMode;
 
         try {
             hazelcastClient.getDistributedObjects().stream()
                     .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                    .filter(obj -> prefix == null
-                            || prefix.isEmpty()
-                            || obj.getName().startsWith(prefix))
+                    .filter(obj -> search.isEmpty() || (mode == MatchMode.CONTAINS)
+                            ? obj.getName().contains(search)
+                            : obj.getName().startsWith(search) )
                     .limit(count)
                     .forEach(obj -> {
                         com.hazelcast.map.IMap<?, ?> map =

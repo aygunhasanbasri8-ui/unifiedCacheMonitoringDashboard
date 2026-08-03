@@ -3,12 +3,14 @@ package com.nkolay.ucmd.monitor;
 import com.nkolay.ucmd.config.KeyPatternConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
+import com.nkolay.ucmd.exception.InvalidPrefixException;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
 import io.lettuce.core.api.sync.RedisCommands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -26,6 +28,9 @@ public class RedisMonitor implements CacheMonitor {
     private final Map<Long, double[]> lastCpuSample = new ConcurrentHashMap<>();
 
     public static final double CPU_NOT_READY = -1.0;
+
+    @Value("${ucmd.key-search.min.length:3}")
+    private int minPrefixLength;
 
     public RedisMonitor(RedisConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
@@ -329,10 +334,20 @@ public class RedisMonitor implements CacheMonitor {
     public PageInfo<KeyInfo> scanKeys(InstanceRef instance,
                                       String prefix,
                                       String cursor,
-                                      int count) {
+                                      int count,
+                                      MatchMode matchMode) {
+        final String search = (prefix == null) ? "" : prefix.trim();
+        if (search.isEmpty()) {
+            throw new InvalidPrefixException("prefix zorunludur");
+        }
+        if (search.length() < minPrefixLength) {
+            throw new InvalidPrefixException("Prefix uzunluğu en az" + minPrefixLength + "olmalıdır");
+        }
+
         List<KeyInfo> keys = new ArrayList<>();
-        final String search = (prefix == null) ? "" : prefix;
-        String pattern = search.isEmpty() ? "*" : "*" + search + "*";
+        MatchMode mode = (matchMode == null) ? MatchMode.STARTS_WITH : matchMode;
+        String escaped = escapeGlob(search);
+        String pattern = (mode == MatchMode.CONTAINS) ? "*" + escaped + "*" : escaped + "*";
         final String startCursor = (cursor == null || cursor.isEmpty()) ? "0" : cursor;
 
         try {
@@ -371,12 +386,15 @@ public class RedisMonitor implements CacheMonitor {
             String nextCursor = result.getCursor();
             boolean hasMore = !result.isFinished();
 
-            logger.debug("Scanned {} keys on {} (pattern '{}', cursor {} -> {})",
-                    keys.size(), instance.getName(), pattern, startCursor, nextCursor);
+            logger.debug("Scanned {} keys on {} (cursor {} -> {})",
+                    keys.size(), instance.getName(), startCursor, nextCursor);
 
             return new PageInfo<>(keys, nextCursor, hasMore, count);
 
-        } catch (Exception e) {
+        } catch (InvalidPrefixException e) {
+            throw e;
+        }
+        catch (Exception e) {
             logger.error("Error scanning keys for {}: {}",
                     instance.getName(), e.getMessage());
             return new PageInfo<>(new ArrayList<>(), "0", false, count);
@@ -508,6 +526,17 @@ public class RedisMonitor implements CacheMonitor {
         if (other.getKeyCount() > 0) result.add(other);
         result.removeIf(s -> s.getKeyCount() == 0);
         return result;
+    }
+
+    private String escapeGlob(String input) {
+        StringBuilder sb = new StringBuilder(input.length() + 8);
+        for (char c : input.toCharArray()) {
+            if (c == '*' || c == '?' || c == '[' || c == ']' || c == '\\') {
+                sb.append('\\');
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     /** Redis glob desenini (yalnızca *) regex'e çevirip eşleştirir. */

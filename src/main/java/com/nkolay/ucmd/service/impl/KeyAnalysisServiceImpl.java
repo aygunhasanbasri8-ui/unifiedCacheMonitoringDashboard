@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.service.impl;
 
 
+import com.fasterxml.jackson.databind.deser.DataFormatReaders;
+import com.nkolay.ucmd.model.dto.MatchMode;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.model.dto.KeyInfo;
 import com.nkolay.ucmd.model.dto.PageInfo;
@@ -29,10 +31,10 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
 
 
 
-    public PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count) {
+    public PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count, MatchMode matchMode) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-        return monitor.scanKeys(instance, prefix, cursor, count);
+        return monitor.scanKeys(instance, prefix, cursor, count, matchMode);
     }
 
 

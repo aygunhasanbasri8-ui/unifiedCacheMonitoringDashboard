@@ -30,7 +30,7 @@ public interface CacheMonitor {
 
     ClusterInfo getClusterInfo(InstanceRef instance);
 
-    PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count);
+    PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count, MatchMode matchMode);
 
     List<KeyInfo> getTopNKeys(InstanceRef instance, int n);
 

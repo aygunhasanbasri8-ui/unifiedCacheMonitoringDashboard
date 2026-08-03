@@ -1,15 +1,9 @@
 package com.nkolay.ucmd.controller;
 
-import com.nkolay.ucmd.model.dto.KeyInfo;
-import com.nkolay.ucmd.model.dto.KeyPatternStats;
-import com.nkolay.ucmd.model.dto.PageInfo;
+import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.security.RequireRole;
 import com.nkolay.ucmd.service.KeyAnalysisService;
-import com.nkolay.ucmd.model.dto.KeyTtlResponse;
 import com.nkolay.ucmd.service.MonitoringService;
-import com.nkolay.ucmd.model.dto.SearchKeysRequest;
-import com.nkolay.ucmd.model.dto.TopKeysRequest;
-import com.nkolay.ucmd.model.dto.KeyTtlRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,12 +27,12 @@ public class KeyAnalysisController {
 
         SearchKeysRequest req = (request != null) ? request : new SearchKeysRequest();
         String prefix = req.getPrefix();
-        if (prefix.length() > 512) {
+        if (prefix == null || prefix.length() > 512) {
             throw new IllegalArgumentException("Prefix en fazla 512 karakter olabilir");
         }
 
         PageInfo<KeyInfo> result =
-                keyAnalysisService.scanKeys(id, prefix, req.getCursor(), req.getCount());
+                keyAnalysisService.scanKeys(id, prefix, req.getCursor(), req.getCount(), req.getMatchMode());
         return ResponseEntity.ok(result);
     }
 

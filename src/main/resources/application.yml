@@ -78,6 +78,10 @@ management:
       application: ucmd
 
 ucmd:
+  audit:
+    max-entries: 5000
+  key-search:
+    min-prefix-length: 3
   key-patterns:
     # ── Kritik hot field'lar (en spesifik — önce gelmeli) ──
     - pattern: "ucmd:merchant:*:commission"

@@ -136,8 +136,7 @@ public class SnapshotScheduler {
 
             snapshotRepository.saveAll(currentSnapshots);
 
-
-            auditService.log("METRICS_COLLECTED", "Collected metrics from " + currentSnapshots.size() + " instances");
+            logger.debug("Metrics collected from {} instances", currentSnapshots.size());
 
         } catch (Exception e) {
             auditService.logError("METRICS_COLLECTION_FAILED", e.getMessage());
