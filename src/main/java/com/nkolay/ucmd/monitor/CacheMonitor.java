@@ -38,5 +38,9 @@ public interface CacheMonitor {
 
     CacheEfficiencyStats getCacheEfficiency(InstanceRef instance);
 
+    ReplicationInfo getReplicationInfo(InstanceRef instance);
+    
+    PersistenceInfo getPersistenceInfo(InstanceRef instance);
+
     List<KeyPatternStats> getKeyPatternStats(InstanceRef instance, List<KeyPatternConfig.PatternDef> patterns);
 }

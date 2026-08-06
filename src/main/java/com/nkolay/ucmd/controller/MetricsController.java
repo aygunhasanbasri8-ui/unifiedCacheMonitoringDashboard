@@ -39,4 +39,14 @@ public class MetricsController {
     public ResponseEntity<CacheEfficiencyStats> getCacheEfficiency(@PathVariable Long id) {
         return ResponseEntity.notFound().build();
     }
+
+    @PostMapping("/{id}/replication")
+    public ResponseEntity<ReplicationInfo> getReplicationInfo(@PathVariable Long id) {
+        return ResponseEntity.ok(monitoringService.getReplicationInfo(id));
+    }
+
+    @PostMapping("/{id}/persistence")
+    public ResponseEntity<PersistenceInfo> getPersistenceInfo(@PathVariable Long id) {
+        return ResponseEntity.ok(monitoringService.getPersistenceInfo(id));
+    }
 }

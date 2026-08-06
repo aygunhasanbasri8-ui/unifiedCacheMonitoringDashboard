@@ -28,6 +28,12 @@ public class MetricSnapshot {
     private double fragmentationRatio;
     private int nodeCount;
     private String partitionJson;   // Hazelcast partition dağılımı
+    private long evictedKeys;
+    private long expiredKeys;
+    private long opsPerSec;
+    private Double hitRatio;
+    private String replicationRole;
+    private int connectedReplicas;
 
     @Enumerated(EnumType.STRING)
     private com.nkolay.ucmd.model.dto.MetricStatus overallStatus;
@@ -84,4 +90,54 @@ public class MetricSnapshot {
 
     public com.nkolay.ucmd.model.dto.MetricStatus getOverallStatus() { return overallStatus;}
     public void setOverallStatus (com.nkolay.ucmd.model.dto.MetricStatus overallStatus) {this.overallStatus = overallStatus;}
+
+    public Double getHitRatio() {
+        return hitRatio;
+    }
+
+    public void setHitRatio(Double hitRatio) {
+        this.hitRatio = hitRatio;
+    }
+
+    public long getEvictedKeys() {
+        return evictedKeys;
+    }
+
+    public void setEvictedKeys(long evictedKeys) {
+        this.evictedKeys = evictedKeys;
+    }
+
+    public long getOpsPerSec() {
+        return opsPerSec;
+    }
+
+    public void setOpsPerSec(long opsPerSec) {
+        this.opsPerSec = opsPerSec;
+    }
+
+    public long getExpiredKeys() {
+        return expiredKeys;
+    }
+
+    public void setExpiredKeys(long expiredKeys) {
+        this.expiredKeys = expiredKeys;
+    }
+
+    public String getReplicationRole() {
+        return replicationRole;
+    }
+
+    public void setReplicationRole(String replicationRole) {
+        this.replicationRole = replicationRole;
+    }
+
+    public int getConnectedReplicas() {
+        return connectedReplicas;
+    }
+
+    public void setConnectedReplicas(int connectedReplicas) {
+        this.connectedReplicas = connectedReplicas;
+    }
+
+
 }

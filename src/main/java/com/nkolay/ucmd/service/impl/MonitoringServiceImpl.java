@@ -197,6 +197,44 @@ public class MonitoringServiceImpl implements MonitoringService {
         return stats;
     }
 
+    @Override
+    public ReplicationInfo getReplicationInfo(Long id) {
+        InstanceRef instance = getInstanceById(id);
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+
+        var result = executor.executeCachedMetric(instance, "replication",
+                () -> monitor.getReplicationInfo(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
+            return ReplicationInfo.unavailable();
+        }
+        ReplicationInfo info = result.value();
+        info.setMeta(result.toMeta());
+        if (result.isStale()) {
+            info.setOverallStatus(MetricStatus.STALE);
+        }
+        return info;
+    }
+
+    @Override
+    public PersistenceInfo getPersistenceInfo(Long id) {
+        InstanceRef instance = getInstanceById(id);
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+
+        var result = executor.executeCachedMetric(instance, "persistence",
+                () -> monitor.getPersistenceInfo(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
+            return PersistenceInfo.unavailable();
+        }
+        PersistenceInfo info = result.value();
+        info.setMeta(result.toMeta());
+        if (result.isStale()) {
+            info.setOverallStatus(MetricStatus.STALE);
+        }
+        return info;
+    }
+
     /** SCAN tabanlı — pahalı işlem, tüm korumalar aktif, cache yok. */
     @Override
     public List<KeyPatternStats> getKeyPatternStats(Long id) {

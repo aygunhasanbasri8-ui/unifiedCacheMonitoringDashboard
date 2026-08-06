@@ -284,6 +284,18 @@ public class HazelcastMonitor implements CacheMonitor {
         stats.setOverallStatus(MetricStatus.NOT_APPLICABLE);
         return stats;
     }
+
+    @Override
+    public ReplicationInfo getReplicationInfo(InstanceRef instance) {
+        return ReplicationInfo.notApplicable();
+    }
+
+    /** Hazelcast persistence (Hot Restart) enterprise özelliğidir. */
+    @Override
+    public PersistenceInfo getPersistenceInfo(InstanceRef instance) {
+        return PersistenceInfo.notApplicable();
+    }
+
     @Override
     public List<KeyPatternStats> getKeyPatternStats(InstanceRef instance,
                                                     List<KeyPatternConfig.PatternDef> patterns) {

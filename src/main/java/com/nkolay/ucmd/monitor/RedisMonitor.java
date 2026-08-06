@@ -143,6 +143,7 @@ public class RedisMonitor implements CacheMonitor {
             long maxMemory = infoLong(memInfo, "maxmemory", 0);
             long usedMemoryRss = infoLong(memInfo, "used_memory_rss", 0);
             double fragRatio = infoDouble(memInfo, "mem_fragmentation_ratio", 1.0);
+            long fragBytes = infoLong(memInfo, "mem_fragmentation_bytes", 0);
 
             double cpuRaw = calculateCpuPercent(instance.getId(), cpuInfo);
             boolean cpuReady = cpuRaw >= 0;
@@ -150,6 +151,7 @@ public class RedisMonitor implements CacheMonitor {
 
             ResourceStats stats = new ResourceStats(cpuPercent, usedMemory, maxMemory);
             stats.setFragmentationRatio(fragRatio);
+            stats.setFragmentationBytes(fragBytes);
             stats.setMemoryRssBytes(usedMemoryRss);
 
             stats.setOverallStatus(MetricStatus.AVAILABLE);
@@ -212,27 +214,44 @@ public class RedisMonitor implements CacheMonitor {
                 down.setOverallStatus(MetricStatus.UNAVAILABLE);
                 down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
                 down.setErrorStatus(MetricStatus.UNAVAILABLE);
+                down.setMaxClientsStatus(MetricStatus.UNAVAILABLE);
+                down.setBlockedClientsStatus(MetricStatus.UNAVAILABLE);
                 return down;
             }
             String clientInfo = cmd.info("clients");
             String statsInfo = cmd.info("stats");
 
             int connectedClients = (int) infoLong(clientInfo, "connected_clients", 0);
+            int blockedClients = (int) infoLong(clientInfo, "blocked_clients", 0);
+            long maxClients = infoLong(clientInfo, "maxclients", 0);
             long rejectedConn = infoLong(statsInfo, "rejected_connections", 0);
+            long totalReceived = infoLong(statsInfo, "total_connections_received", 0);
 
-            ConnectionStats cs = new ConnectionStats(connectedClients,0, rejectedConn);
+            ConnectionStats cs = new ConnectionStats(connectedClients, 0, rejectedConn);
+            cs.setBlockedClients(blockedClients);
+            cs.setMaxClients(maxClients);
+            cs.setTotalConnectionsReceived(totalReceived);
+
             cs.setOverallStatus(MetricStatus.AVAILABLE);
             cs.setActiveClientStatus(MetricStatus.AVAILABLE);
+            cs.setBlockedClientsStatus(MetricStatus.AVAILABLE);
+            cs.setMaxClientsStatus(maxClients > 0
+                    ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
+
+            // Redis'te "connection error" sayacı yoktur — rejected_connections
+            // ayrı bir metrik olarak sunuluyor, bu alan N/A.
             cs.setErrorStatus(MetricStatus.NOT_APPLICABLE);
             return cs;
 
         } catch (Exception e) {
             logger.error("Error fetching connection stats for {}: {}",
                     instance.getName(), e.getMessage());
-            ConnectionStats down = new ConnectionStats(0,0,0);
+            ConnectionStats down = new ConnectionStats(0, 0, 0);
             down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setErrorStatus(MetricStatus.UNAVAILABLE);
             down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
+            down.setErrorStatus(MetricStatus.UNAVAILABLE);
+            down.setMaxClientsStatus(MetricStatus.UNAVAILABLE);
+            down.setBlockedClientsStatus(MetricStatus.UNAVAILABLE);
             return down;
         }
     }
@@ -257,29 +276,28 @@ public class RedisMonitor implements CacheMonitor {
             long maxMemory = infoLong(memInfo, "maxmemory", 0);
             double fragRatio = infoDouble(memInfo, "mem_fragmentation_ratio", 1.0);
 
-            // keyspace: "db0:keys=1234,expires=100,avg_ttl=0"
-            long totalKeys = 0;
-            if (keyspaceInfo != null) {
-                for (String line : keyspaceInfo.split("\r?\n")) {
-                    if (line.startsWith("db")) {
-                        for (String part : line.split(",")) {
-                            int idx = part.indexOf("keys=");
-                            if (idx >= 0) {
-                                try {
-                                    totalKeys += Long.parseLong(
-                                            part.substring(idx + 5).trim());
-                                } catch (NumberFormatException ignored) {}
-                            }
-                        }
-                    }
-                }
-            }
+            String statsInfo = cmd.info("stats");
+            long fragBytes = infoLong(memInfo, "mem_fragmentation_bytes", 0);
 
-            DataStats stats = new DataStats(totalKeys, usedMemory, maxMemory);
+            KeyspaceSummary ks = parseKeyspace(keyspaceInfo);
+
+            DataStats stats = new DataStats(ks.totalKeys(), usedMemory, maxMemory);
             stats.setFragmentationRatio(fragRatio);
+            stats.setFragmentationBytes(fragBytes);
+            stats.setKeysPerDatabase(ks.perDatabase());
+            stats.setKeysWithExpiry(ks.totalExpires());
+            stats.setAvgTtlMillis(ks.avgTtlMillis());
+
+            // Rehber §4.3 — eviction / expiration
+            stats.setEvictedKeys(infoLong(statsInfo, "evicted_keys", 0));
+            stats.setExpiredKeys(infoLong(statsInfo, "expired_keys", 0));
+
             stats.setOverallStatus(MetricStatus.AVAILABLE);
-            stats.setMemoryStatus(MetricStatus.AVAILABLE);
             stats.setFragmentationStatus(MetricStatus.AVAILABLE);
+            stats.setEvictionStatus(MetricStatus.AVAILABLE);
+            stats.setTtlStatus(ks.avgTtlMillis() != null
+                    ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
+            // memoryStatus constructor'da set edildi (maxmemory=0 → NOT_APPLICABLE)
             return stats;
 
         } catch (Exception e) {
@@ -289,6 +307,8 @@ public class RedisMonitor implements CacheMonitor {
             down.setOverallStatus(MetricStatus.UNAVAILABLE);
             down.setMemoryStatus(MetricStatus.UNAVAILABLE);
             down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+            down.setEvictionStatus(MetricStatus.UNAVAILABLE);
+            down.setTtlStatus(MetricStatus.UNAVAILABLE);
             return down;
         }
     }
@@ -298,11 +318,37 @@ public class RedisMonitor implements CacheMonitor {
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
 
-        logger.debug("Redis doesn't support cluster info for instance: {}",
-                instance.getName());
-        ClusterInfo stats = new ClusterInfo();
-                stats.setOverallStatus(MetricStatus.NOT_APPLICABLE);
-        return stats;
+        try {
+            RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
+            if (cmd == null) {
+                ClusterInfo down = new ClusterInfo();
+                down.setOverallStatus(MetricStatus.UNAVAILABLE);
+                return down;
+            }
+
+            // Rehber §4.7 — cluster_enabled kontrolü
+            String clusterInfo = cmd.info("cluster");
+            boolean clusterEnabled = infoLong(clusterInfo, "cluster_enabled", 0) == 1;
+
+            ClusterInfo info = new ClusterInfo();
+            if (!clusterEnabled) {
+                info.setOverallStatus(MetricStatus.NOT_APPLICABLE);
+                return info;
+            }
+
+            // Cluster modu aktif — CLUSTER INFO desteği henüz eklenmedi
+            info.setOverallStatus(MetricStatus.NOT_READY);
+            info.setPartitionCountStatus(MetricStatus.NOT_READY);
+            info.setBalancedStatus(MetricStatus.NOT_READY);
+            return info;
+
+        } catch (Exception e) {
+            logger.warn("Cluster info check failed for {}: {}",
+                    instance.getName(), e.getMessage());
+            ClusterInfo down = new ClusterInfo();
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            return down;
+        }
     }
 
     // ═══════════════ Cache verimliliği ═══════════════
@@ -321,12 +367,28 @@ public class RedisMonitor implements CacheMonitor {
             long misses = infoLong(statsInfo, "keyspace_misses", 0);
 
             CacheEfficiencyStats ce = new CacheEfficiencyStats(hits, misses);
+
+            // Rehber §4.4 — throughput ve network
+            ce.setInstantaneousOpsPerSec(infoLong(statsInfo, "instantaneous_ops_per_sec", 0));
+            ce.setTotalCommandsProcessed(infoLong(statsInfo, "total_commands_processed", 0));
+            ce.setInputKbps(infoDouble(statsInfo, "instantaneous_input_kbps", 0));
+            ce.setOutputKbps(infoDouble(statsInfo, "instantaneous_output_kbps", 0));
+            ce.setTotalErrorReplies(infoLong(statsInfo, "total_error_replies", 0));
+
+            ce.setOverallStatus(MetricStatus.AVAILABLE);
+            ce.setThroughputStatus(MetricStatus.AVAILABLE);
+            ce.setNetworkStatus(MetricStatus.AVAILABLE);
             return ce;
 
         } catch (Exception e) {
             logger.error("Error fetching cache efficiency for {}: {}",
                     instance.getName(), e.getMessage());
-            return new CacheEfficiencyStats(0, 0);
+            CacheEfficiencyStats down = new CacheEfficiencyStats(0, 0);
+            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setHitRatioStatus(MetricStatus.UNAVAILABLE);
+            down.setThroughputStatus(MetricStatus.UNAVAILABLE);
+            down.setNetworkStatus(MetricStatus.UNAVAILABLE);
+            return down;
         }
     }
 
@@ -470,7 +532,124 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    // ═══════════════ Key desen istatistikleri ═══════════════
+
+    @Override
+    public ReplicationInfo getReplicationInfo(InstanceRef instance) {
+        try {
+            RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
+            if (cmd == null) return ReplicationInfo.unavailable();
+
+            String info = cmd.info("replication");
+            String role = infoValue(info, "role", "unknown");
+
+            ReplicationInfo r = new ReplicationInfo();
+            r.setRole(role);
+            r.setMasterReplOffset(infoLong(info, "master_repl_offset", 0));
+
+            if ("slave".equalsIgnoreCase(role)) {
+                r.setMasterLinkStatus(infoValue(info, "master_link_status", "unknown"));
+                r.setMasterLastIoSecondsAgo(infoLong(info, "master_last_io_seconds_ago", -1));
+                r.setMasterSyncInProgress(infoLong(info, "master_sync_in_progress", 0) == 1);
+
+                long slaveOffset = infoLong(info, "slave_repl_offset", 0);
+                long masterOffset = infoLong(info, "master_repl_offset", 0);
+                r.setReplicaLagBytes(Math.max(0, masterOffset - slaveOffset));
+                r.setOverallStatus(MetricStatus.AVAILABLE);
+                return r;
+            }
+
+            int connected = (int) infoLong(info, "connected_slaves", 0);
+            r.setConnectedReplicas(connected);
+            r.setReplicas(parseReplicas(info, connected));
+
+            // Standalone master (replica yok) → replication kullanılmıyor
+            r.setOverallStatus(connected > 0
+                    ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
+            return r;
+
+        } catch (Exception e) {
+            logger.error("Error fetching replication info for {}: {}",
+                    instance.getName(), e.getMessage());
+            return ReplicationInfo.unavailable();
+        }
+    }
+
+    /** "slave0:ip=127.0.0.1,port=6380,state=online,offset=1234,lag=0" */
+    private List<ReplicationInfo.ReplicaInfo> parseReplicas(String info, int count) {
+        List<ReplicationInfo.ReplicaInfo> list = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            String line = infoValue(info, "slave" + i, null);
+            if (line == null) continue;
+
+            String host = null, state = null;
+            int port = 0;
+            long offset = 0, lag = 0;
+
+            for (String part : line.split(",")) {
+                String[] kv = part.split("=", 2);
+                if (kv.length != 2) continue;
+                String k = kv[0].trim(), v = kv[1].trim();
+                try {
+                    switch (k) {
+                        case "ip"     -> host = v;
+                        case "port"   -> port = Integer.parseInt(v);
+                        case "state"  -> state = v;
+                        case "offset" -> offset = Long.parseLong(v);
+                        case "lag"    -> lag = Long.parseLong(v);
+                        default -> { }
+                    }
+                } catch (NumberFormatException ignored) { }
+            }
+            list.add(new ReplicationInfo.ReplicaInfo(host, port, state, offset, lag));
+        }
+        return list;
+    }
+
+    @Override
+    public PersistenceInfo getPersistenceInfo(InstanceRef instance) {
+        try {
+            RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
+            if (cmd == null) return PersistenceInfo.unavailable();
+
+            String info = cmd.info("persistence");
+
+            PersistenceInfo p = new PersistenceInfo();
+            p.setLoading(infoLong(info, "loading", 0) == 1);
+
+            // RDB
+            long lastSave = infoLong(info, "rdb_last_save_time", 0);
+            long changes = infoLong(info, "rdb_changes_since_last_save", -1);
+            boolean rdbActive = lastSave > 0 || changes >= 0;
+
+            p.setRdbEnabled(rdbActive);
+            p.setRdbBgsaveInProgress(infoLong(info, "rdb_bgsave_in_progress", 0) == 1);
+            p.setRdbLastBgsaveStatus(infoValue(info, "rdb_last_bgsave_status", "unknown"));
+            p.setRdbLastSaveTime(lastSave > 0 ? lastSave : null);
+            p.setRdbChangesSinceLastSave(Math.max(0, changes));
+            p.setRdbStatus(rdbActive ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
+
+            // AOF
+            boolean aofEnabled = infoLong(info, "aof_enabled", 0) == 1;
+            p.setAofEnabled(aofEnabled);
+            if (aofEnabled) {
+                p.setAofRewriteInProgress(infoLong(info, "aof_rewrite_in_progress", 0) == 1);
+                p.setAofLastBgrewriteStatus(infoValue(info, "aof_last_bgrewrite_status", "unknown"));
+                p.setAofLastWriteStatus(infoValue(info, "aof_last_write_status", "unknown"));
+                p.setAofStatus(MetricStatus.AVAILABLE);
+            } else {
+                p.setAofStatus(MetricStatus.NOT_APPLICABLE);
+            }
+
+            p.setOverallStatus((rdbActive || aofEnabled)
+                    ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
+            return p;
+
+        } catch (Exception e) {
+            logger.error("Error fetching persistence info for {}: {}",
+                    instance.getName(), e.getMessage());
+            return PersistenceInfo.unavailable();
+        }
+    }
 
     @Override
     public List<KeyPatternStats> getKeyPatternStats(InstanceRef instance,
@@ -525,6 +704,69 @@ public class RedisMonitor implements CacheMonitor {
         if (other.getKeyCount() > 0) result.add(other);
         result.removeIf(s -> s.getKeyCount() == 0);
         return result;
+    }
+
+
+    /** INFO keyspace satırlarının ayrıştırılmış özeti. */
+    private record KeyspaceSummary(long totalKeys, long totalExpires,
+                                   Long avgTtlMillis, Map<String, Long> perDatabase) {}
+
+    /**
+     * "db0:keys=1234,expires=100,avg_ttl=350000" satırlarını ayrıştırır.
+     * Rehber §4.3 — DBSIZE yerine tüm database değerleri toplanır.
+     */
+    private KeyspaceSummary parseKeyspace(String keyspaceInfo) {
+        long totalKeys = 0;
+        long totalExpires = 0;
+        double weightedTtlSum = 0;
+        long ttlWeight = 0;
+        Map<String, Long> perDb = new LinkedHashMap<>();
+
+        if (keyspaceInfo == null) {
+            return new KeyspaceSummary(0, 0, null, perDb);
+        }
+
+        for (String line : keyspaceInfo.split("\r?\n")) {
+            line = line.trim();
+            if (!line.startsWith("db")) continue;
+
+            int colon = line.indexOf(':');
+            if (colon < 0) continue;
+
+            String dbName = line.substring(0, colon);
+            String body = line.substring(colon + 1);
+
+            long keys = 0, expires = 0, avgTtl = 0;
+            for (String part : body.split(",")) {
+                String[] kv = part.split("=", 2);
+                if (kv.length != 2) continue;
+                try {
+                    long value = Long.parseLong(kv[1].trim());
+                    switch (kv[0].trim()) {
+                        case "keys"    -> keys = value;
+                        case "expires" -> expires = value;
+                        case "avg_ttl" -> avgTtl = value;
+                        default -> { }
+                    }
+                } catch (NumberFormatException ignored) { }
+            }
+
+            totalKeys += keys;
+            totalExpires += expires;
+            perDb.put(dbName, keys);
+
+            // avg_ttl yalnızca expire tanımlı key'ler için anlamlı
+            if (avgTtl > 0 && expires > 0) {
+                weightedTtlSum += (double) avgTtl * expires;
+                ttlWeight += expires;
+            }
+        }
+
+        Long avgTtlMillis = (ttlWeight > 0)
+                ? Math.round(weightedTtlSum / ttlWeight)
+                : null;   // N/A
+
+        return new KeyspaceSummary(totalKeys, totalExpires, avgTtlMillis, perDb);
     }
 
     private KeyInfo buildKeyInfo(RedisCommands<byte[], byte[]> cmd, byte[] keyBytes) {

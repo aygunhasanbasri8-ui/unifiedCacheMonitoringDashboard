@@ -21,6 +21,8 @@ public interface MonitoringService {
     DataStats getDataStats(Long id);
     ClusterInfo getClusterInfo(Long id);
     CacheEfficiencyStats getCacheEfficiency(Long id);
+    ReplicationInfo getReplicationInfo(Long id);
+    PersistenceInfo getPersistenceInfo(Long id);
     List<KeyPatternStats> getKeyPatternStats(Long id);
 
 }

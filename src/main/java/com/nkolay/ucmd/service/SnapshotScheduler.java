@@ -110,6 +110,27 @@ public class SnapshotScheduler {
                                         snapshot.setConnectionErrors(connections.getTotalConnectionErrors());
                                     }
 
+                                    CacheEfficiencyStats efficiency =
+                                            monitoringService.getCacheEfficiency(id);
+                                    if (efficiency != null) {
+                                        snapshot.setHitRatio(efficiency.getHitRatio());
+                                        snapshot.setOpsPerSec(
+                                                efficiency.getInstantaneousOpsPerSec());
+                                    }
+
+                                    if (data != null) {
+                                        snapshot.setEvictedKeys(data.getEvictedKeys());
+                                        snapshot.setExpiredKeys(data.getExpiredKeys());
+                                    }
+
+                                    ReplicationInfo replication =
+                                            monitoringService.getReplicationInfo(id);
+                                    if (replication != null) {
+                                        snapshot.setReplicationRole(replication.getRole());
+                                        snapshot.setConnectedReplicas(
+                                                replication.getConnectedReplicas());
+                                    }
+
                                     // Hazelcast ise cluster bilgisi (Redis'te null döner)
                                     ClusterInfo cluster = monitoringService.getClusterInfo(id);
                                     if (cluster != null) {
