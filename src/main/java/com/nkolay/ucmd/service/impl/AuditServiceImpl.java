@@ -1,78 +1,94 @@
 package com.nkolay.ucmd.service.impl;
 
 import com.nkolay.ucmd.model.entity.AuditLog;
+import com.nkolay.ucmd.repository.AuditRepository;
 import com.nkolay.ucmd.service.AuditService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Rehber §9 — denetim kaydı DB'de tutulur.
+ * Kapsam: kimlik doğrulama, mutasyon ve key erişimi. Metrik uçları loglanmaz.
+ */
 @Service
 public class AuditServiceImpl implements AuditService {
 
-    private final int maxEntries;
+    private static final Logger logger = LoggerFactory.getLogger(AuditServiceImpl.class);
 
-    private final Deque<AuditLog> auditLogs = new ArrayDeque<>();
-    private final ReentrantLock lock = new ReentrantLock();
+    private final AuditRepository auditRepository;
+    private final int retentionDays;
 
-    public AuditServiceImpl(@Value("${ucmd.audit.max-entries:5000}") int maxEntries) {
-        this.maxEntries = maxEntries > 0 ? maxEntries : 5000;
+    public AuditServiceImpl(AuditRepository auditRepository,
+                            @Value("${ucmd.audit.retention-days:90}") int retentionDays) {
+        this.auditRepository = auditRepository;
+        this.retentionDays = retentionDays > 0 ? retentionDays : 90;
     }
 
     @Override
     public void log(String action, String detail) {
-        append(new AuditLog(action, detail, "SYSTEM", LocalDateTime.now(), "SUCCESS"));
+        persist(new AuditLog(action, detail, "SYSTEM", LocalDateTime.now(), "SUCCESS"));
     }
 
     @Override
     public void logError(String action, String detail) {
-        append(new AuditLog(action, detail, "SYSTEM", LocalDateTime.now(), "ERROR"));
+        persist(new AuditLog(action, detail, "SYSTEM", LocalDateTime.now(), "ERROR"));
     }
 
     @Override
     public void log(String action, String username, String detail, String result) {
-        append(new AuditLog(action, detail, username, LocalDateTime.now(), result));
+        persist(new AuditLog(action, detail, username, LocalDateTime.now(), result));
     }
 
     @Override
-    public List<AuditLog> getAuditLogs() {
-        lock.lock();
-        try{
-            return new ArrayList<>(auditLogs);
-        } finally {
-            lock.unlock();
-        }
+    public void log(String action, String username, String detail,
+                    String result, String ipAddress) {
+        AuditLog entry = new AuditLog(action, detail, username, LocalDateTime.now(), result);
+        entry.setIpAddress(ipAddress);
+        persist(entry);
     }
 
     @Override
-    public List<AuditLog> getAuditLogsByAction(String action) {
-        lock.lock();
+    public Page<AuditLog> getAuditLogs(Pageable pageable) {
+        return auditRepository.findByOrderByTimestampDesc(pageable);
+    }
+
+    @Override
+    public Page<AuditLog> getAuditLogsByAction(String action, Pageable pageable) {
+        return auditRepository.findByActionOrderByTimestampDesc(action, pageable);
+    }
+
+    @Override
+    public Page<AuditLog> getAuditLogsByUsername(String username, Pageable pageable) {
+        return auditRepository.findByUsernameOrderByTimestampDesc(username, pageable);
+    }
+
+    private void persist(AuditLog entry) {
         try {
-            return auditLogs.stream()
-                    .filter(log -> action.equals(log.getAction()))
-                    .toList();
-        } finally {
-            lock.unlock();
+            auditRepository.save(entry);
+        } catch (Exception e) {
+            logger.error("Audit kaydı yazılamadı: {}", e.getMessage());
+            // Yutuluyor — audit hatası ana işlemi kesmemeli
         }
     }
 
-
-    private void append(AuditLog entry) {
-        lock.lock();
+    @Scheduled(cron = "${ucmd.audit.retention-cron:0 0 3 * * *}")
+    public void cleanupOldEntries() {
         try {
-            auditLogs.addLast(entry);
-            while (auditLogs.size() > maxEntries) {
-                auditLogs.removeFirst();
+            LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+            long deleted = auditRepository.deleteByTimestampBefore(cutoff);
+            if (deleted > 0) {
+                logger.info("Audit temizliği: {} kayıt silindi ({} günden eski)",
+                        deleted, retentionDays);
             }
-        } finally {
-            lock.unlock();
+        } catch (Exception e) {
+            logger.error("Audit temizliği başarısız: {}", e.getMessage());
         }
     }
-
-
 }

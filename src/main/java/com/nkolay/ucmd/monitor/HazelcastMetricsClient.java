@@ -1,8 +1,8 @@
 package com.nkolay.ucmd.monitor;
 
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -23,9 +23,6 @@ import java.util.Map;
 public class HazelcastMetricsClient {
 
     private static final Logger logger = LoggerFactory.getLogger(HazelcastMetricsClient.class);
-
-    @Value("${hazelcast.metrics-urls:http://localhost:9404/metrics}")
-    private String metricsUrls;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(3))
@@ -68,10 +65,21 @@ public class HazelcastMetricsClient {
         return metrics;
     }
 
-    /** Tüm node'lardan metrikleri çeker (her node ayrı map). */
-    public List<Map<String, Double>> fetchAllNodes() {
+    /**
+     * Instance'ın tanımlı tüm jmx_exporter adreslerinden metrikleri çeker
+     * (her node ayrı map). Adres tanımlı değilse boş liste döner.
+     */
+    public List<Map<String, Double>> fetchAllNodes(InstanceRef instance) {
         List<Map<String, Double>> result = new ArrayList<>();
-        for (String url : metricsUrls.split(",")) {
+
+        String metricsUrl = (instance != null) ? instance.getMetricsUrl() : null;
+        if (metricsUrl == null || metricsUrl.isBlank()) {
+            logger.debug("Instance için metrics URL tanımlı değil: {}",
+                    instance != null ? instance.getName() : "null");
+            return result;
+        }
+
+        for (String url : metricsUrl.split(",")) {
             url = url.trim();
             if (url.isEmpty()) continue;
             Map<String, Double> m = fetchFromUrl(url);
@@ -79,12 +87,6 @@ public class HazelcastMetricsClient {
         }
         logger.debug("Fetched metrics from {} Hazelcast node(s)", result.size());
         return result;
-    }
-
-    /** Geriye dönük uyumluluk: ilk node'un metrikleri. */
-    public Map<String, Double> fetchMetrics() {
-        List<Map<String, Double>> all = fetchAllNodes();
-        return all.isEmpty() ? new HashMap<>() : all.get(0);
     }
 
     /** Belirli bir metriği bulur (etiket filtresiyle). */

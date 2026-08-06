@@ -50,7 +50,7 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        var result = executor.executeCachedMetric(instance, "key-ttl",
+        var result = executor.executeCachedMetric(instance, "key-ttl:" + key,
                 () -> monitor.getKeyTTL(instance, key));
         if (result.isUnavailable() || result.value() == null) {
             return KeyTtlResponse.unavailable(key);

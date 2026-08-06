@@ -42,11 +42,9 @@ spring:
 
 hazelcast:
   cluster-name: ${HAZELCAST_CLUSTER_NAME:dev}
-  members: ${HAZELCAST_MEMBERS:localhost:5701}
   username: ${HAZELCAST_USERNAME:}
   password: ${HAZELCAST_PASSWORD:}
   tls-enabled: ${HAZELCAST_TLS_ENABLED:false}
-  metrics-urls: http://localhost:9404/metrics, http://localhost:9405/metrics
 
 app:
   environment: ${APP_ENVIRONMENT:development}
@@ -66,6 +64,14 @@ logging:
     com.nkolay: DEBUG
 
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
 management:
   endpoints:
     web:
@@ -80,7 +86,17 @@ management:
 
 ucmd:
   audit:
-    max-entries: 5000
+    retention-days: 90
+    retention-cron: "0 0 3 * * *"
+  security:
+    key-masking:
+      enabled: true
+    allowed-prefixes: []   # boş = kısıt yok
+  snapshot:
+    retention-days: 7
+    retention-cron: "0 30 3 * * *"
+    default-max-points: 500
+    max-points-limit: 2000
   key-search:
     min-prefix-length: 3
   cache:

@@ -47,6 +47,21 @@ services:
     networks:
       - ucmd-net
 
+  hz-analytics:
+    image: hazelcast/hazelcast:5.3.8
+    container_name: hz-analytics
+    ports:
+      - "5703:5701"
+      - "9406:9404"
+    environment:
+      HZ_NETWORK_PUBLICADDRESS: "hz-analytics:5701"
+      JAVA_OPTS: "-Dhazelcast.config=/opt/hazelcast/config/hazelcast.xml -javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/opt/jmx/config.yaml"
+    volumes:
+      - ./jmx:/opt/jmx:ro
+      - ./hazelcast/hazelcast-analytics.xml:/opt/hazelcast/config/hazelcast.xml:ro
+    networks:
+      - ucmd-net
+
   postgres:
     image: postgres:15
     container_name: postgres

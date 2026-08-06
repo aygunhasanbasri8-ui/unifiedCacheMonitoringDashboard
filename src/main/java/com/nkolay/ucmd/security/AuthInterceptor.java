@@ -66,6 +66,14 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         request.setAttribute("currentUser", user);
 
+        // Savunma derinliği: @RequireRole unutulsa bile /v1/admin/** korunur
+        if (path.contains("/v1/admin/") && !"ADMIN".equalsIgnoreCase(user.getRole())) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Admin yetkisi gerekli\"}");
+            return false;
+        }
+
         if (handler instanceof org.springframework.web.method.HandlerMethod handlerMethod) {
             RequireRole requireRole = handlerMethod.getMethodAnnotation(RequireRole.class);
             if (requireRole == null) {

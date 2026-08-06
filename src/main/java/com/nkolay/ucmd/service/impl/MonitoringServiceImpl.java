@@ -5,6 +5,7 @@ import com.nkolay.ucmd.exception.InstanceNotFoundException;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.CacheMonitor;
+import com.nkolay.ucmd.monitor.HazelcastConnectionManager;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
 import com.nkolay.ucmd.monitor.ProtectedMonitorExecutor;
 import com.nkolay.ucmd.repository.InstanceRepository;
@@ -29,13 +30,15 @@ public class MonitoringServiceImpl implements MonitoringService {
     private final InstanceRepository instanceRepository;
     private final KeyPatternConfig keyPatternConfig;
     private final ProtectedMonitorExecutor executor;
+    private final HazelcastConnectionManager hazelcastConnectionManager;
 
 
-    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig, ProtectedMonitorExecutor executor) {
+    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig, ProtectedMonitorExecutor executor, HazelcastConnectionManager hazelcastConnectionManager) {
         this.monitorRegistry = monitorRegistry;
         this.instanceRepository = instanceRepository;
         this.keyPatternConfig = keyPatternConfig;
         this.executor = executor;
+        this.hazelcastConnectionManager = hazelcastConnectionManager;
 
     }
 
@@ -43,8 +46,21 @@ public class MonitoringServiceImpl implements MonitoringService {
     public void initDefaultInstance() {
         if (instanceRepository.count() == 0) {
             instanceRepository.save(new InstanceRef(null, "Redis-prod", "REDIS", "localhost", 6379, true));
-            instanceRepository.save(new InstanceRef(null, "Hazelcast-cluster", "HAZELCAST", "localhost", 5701, true));
             instanceRepository.save(new InstanceRef(null, "Redis-cache", "REDIS", "localhost", 6380, true));
+
+            InstanceRef hzDev = new InstanceRef(null, "Hazelcast-dev", "HAZELCAST",
+                    "localhost", 5701, true);
+            hzDev.setClusterName("dev");
+            hzDev.setMembers("localhost:5701,localhost:5702");
+            hzDev.setMetricsUrl("http://localhost:9404/metrics,http://localhost:9405/metrics");
+            instanceRepository.save(hzDev);
+
+            InstanceRef hzAnalytics = new InstanceRef(null, "Hazelcast-analytics", "HAZELCAST",
+                    "localhost", 5703, true);
+            hzAnalytics.setClusterName("analytics");
+            hzAnalytics.setMembers("localhost:5703");
+            hzAnalytics.setMetricsUrl("http://localhost:9406/metrics");
+            instanceRepository.save(hzAnalytics);
         }
     }
 
@@ -69,14 +85,22 @@ public class MonitoringServiceImpl implements MonitoringService {
         if (instance.getId() == null || !instanceRepository.existsById(instance.getId())) {
             throw new InstanceNotFoundException(instance.getId());
         }
+        // Eski yapılandırmayla açılmış Hazelcast client'ı kapat
+        instanceRepository.findById(instance.getId())
+                .ifPresent(hazelcastConnectionManager::evict);
+
         InstanceRef saved = instanceRepository.save(instance);
         executor.invalidate(saved);
+        hazelcastConnectionManager.evict(saved);
         return saved;
     }
 
     @Override
     public void deleteInstance(Long id) {
-        instanceRepository.findById(id).ifPresent(executor::invalidate);
+        instanceRepository.findById(id).ifPresent(existing -> {
+            executor.invalidate(existing);
+            hazelcastConnectionManager.evict(existing);
+        });
         instanceRepository.deleteById(id);
     }
 
@@ -228,6 +252,25 @@ public class MonitoringServiceImpl implements MonitoringService {
             return PersistenceInfo.unavailable();
         }
         PersistenceInfo info = result.value();
+        info.setMeta(result.toMeta());
+        if (result.isStale()) {
+            info.setOverallStatus(MetricStatus.STALE);
+        }
+        return info;
+    }
+
+    @Override
+    public MapStatsInfo getMapStats(Long id) {
+        InstanceRef instance = getInstanceById(id);
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+
+        var result = executor.executeCachedMetric(instance, "map-stats",
+                () -> monitor.getMapStats(instance));
+
+        if (result.isUnavailable() || result.value() == null) {
+            return MapStatsInfo.unavailable();
+        }
+        MapStatsInfo info = result.value();
         info.setMeta(result.toMeta());
         if (result.isStale()) {
             info.setOverallStatus(MetricStatus.STALE);

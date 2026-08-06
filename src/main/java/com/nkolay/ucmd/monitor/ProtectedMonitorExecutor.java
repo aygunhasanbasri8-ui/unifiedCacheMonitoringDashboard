@@ -46,6 +46,7 @@ public class ProtectedMonitorExecutor {
     private final ExecutorService virtualThreadExecutor;
     private final Cache<String, Object> metricsCache;
     private final Cache<String, Object> lastKnownCache;
+    private final CollectionMetrics collectionMetrics;
 
     public ProtectedMonitorExecutor(ProtectionConfig config,
                                     BulkheadRegistry bulkheadRegistry,
@@ -53,7 +54,8 @@ public class ProtectedMonitorExecutor {
                                     CircuitBreakerRegistry circuitBreakerRegistry,
                                     ExecutorService virtualThreadExecutor,
                                     @Qualifier("metricsCache") Cache<String, Object> metricsCache,
-                                    @Qualifier("lastKnownCache") Cache<String, Object> lastKnownCache) {
+                                    @Qualifier("lastKnownCache") Cache<String, Object> lastKnownCache,
+                                    CollectionMetrics collectionMetrics) {
         this.config = config;
         this.bulkheadRegistry = bulkheadRegistry;
         this.rateLimiterRegistry = rateLimiterRegistry;
@@ -61,6 +63,7 @@ public class ProtectedMonitorExecutor {
         this.virtualThreadExecutor = virtualThreadExecutor;
         this.metricsCache = metricsCache;
         this.lastKnownCache = lastKnownCache;
+        this.collectionMetrics = collectionMetrics;
     }
 
     // ═══════════════ Genel API ═══════════════
@@ -110,8 +113,13 @@ public class ProtectedMonitorExecutor {
      * Cache YOK (karar 3.3 — parametre uzayı çok geniş).
      */
     public <T> T executeExpensive(InstanceRef instance, String operation, Supplier<T> call) {
-        return runProtected(instance, operation, call,
-                "default", config.getExpensiveTimeoutMs(), true);
+        collectionMetrics.scanStarted(instance.getName());
+        try {
+            return runProtected(instance, operation, call,
+                    "default", config.getExpensiveTimeoutMs(), true);
+        } finally {
+            collectionMetrics.scanFinished(instance.getName());
+        }
     }
 
     // ═══════════════ Çekirdek ═══════════════
@@ -129,6 +137,7 @@ public class ProtectedMonitorExecutor {
         if (enforceLimits) {
             RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter("expensive-" + id);
             if (!rateLimiter.acquirePermission()) {
+                collectionMetrics.recordRateLimitRejection(instance.getName());
                 throw new RateLimitExceededException(
                         "instance '" + instance.getName() + "', işlem '" + operation + "'");
             }
@@ -139,6 +148,7 @@ public class ProtectedMonitorExecutor {
                 bulkheadConfigName + "-" + id, bulkheadConfigName);
 
         if (!bulkhead.tryAcquirePermission()) {
+            collectionMetrics.recordBulkheadRejection(instance.getName());
             if (enforceLimits) {
                 throw new InstanceBusyException(
                         "instance '" + instance.getName() + "' eş zamanlılık limitinde");
@@ -153,6 +163,7 @@ public class ProtectedMonitorExecutor {
             try {
                 breaker.acquirePermission();
             } catch (CallNotPermittedException e) {
+                collectionMetrics.recordCircuitOpen(instance.getName());
                 throw new CircuitOpenException(
                         "instance '" + instance.getName() + "' geçici olarak devre dışı");
             }
@@ -183,6 +194,7 @@ public class ProtectedMonitorExecutor {
 
         } catch (TimeoutException e) {
             future.cancel(true);
+            collectionMetrics.recordTimeout(instance.getName(), operation);
             throw new MonitorTimeoutException(
                     "instance '" + instance.getName() + "', işlem '" + operation
                             + "' (" + timeoutMs + " ms)");

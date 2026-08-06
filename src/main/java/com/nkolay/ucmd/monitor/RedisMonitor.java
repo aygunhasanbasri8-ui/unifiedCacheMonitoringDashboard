@@ -1,9 +1,11 @@
 package com.nkolay.ucmd.monitor;
 
 import com.nkolay.ucmd.config.KeyPatternConfig;
+import com.nkolay.ucmd.config.KeySecurityConfig;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.exception.InvalidPrefixException;
+import com.nkolay.ucmd.security.KeyMasker;
 import io.lettuce.core.KeyScanCursor;
 import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanCursor;
@@ -23,19 +25,25 @@ public class RedisMonitor implements CacheMonitor {
     private static final Logger logger = LoggerFactory.getLogger(RedisMonitor.class);
 
     private final RedisConnectionManager connectionManager;
+    private final KeySecurityConfig keySecurityConfig;
+    private final KeyMasker keyMasker;
 
     // CPU delta hesabı: instanceId -> [cpuSeconds, timestampMillis]
     private final Map<Long, double[]> lastCpuSample = new ConcurrentHashMap<>();
 
     public static final double CPU_NOT_READY = -1.0;
 
-    @Value("${ucmd.key-search.min.length:3}")
+    @Value("${ucmd.key-search.min-prefix-length:3}")
     private int minPrefixLength;
 
     private static final int ABSOLUTE_SCAN_LIMIT = 50_000;
 
-    public RedisMonitor(RedisConnectionManager connectionManager) {
+    public RedisMonitor(RedisConnectionManager connectionManager,
+                        KeySecurityConfig keySecurityConfig,
+                        KeyMasker keyMasker) {
         this.connectionManager = connectionManager;
+        this.keySecurityConfig = keySecurityConfig;
+        this.keyMasker = keyMasker;
     }
 
     @Override
@@ -351,6 +359,12 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
+    /** Redis'te "map" kavramı yoktur — keyspace istatistikleri getDataStats'ta. */
+    @Override
+    public MapStatsInfo getMapStats(InstanceRef instance) {
+        return MapStatsInfo.notApplicable();
+    }
+
     // ═══════════════ Cache verimliliği ═══════════════
 
     @Override
@@ -407,6 +421,9 @@ public class RedisMonitor implements CacheMonitor {
         if (search.length() < minPrefixLength) {
             throw new InvalidPrefixException("Prefix uzunluğu en az" + minPrefixLength + "olmalıdır");
         }
+        if (!keySecurityConfig.isPrefixAllowed(search)) {
+            throw new InvalidPrefixException("prefix izin verilen listede değil");
+        }
 
         List<KeyInfo> keys = new ArrayList<>();
         MatchMode mode = (matchMode == null) ? MatchMode.STARTS_WITH : matchMode;
@@ -437,7 +454,8 @@ public class RedisMonitor implements CacheMonitor {
                 keys.add(ki);
             }
 
-            // Arama terimiyle BAŞLAYANLAR öne (sayfa içi sıralama)
+            // Arama terimiyle BAŞLAYANLAR öne (sayfa içi sıralama).
+            // Sıralama ham ad üzerinden yapılır, maskeleme sonradan uygulanır.
             if (!search.isEmpty()) {
                 keys.sort((a, b) -> {
                     boolean aStarts = a.getKeyName().startsWith(search);
@@ -447,11 +465,13 @@ public class RedisMonitor implements CacheMonitor {
                 });
             }
 
+            // Rehber §9 — key adları maskelenerek döner
+            keys.forEach(ki -> ki.setKeyName(keyMasker.mask(ki.getKeyName())));
+
             String nextCursor = result.getCursor();
             boolean hasMore = !result.isFinished();
 
-            logger.debug("Scanned {} keys on {} (cursor {} -> {})",
-                    keys.size(), instance.getName(), startCursor, nextCursor);
+            logger.debug("Scanned {} keys on {}", keys.size(), instance.getName());
 
             return new PageInfo<>(keys, nextCursor, hasMore, count);
 
@@ -778,7 +798,7 @@ public class RedisMonitor implements CacheMonitor {
 
         long sizeBytes = safeMemoryUsage(cmd, keyBytes);
 
-        KeyInfo ki = new KeyInfo(keyName, type, sizeBytes, ttl);
+        KeyInfo ki = new KeyInfo(keyMasker.mask(keyName), type, sizeBytes, ttl);
         ki.setSizeStatus(MetricStatus.AVAILABLE);
         return ki;
     }

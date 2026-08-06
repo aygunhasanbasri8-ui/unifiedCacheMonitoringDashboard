@@ -2,6 +2,7 @@ package com.nkolay.ucmd.service;
 
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.MetricSnapshot;
+import com.nkolay.ucmd.monitor.CollectionMetrics;
 import com.nkolay.ucmd.repository.SnapshotRepository;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -30,6 +31,9 @@ public class SnapshotScheduler {
 
     @Autowired
     private AuditService auditService;
+
+    @Autowired
+    private CollectionMetrics collectionMetrics;
 
     public List<MetricSnapshot> getSnapshots() {
         return snapshotRepository.findAll();
@@ -66,6 +70,7 @@ public class SnapshotScheduler {
             List<java.util.concurrent.Future<?>> futures = new ArrayList<>(
                     monitoringService.getAllInstances().stream()
                             .map(instance -> (java.util.concurrent.Future<?>) virtualThreadExecutor.submit(() -> {
+                                long start = System.nanoTime();
                                 try {
                                     Long id = instance.getId();
                                     MetricSnapshot snapshot = new MetricSnapshot();
@@ -81,6 +86,7 @@ public class SnapshotScheduler {
                                         snapshot.setUptimeSeconds(0);
                                         snapshot.setOverallStatus(MetricStatus.UNAVAILABLE);
                                         currentSnapshots.add(snapshot);
+                                        collectionMetrics.recordCollectionFailure(instance.getName());
                                         logger.debug("Instance {} is DOWN, recorded DOWN snapshot", instance.getName());
                                         return;
                                     }
@@ -138,9 +144,12 @@ public class SnapshotScheduler {
                                     }
 
                                     currentSnapshots.add(snapshot);
+                                    collectionMetrics.recordCollectionSuccess(instance.getName(),
+                                            (System.nanoTime() - start) / 1_000_000);
                                     logger.debug("Collected real metrics for instance: {}", instance.getName());
 
                                 } catch (Exception e) {
+                                    collectionMetrics.recordCollectionFailure(instance.getName());
                                     logger.error("Failed to collect metrics for {}: {}", instance.getName(), e.getMessage());
                                 }
                             }))

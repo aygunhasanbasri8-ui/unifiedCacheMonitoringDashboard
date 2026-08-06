@@ -30,6 +30,9 @@ public interface CacheMonitor {
 
     ClusterInfo getClusterInfo(InstanceRef instance);
 
+    /** Rehber §5.3 — map/data structure istatistikleri. Redis'te NOT_APPLICABLE. */
+    MapStatsInfo getMapStats(InstanceRef instance);
+
     PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count, MatchMode matchMode);
 
     TopKeysResponse getTopNKeys(InstanceRef instance, int n, Integer scanLimit);

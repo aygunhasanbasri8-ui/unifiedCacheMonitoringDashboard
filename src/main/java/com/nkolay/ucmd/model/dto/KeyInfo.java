@@ -6,6 +6,8 @@ public class KeyInfo {
     private long sizeBytes;
     private long ttlMillis;        // -1 = no expire, -2 = key doesn't exist
     private Long idleSeconds;
+    /** Hazelcast IMap'lerinde entry sayısı; Redis'te null. */
+    private Long entryCount;
     private TtlStatus ttlStatus;
     private MetricStatus sizeStatus;
     public KeyInfo() {}
@@ -33,6 +35,9 @@ public class KeyInfo {
 
     public Long getIdleSeconds() { return idleSeconds; }
     public void setIdleSeconds(Long idleSeconds) { this.idleSeconds = idleSeconds; }
+
+    public Long getEntryCount() { return entryCount; }
+    public void setEntryCount(Long entryCount) { this.entryCount = entryCount; }
 
     public TtlStatus getTtlStatus() {return ttlStatus;}
     public void setTtlStatus(TtlStatus ttlStatus) {this.ttlStatus = ttlStatus;}

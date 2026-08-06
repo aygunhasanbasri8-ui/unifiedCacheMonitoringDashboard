@@ -24,7 +24,6 @@ spring:
 
 hazelcast:
   cluster-name: ${HAZELCAST_CLUSTER_NAME}
-  members: ${HAZELCAST_MEMBERS}
   username: ${HAZELCAST_USERNAME}
   password: ${HAZELCAST_PASSWORD}
   tls-enabled: ${HAZELCAST_TLS_ENABLED:true}
@@ -33,6 +32,22 @@ app:
   environment: production
   jwt:
     secret: ${JWT_SECRET}
+
+ucmd:
+  security:
+    key-masking:
+      enabled: true
+    allowed-prefixes:
+      - "ucmd:merchant"
+      - "ucmd:terminal"
+      - "ucmd:transaction"
+      - "ucmd:stats"
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 logging:
   level:
