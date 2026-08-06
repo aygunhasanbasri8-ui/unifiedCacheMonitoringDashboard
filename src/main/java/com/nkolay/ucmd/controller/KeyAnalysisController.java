@@ -37,17 +37,13 @@ public class KeyAnalysisController {
     }
 
     @PostMapping("/{id}/keys/top")
-    public ResponseEntity<List<KeyInfo>> getTopNKeys(
+    public ResponseEntity<TopKeysResponse> getTopNKeys(
             @PathVariable Long id,
             @RequestBody(required = false) TopKeysRequest request) {
 
-        int n = (request!=null) ? request.getN() : 20;
-        if (n > 1000) {
-            throw new IllegalArgumentException("N en fazla 1000 olabilir.");
-        }
 
-        List<KeyInfo> topKeys = keyAnalysisService.getTopNKeys(id, n);
-        return ResponseEntity.ok(topKeys);
+        TopKeysRequest req = (request != null) ? request : new TopKeysRequest();
+        return ResponseEntity.ok(keyAnalysisService.getTopNKeys(id, req.getN(), req.getScanLimit()));
     }
 
     @PostMapping("/{id}/keys/ttl")
@@ -65,8 +61,7 @@ public class KeyAnalysisController {
 
         }
 
-        long ttlMillis = keyAnalysisService.getKeyTTL(id, key);
-        return ResponseEntity.ok(new KeyTtlResponse(key, ttlMillis));
+        return ResponseEntity.ok(keyAnalysisService.getKeyTTL(id, key));
 
     }
 

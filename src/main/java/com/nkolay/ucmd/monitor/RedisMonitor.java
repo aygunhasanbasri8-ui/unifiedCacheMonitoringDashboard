@@ -32,6 +32,8 @@ public class RedisMonitor implements CacheMonitor {
     @Value("${ucmd.key-search.min.length:3}")
     private int minPrefixLength;
 
+    private static final int ABSOLUTE_SCAN_LIMIT = 50_000;
+
     public RedisMonitor(RedisConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
     }
@@ -353,7 +355,7 @@ public class RedisMonitor implements CacheMonitor {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
             if (cmd == null) {
-                return new PageInfo<>(new ArrayList<>(), "0", false, count);
+                return PageInfo.unavailable(count);
             }
 
             ScanCursor scanCursor = ScanCursor.of(startCursor);
@@ -397,77 +399,74 @@ public class RedisMonitor implements CacheMonitor {
         catch (Exception e) {
             logger.error("Error scanning keys for {}: {}",
                     instance.getName(), e.getMessage());
-            return new PageInfo<>(new ArrayList<>(), "0", false, count);
+            return PageInfo.unavailable(count);
         }
     }
 
     // ═══════════════ En büyük N key ═══════════════
 
     @Override
-    public List<KeyInfo> getTopNKeys(InstanceRef instance, int n) {
+    public TopKeysResponse getTopNKeys(InstanceRef instance, int n, Integer scanLimit) {
         List<KeyInfo> keys = new ArrayList<>();
+        final int maxScan = (scanLimit != null && scanLimit > 0)
+                ? Math.min(scanLimit, ABSOLUTE_SCAN_LIMIT)
+                : Math.max(n * 20, 2000);
+        int scanned = 0;
+        boolean completed = false;
 
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
-            if (cmd == null) return keys;
+            if (cmd == null) return TopKeysResponse.unavailable();
 
             ScanCursor cursor = ScanCursor.INITIAL;
             ScanArgs args = ScanArgs.Builder.limit(500);
-            int scanned = 0;
-            final int MAX_SCAN = Math.max(n * 20, 2000);   // güvenlik sınırı
 
             do {
                 KeyScanCursor<byte[]> page = cmd.scan(cursor, args);
 
                 for (byte[] keyBytes : page.getKeys()) {
-                    String keyName = new String(keyBytes, StandardCharsets.UTF_8);
-                    String type = cmd.type(keyBytes);
-                    Long ttlSec = cmd.ttl(keyBytes);
-                    long ttl = (ttlSec != null && ttlSec >= 0) ? ttlSec * 1000
-                            : (ttlSec != null ? ttlSec : -2);
-                    long sizeBytes = safeMemoryUsage(cmd, keyBytes);
-
-                    KeyInfo ki = new KeyInfo(keyName, type, sizeBytes, ttl);
-                    ki.setSizeStatus(MetricStatus.AVAILABLE);
-                    keys.add(ki);
+                    keys.add(buildKeyInfo(cmd, keyBytes));
                     scanned++;
                 }
 
                 cursor = ScanCursor.of(page.getCursor());
-                if (page.isFinished()) break;
+                if (page.isFinished()) {
+                    completed = true;
+                    break;
+                }
 
-            } while (scanned < MAX_SCAN);
+            } while (scanned < maxScan);
 
-            logger.debug("Scanned {} keys for top-{} on {}",
-                    scanned, n, instance.getName());
+            logger.debug("Scanned {} keys for top-{} on {} (completed={})",
+                    scanned, n, instance.getName(), completed);
 
         } catch (Exception e) {
             logger.error("Error fetching top N keys for {}: {}",
                     instance.getName(), e.getMessage());
-            return new ArrayList<>();
+            return TopKeysResponse.unavailable();
         }
 
         keys.sort((a, b) -> Long.compare(b.getSizeBytes(), a.getSizeBytes()));
-        return keys.stream().limit(n).toList();
+        List<KeyInfo> top = new ArrayList<>(keys.stream().limit(n).toList());
+        return new TopKeysResponse(top, scanned, maxScan, completed);
     }
 
     // ═══════════════ Key TTL ═══════════════
 
     @Override
-    public long getKeyTTL(InstanceRef instance, String key) {
+    public KeyTtlResponse getKeyTTL(InstanceRef instance, String key) {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
-            if (cmd == null) return -2;
+            if (cmd == null) return KeyTtlResponse.unavailable(key);
 
-            Long ttlSeconds = cmd.ttl(key.getBytes(StandardCharsets.UTF_8));
-            if (ttlSeconds == null) return -2;
-            if (ttlSeconds < 0) return ttlSeconds;      // -1 kalıcı, -2 yok
-            return ttlSeconds * 1000;
+            Long pttl = cmd.pttl(key.getBytes(StandardCharsets.UTF_8));
+            if (pttl == null) return KeyTtlResponse.unavailable(key);
+
+            return new KeyTtlResponse(key, pttl);
 
         } catch (Exception e) {
-            logger.error("Error fetching TTL for key '{}' on {}: {}",
-                    key, instance.getName(), e.getMessage());
-            return -2;
+            logger.error("Error fetching TTL on {}: {}", instance.getName(), e.getMessage());
+            return KeyTtlResponse.unavailable(key);
         }
     }
 
@@ -526,6 +525,20 @@ public class RedisMonitor implements CacheMonitor {
         if (other.getKeyCount() > 0) result.add(other);
         result.removeIf(s -> s.getKeyCount() == 0);
         return result;
+    }
+
+    private KeyInfo buildKeyInfo(RedisCommands<byte[], byte[]> cmd, byte[] keyBytes) {
+        String keyName = new String(keyBytes, StandardCharsets.UTF_8);
+        String type = cmd.type(keyBytes);
+
+        Long pttl = cmd.pttl(keyBytes);
+        long ttl = ( pttl != null) ? pttl : -2;
+
+        long sizeBytes = safeMemoryUsage(cmd, keyBytes);
+
+        KeyInfo ki = new KeyInfo(keyName, type, sizeBytes, ttl);
+        ki.setSizeStatus(MetricStatus.AVAILABLE);
+        return ki;
     }
 
     private String escapeGlob(String input) {

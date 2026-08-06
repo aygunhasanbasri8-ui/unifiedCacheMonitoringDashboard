@@ -11,6 +11,7 @@ public class DataStats {
     private MetricStatus overallStatus;
     private MetricStatus memoryStatus;
     private MetricStatus fragmentationStatus;
+    private MetricMeta meta = new MetricMeta();
 
     public DataStats() {}
 
@@ -44,5 +45,9 @@ public class DataStats {
 
     public MetricStatus getFragmentationStatus() { return fragmentationStatus;}
     public void setFragmentationStatus(MetricStatus fragmentationStatus) { this.fragmentationStatus = fragmentationStatus;}
+
+    public MetricMeta getMeta() {return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
+
 }
  

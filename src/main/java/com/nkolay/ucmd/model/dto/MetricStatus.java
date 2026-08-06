@@ -7,6 +7,10 @@ public enum MetricStatus {
     UNAVAILABLE,
     ///INSTANCE TÜRÜNE GÖRE GEÇERLİ DEĞİL
     NOT_APPLICABLE,
+    /// YETKİ REDDEDİLDİ
+    PERMISSION_DENIED,
+    /// İSTEK ZAMAN AŞIMINA UĞRADI
+    TIMEOUT,
     ///SNAPSHOT DEĞERİ/ESKİ OLABİLİR
     STALE,
     ///YAKLAŞIK DEĞER

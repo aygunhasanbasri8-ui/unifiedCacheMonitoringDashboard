@@ -14,6 +14,7 @@ public class ClusterInfo {
     private MetricStatus overallStatus;
     private MetricStatus partitionCountStatus;
     private MetricStatus balancedStatus;
+    private MetricMeta meta = new MetricMeta();
 
     public ClusterInfo() {}
 
@@ -46,6 +47,9 @@ public class ClusterInfo {
 
     public MetricStatus getBalancedStatus() { return balancedStatus;}
     public void setBalancedStatus(MetricStatus balancedStatus) { this.balancedStatus = balancedStatus;}
+
+    public MetricMeta getMeta() {return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
 
     // Inner class for member info
     public static class MemberInfo {

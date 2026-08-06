@@ -5,10 +5,9 @@ public class KeyInfo {
     private String keyType;        // string, hash, list, set, zset
     private long sizeBytes;
     private long ttlMillis;        // -1 = no expire, -2 = key doesn't exist
-    private long lastAccessTime;
-    private long accessCount;
+    private Long idleSeconds;
+    private TtlStatus ttlStatus;
     private MetricStatus sizeStatus;
-
     public KeyInfo() {}
 
     public KeyInfo(String keyName, String keyType, long sizeBytes, long ttlMillis) {
@@ -16,7 +15,8 @@ public class KeyInfo {
         this.keyType = keyType;
         this.sizeBytes = sizeBytes;
         this.ttlMillis = ttlMillis;
-        this.lastAccessTime = System.currentTimeMillis();
+        this.ttlStatus = (ttlMillis == -1) ? TtlStatus.PERSISTENT
+                : (ttlMillis == -2) ? TtlStatus.NOT_FOUND : TtlStatus.EXPIRING;
     }
 
     public String getKeyName() { return keyName; }
@@ -31,16 +31,20 @@ public class KeyInfo {
     public long getTtlMillis() { return ttlMillis; }
     public void setTtlMillis(long ttlMillis) { this.ttlMillis = ttlMillis; }
 
-    public long getLastAccessTime() { return lastAccessTime; }
-    public void setLastAccessTime(long lastAccessTime) { this.lastAccessTime = lastAccessTime; }
+    public Long getIdleSeconds() { return idleSeconds; }
+    public void setIdleSeconds(Long idleSeconds) { this.idleSeconds = idleSeconds; }
 
-    public long getAccessCount() { return accessCount; }
-    public void setAccessCount(long accessCount) { this.accessCount = accessCount; }
+    public TtlStatus getTtlStatus() {return ttlStatus;}
+    public void setTtlStatus(TtlStatus ttlStatus) {this.ttlStatus = ttlStatus;}
 
     public String getTtlDisplay() {
-        if (ttlMillis == -1) return "No expiration";
-        if (ttlMillis == -2) return "Key doesn't exist";
-        return ttlMillis / 1000 + " seconds";
+        if (ttlStatus == null) return "Unknwon";
+        return switch (ttlStatus) {
+            case PERSISTENT -> "No expiration";
+            case NOT_FOUND -> "Key doesn't exist";
+            case UNAVAILABLE -> "Unavailable";
+            case EXPIRING -> ttlMillis / 1000 + "seconds";
+        };
     }
 
     public MetricStatus getSizeStatus() { return sizeStatus;}

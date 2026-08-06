@@ -1,8 +1,6 @@
 package com.nkolay.ucmd.service.impl;
 
-import com.nkolay.ucmd.model.dto.KeyInfo;
-import com.nkolay.ucmd.model.dto.MatchMode;
-import com.nkolay.ucmd.model.dto.PageInfo;
+import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.CacheMonitor;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
@@ -39,20 +37,29 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
     }
 
     @Override
-    public List<KeyInfo> getTopNKeys(Long instanceId, int n) {
+    public TopKeysResponse getTopNKeys(Long instanceId, int n,Integer scanLimit) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
         return executor.executeExpensive(instance, "top-keys",
-                () -> monitor.getTopNKeys(instance, n));
+                () -> monitor.getTopNKeys(instance, n, scanLimit));
     }
 
     @Override
-    public long getKeyTTL(Long instanceId, String key) {
+    public KeyTtlResponse getKeyTTL(Long instanceId, String key) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
 
-        return executor.executeExpensive(instance, "key-ttl",
+        var result = executor.executeCachedMetric(instance, "key-ttl",
                 () -> monitor.getKeyTTL(instance, key));
+        if (result.isUnavailable() || result.value() == null) {
+            return KeyTtlResponse.unavailable(key);
+        }
+        KeyTtlResponse response = result.value();
+        if (result.isStale()) {
+            response.getMeta().setStale(true);
+        }
+        return response;
+
     }
 }

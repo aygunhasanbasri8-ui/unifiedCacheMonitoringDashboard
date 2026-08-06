@@ -9,6 +9,7 @@ public class ConnectionStats {
     private MetricStatus overallStatus;
     private MetricStatus activeClientStatus;
     private MetricStatus errorStatus;
+    private MetricMeta meta = new MetricMeta();
 
     public ConnectionStats() {}
 
@@ -35,5 +36,8 @@ public class ConnectionStats {
 
     public MetricStatus getErrorStatus() { return errorStatus; }
     public void setErrorStatus(MetricStatus errorStatus) { this.errorStatus = errorStatus; }
+
+    public MetricMeta getMeta() {return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
 }
  

@@ -5,6 +5,7 @@ public class HealthInfo {
     private String version;
     private long uptimeSeconds;
     private long timestamp;
+    private MetricMeta meta = new MetricMeta();
 
     public HealthInfo() {}
 
@@ -26,4 +27,8 @@ public class HealthInfo {
 
     public long getTimestamp() { return timestamp; }
     public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+
+    public MetricMeta getMeta() {return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
+
 }

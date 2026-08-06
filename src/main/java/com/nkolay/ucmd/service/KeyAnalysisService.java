@@ -1,15 +1,14 @@
 package com.nkolay.ucmd.service;
 
-import com.nkolay.ucmd.model.dto.KeyInfo;
-import com.nkolay.ucmd.model.dto.MatchMode;
-import com.nkolay.ucmd.model.dto.PageInfo;
+import com.nkolay.ucmd.model.dto.*;
+
 import java.util.List;
 
 public interface KeyAnalysisService {
 
     PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count, MatchMode matchMode);
-    List<KeyInfo> getTopNKeys(Long instanceId, int n);
-    long getKeyTTL(Long instanceId, String key);
+    TopKeysResponse getTopNKeys(Long instanceId, int n, Integer scanLimit);
+    KeyTtlResponse getKeyTTL(Long instanceId, String key);
 
 
 }

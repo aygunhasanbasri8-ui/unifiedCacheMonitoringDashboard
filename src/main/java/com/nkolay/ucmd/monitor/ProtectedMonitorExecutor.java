@@ -6,6 +6,7 @@ import com.nkolay.ucmd.exception.CircuitOpenException;
 import com.nkolay.ucmd.exception.InstanceBusyException;
 import com.nkolay.ucmd.exception.MonitorTimeoutException;
 import com.nkolay.ucmd.exception.RateLimitExceededException;
+import com.nkolay.ucmd.model.dto.MetricMeta;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -76,26 +78,27 @@ public class ProtectedMonitorExecutor {
                                                    Supplier<T> call) {
         String key = cacheKey(instance, operation);
 
-        T cached = (T) metricsCache.getIfPresent(key);
+        Timestamped<T> cached = (Timestamped<T>) metricsCache.getIfPresent(key);
         if (cached != null) {
-            return CachedResult.fresh(cached);
+            return CachedResult.fresh(cached.value(), cached.collectedAt());
         }
 
         try {
             T result = runProtected(instance, operation, call,
                     "cheap", config.getCheapTimeoutMs(), false);
-            metricsCache.put(key, result);
-            lastKnownCache.put(key, result);
-            return CachedResult.fresh(result);
+            Timestamped<T> stamped = new Timestamped<>(result, Instant.now());
+            metricsCache.put(key, stamped);
+            lastKnownCache.put(key, stamped);
+            return CachedResult.fresh(result, stamped.collectedAt());
 
         } catch (Exception e) {
             logger.warn("Metric call '{}' failed for {}: {}",
                     operation, instance.getName(), e.getMessage());
 
-            T lastKnown = (T) lastKnownCache.getIfPresent(key);
+            Timestamped<T> lastKnown = (Timestamped<T>) lastKnownCache.getIfPresent(key);
             if (lastKnown != null) {
                 logger.debug("Serving STALE value for {} / {}", instance.getName(), operation);
-                return CachedResult.stale(lastKnown);
+                return CachedResult.stale(lastKnown.value(), lastKnown.collectedAt());
             }
             return CachedResult.unavailable();
         }
@@ -217,19 +220,27 @@ public class ProtectedMonitorExecutor {
     // ═══════════════ Sonuç sarmalayıcı ═══════════════
 
     /** Değerin taze mi, bayat mı, yok mu olduğunu taşır. */
-    public record CachedResult<T>(T value, Freshness freshness) {
+    public record Timestamped<T>(T value, Instant collectedAt) {}
+
+    /** Değerin taze mi, bayat mı, yok mu olduğunu taşır. */
+    public record CachedResult<T>(T value, Freshness freshness, Instant collectedAt) {
         public enum Freshness { FRESH, STALE, UNAVAILABLE }
 
-        public static <T> CachedResult<T> fresh(T v) {
-            return new CachedResult<>(v, Freshness.FRESH);
+        public static <T> CachedResult<T> fresh(T v, Instant at) {
+            return new CachedResult<>(v, Freshness.FRESH, at);
         }
-        public static <T> CachedResult<T> stale(T v) {
-            return new CachedResult<>(v, Freshness.STALE);
+        public static <T> CachedResult<T> stale(T v, Instant at) {
+            return new CachedResult<>(v, Freshness.STALE, at);
         }
         public static <T> CachedResult<T> unavailable() {
-            return new CachedResult<>(null, Freshness.UNAVAILABLE);
+            return new CachedResult<>(null, Freshness.UNAVAILABLE, null);
         }
         public boolean isStale() { return freshness == Freshness.STALE; }
         public boolean isUnavailable() { return freshness == Freshness.UNAVAILABLE; }
+
+        /** DTO'ya gömülecek meta bilgisi. */
+        public MetricMeta toMeta() {
+            return new MetricMeta(collectedAt, isStale());
+        }
     }
 }

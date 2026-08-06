@@ -226,7 +226,8 @@ public class HazelcastMonitor implements CacheMonitor {
 
                     });
         } catch (Exception e) {
-            return new PageInfo<>(new ArrayList<>(), "0", false, count);
+            logger.error("Error scanning maps for instance {}: {}", instance.getName(), e.getMessage());
+            return PageInfo.unavailable(count);
         }
 
         return new PageInfo<>(keys, "0", false, count);
@@ -234,40 +235,46 @@ public class HazelcastMonitor implements CacheMonitor {
     }
 
     @Override
-    public List<KeyInfo> getTopNKeys(InstanceRef instance, int n) {
+    public TopKeysResponse getTopNKeys(InstanceRef instance, int n, Integer scanLimit) {
         List<KeyInfo> keys = new ArrayList<>();
+        int scanned = 0;
 
         try {
-            hazelcastClient.getDistributedObjects().stream()
-                    .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                    .forEach(obj -> {
-                        com.hazelcast.map.IMap<?, ?> map =
-                                hazelcastClient.getMap(obj.getName());
-                        KeyInfo ki = new KeyInfo(obj.getName(), "map", map.size(), -1);
-                        ki.setSizeStatus(MetricStatus.ESTIMATED);
-                        keys.add(ki);
-                    });
+            for (var obj : hazelcastClient.getDistributedObjects()) {
+                if (!(obj instanceof com.hazelcast.map.IMap)) continue;
+                com.hazelcast.map.IMap<?, ?> map = hazelcastClient.getMap(obj.getName());
+                KeyInfo ki = new KeyInfo(obj.getName(), "map", map.size(), -1);
+                ki.setSizeStatus(MetricStatus.ESTIMATED);
+                keys.add(ki);
+                scanned++;
+            }
         } catch (Exception e) {
-            return new ArrayList<>();
+            logger.error("Error fetching top N maps for {}: {}", instance.getName(), e.getMessage());
+            return TopKeysResponse.unavailable();
         }
 
         keys.sort((a, b) ->
                 Long.compare(b.getSizeBytes(), a.getSizeBytes()));
-        return keys.stream().limit(n).toList();
+        List<KeyInfo> top = new ArrayList<>(keys.stream().limit(n).toList());
+        TopKeysResponse response = new TopKeysResponse(top, scanned, scanned, true);
+        response.setEstimated(true);
+        response.setStatus(MetricStatus.ESTIMATED);
+
+        return response;
     }
 
     @Override
-    public long getKeyTTL(InstanceRef instance, String key) {
+    public KeyTtlResponse getKeyTTL(InstanceRef instance, String key) {
         try {
             boolean isMap = hazelcastClient.getDistributedObjects().stream()
                     .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                            .anyMatch(obj -> obj.getName().equals(key));
-            return isMap ? -1 : -2;
+                    .anyMatch(obj -> obj.getName().equals(key));
+            return isMap ? new KeyTtlResponse(key, -1, TtlStatus.PERSISTENT) : new KeyTtlResponse(key, -2, TtlStatus.NOT_FOUND);
 
         } catch (Exception e) {
             logger.error("Error fetching TTL for '{}' on {}: {}",
                     key, instance.getName(), e.getMessage(), e);
-            return -2;
+            return KeyTtlResponse.unavailable(key);
         }
     }
 

@@ -97,9 +97,13 @@ public class MonitoringServiceImpl implements MonitoringService {
         if (result.isStale()) {
             HealthInfo stale = result.value();
             // Bayat sağlık bilgisi UP gösterilmemeli
-            return new HealthInfo("DOWN", stale.getVersion(), stale.getUptimeSeconds());
+            HealthInfo down = new HealthInfo("DOWN", stale.getVersion(), stale.getUptimeSeconds());
+            down.setMeta(result.toMeta());
+            return down;
         }
-        return result.value();
+        HealthInfo health = result.value();
+        health.setMeta(result.toMeta());
+        return health;
     }
 
     @Override
@@ -114,6 +118,7 @@ public class MonitoringServiceImpl implements MonitoringService {
             return unavailableResourceStats();
         }
         ResourceStats stats = result.value();
+        stats.setMeta(result.toMeta());
         if (result.isStale()) {
             stats.setOverallStatus(MetricStatus.STALE);
         }

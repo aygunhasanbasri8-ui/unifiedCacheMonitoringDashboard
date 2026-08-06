@@ -6,6 +6,7 @@ public class SearchKeysRequest {
     private int count = 20;
     private MatchMode matchMode = MatchMode.STARTS_WITH;
 
+
     public SearchKeysRequest() {}
 
     public String getPrefix () {return prefix;}
@@ -14,7 +15,12 @@ public class SearchKeysRequest {
     public String getCursor () { return (cursor == null || cursor.isEmpty()) ? "0" : cursor; }
     public void setCursor (String cursor) { this.cursor = cursor;}
 
-    public int getCount () { return count <= 0 ? 20 : count;}
+    public static final int MAX_COUNT = 1000;
+
+    public int getCount() {
+        if (count <= 0) return 20;
+        return Math.min(count, MAX_COUNT);
+    }
     public void setCount ( int count) { this.count = count; }
 
     public MatchMode getMatchMode() { return matchMode == null ? MatchMode.STARTS_WITH : matchMode;}

@@ -12,6 +12,8 @@ public class ResourceStats {
     private double memoryUsagePercent;
     private double fragmentationRatio;
 
+    private MetricMeta meta = new MetricMeta();
+
     private MetricStatus overallStatus;
     private MetricStatus cpuStats;
     private MetricStatus memoryStatus;
@@ -53,5 +55,8 @@ public class ResourceStats {
 
     public MetricStatus getFragmentationStatus() { return fragmentationStatus; }
     public void setFragmentationStatus(MetricStatus fragmentationStatus) { this.fragmentationStatus = fragmentationStatus; }
+
+    public MetricMeta getMeta() {return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
 }
  

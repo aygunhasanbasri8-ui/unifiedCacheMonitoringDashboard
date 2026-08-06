@@ -3,15 +3,17 @@ package com.nkolay.ucmd.model.dto;
 public class CacheEfficiencyStats {
     private long keyspaceHits;
     private long keyspaceMisses;
-    private double hitRatio;
-    private double missRatio;
-    public boolean hasTraffic() {
-        return (keyspaceHits + keyspaceMisses) > 0;
-    }
+
+    private Double hitRatio;
+    private Double missRatio;
 
     private MetricStatus overallStatus;
+    private MetricStatus hitRatioStatus;
+    private MetricMeta meta = new MetricMeta();
+
 
     public CacheEfficiencyStats() {}
+
     public CacheEfficiencyStats(long keyspaceHits, long keyspaceMisses) {
         this.keyspaceHits = keyspaceHits;
         this.keyspaceMisses = keyspaceMisses;
@@ -21,8 +23,8 @@ public class CacheEfficiencyStats {
             this.missRatio = (double) keyspaceMisses / total;
             this.overallStatus = MetricStatus.AVAILABLE;
         } else {
-            this.hitRatio = Double.NaN;
-            this.missRatio = Double.NaN;
+            this.hitRatio = null;
+            this.missRatio = null;
             this.overallStatus = MetricStatus.NOT_APPLICABLE;
         }
     }
@@ -41,4 +43,10 @@ public class CacheEfficiencyStats {
 
     public MetricStatus getOverallStatus() {return overallStatus;}
     public void setOverallStatus(MetricStatus overallStatus) {this.overallStatus = overallStatus;}
+
+    public MetricStatus getHitRatioStatus() {return hitRatioStatus;}
+    public void setHitRatioStatus(MetricStatus hitRatioStatus) {this.hitRatioStatus = hitRatioStatus;}
+
+    public MetricMeta getMeta() { return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
 }

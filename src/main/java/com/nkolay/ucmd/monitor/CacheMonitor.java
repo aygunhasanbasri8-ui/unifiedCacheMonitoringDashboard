@@ -32,9 +32,9 @@ public interface CacheMonitor {
 
     PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count, MatchMode matchMode);
 
-    List<KeyInfo> getTopNKeys(InstanceRef instance, int n);
+    TopKeysResponse getTopNKeys(InstanceRef instance, int n, Integer scanLimit);
 
-    long getKeyTTL(InstanceRef instance, String key);
+    KeyTtlResponse getKeyTTL(InstanceRef instance, String key);
 
     CacheEfficiencyStats getCacheEfficiency(InstanceRef instance);
 
