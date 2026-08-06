@@ -44,11 +44,11 @@ public class CacheEfficiencyStats {
     public long getKeyspaceMisses() { return keyspaceMisses; }
     public void setKeyspaceMisses(long keyspaceMisses) { this.keyspaceMisses = keyspaceMisses; }
 
-    public double getHitRatio() { return hitRatio; }
-    public void setHitRatio(double hitRatio) { this.hitRatio = hitRatio; }
+    public Double getHitRatio() { return hitRatio; }
+    public void setHitRatio(Double hitRatio) { this.hitRatio = hitRatio; }
 
-    public double getMissRatio() { return missRatio; }
-    public void setMissRatio(double missRatio) { this.missRatio = missRatio; }
+    public Double getMissRatio() { return missRatio; }
+    public void setMissRatio(Double missRatio) { this.missRatio = missRatio; }
 
     public MetricStatus getOverallStatus() {return overallStatus;}
     public void setOverallStatus(MetricStatus overallStatus) {this.overallStatus = overallStatus;}

@@ -20,7 +20,10 @@ variables:
   - key: json_web_token_0mte
     secret: true
     disabled: false
+  - key: json_web_token_0ugb
+    secret: true
+    disabled: false
 auth:
   type: bearer
   credentials:
-    token: "{{json_web_token_0mte}}"
+    token: "{{json_web_token_0ugb}}"

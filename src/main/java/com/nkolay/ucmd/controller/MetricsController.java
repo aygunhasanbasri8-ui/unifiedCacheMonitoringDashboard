@@ -17,28 +17,28 @@ public class MetricsController {
 
     @PostMapping("/{id}/health")
     public ResponseEntity<HealthInfo> getInstanceHealth(@PathVariable Long id) {
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.getInstanceHealth(id));
     }
 
     @PostMapping("/{id}/resources")
     public ResponseEntity<ResourceStats> getResourceStats(@PathVariable Long id) {
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.getResourceStats(id));
     }
 
     @PostMapping("/{id}/connections")
     public ResponseEntity<ConnectionStats> getConnectionStats(@PathVariable Long id) {
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.getConnectionStats(id));
     }
 
     @PostMapping("/{id}/data-stats")
     public ResponseEntity<DataStats> getDataStats(@PathVariable Long id) {
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(monitoringService.getDataStats(id));
     }
 
     @PostMapping("/{id}/efficiency")
     public ResponseEntity<CacheEfficiencyStats> getCacheEfficiency(@PathVariable Long id) {
-        return ResponseEntity.notFound().build();
-    }
+        return ResponseEntity.ok(monitoringService.getCacheEfficiency(id));
+    } 
 
     @PostMapping("/{id}/replication")
     public ResponseEntity<ReplicationInfo> getReplicationInfo(@PathVariable Long id) {
