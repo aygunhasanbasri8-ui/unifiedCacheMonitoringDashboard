@@ -115,6 +115,39 @@
   color: var(--red);
 }
 
+.key-analysis-ttl-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-analysis-ttl-refresh {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  font-size: 12px;
+}
+
+.key-analysis-ttl-refresh:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.key-analysis-ttl-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.key-analysis-ttl-error {
+  color: var(--red);
+  font-size: 12px;
+}
+
 .key-analysis-estimated-banner {
   background: rgba(234, 179, 8, 0.12);
   color: var(--yellow);

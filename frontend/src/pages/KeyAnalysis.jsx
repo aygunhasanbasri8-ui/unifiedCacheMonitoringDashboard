@@ -47,6 +47,9 @@ export default function KeyAnalysis() {
   const [error, setError] = useState(null);
   const [searched, setSearched] = useState(false);
 
+  // Satır başına anlık TTL sorgusu sonucu: keyName -> { ttlMillis, ttlStatus, loading, error }
+  const [liveTtl, setLiveTtl] = useState({});
+
   const [topKeys, setTopKeys] = useState([]);
   const [topMeta, setTopMeta] = useState(null);
   const [topLoading, setTopLoading] = useState(true);
@@ -119,6 +122,8 @@ export default function KeyAnalysis() {
         setLoadingMore(true);
       } else {
         setLoading(true);
+        // Yeni bir arama önceki satırlar için sorgulanmış anlık TTL değerlerini geçersiz kılar.
+        setLiveTtl({});
       }
       setError(null);
 
@@ -228,6 +233,30 @@ export default function KeyAnalysis() {
     fetchPage("", "0", false, matchMode);
   }
 
+  // Arama sonucu cache'li olabilir; bu, tek bir key için backend'den anlık TTL alır.
+  // Hazelcast entry aramasında mapName zorunlu — gönderilmezse backend key'i map adı sanıp NOT_FOUND döner.
+  async function handleFetchTtl(keyName) {
+    setLiveTtl((prev) => ({
+      ...prev,
+      [keyName]: { ...prev[keyName], loading: true, error: null },
+    }));
+
+    try {
+      const body = { key: keyName };
+      if (selectedMap) body.mapName = selectedMap;
+      const res = await client.post(`/v1/instances/${id}/keys/ttl`, body);
+      setLiveTtl((prev) => ({
+        ...prev,
+        [keyName]: { ttlMillis: res.data.ttlMillis, ttlStatus: res.data.ttlStatus, loading: false, error: null },
+      }));
+    } catch (err) {
+      setLiveTtl((prev) => ({
+        ...prev,
+        [keyName]: { ...prev[keyName], loading: false, error: toProblem(err, "TTL sorgulanamadı.") },
+      }));
+    }
+  }
+
   function renderSize(key) {
     const estimated = key.sizeStatus === "ESTIMATED";
     return (
@@ -242,17 +271,41 @@ export default function KeyAnalysis() {
     );
   }
 
-  function renderTtl(key) {
-    const text = formatTtlByStatus(key.ttlMillis, key.ttlStatus);
+  function renderTtl(key, withRefresh = false) {
+    const live = liveTtl[key.keyName];
+    const ttlMillis = live?.ttlMillis ?? key.ttlMillis;
+    const ttlStatus = live?.ttlStatus ?? key.ttlStatus;
+    const text = formatTtlByStatus(ttlMillis, ttlStatus);
     const badgeClass =
-      key.ttlStatus === "PERSISTENT"
+      ttlStatus === "PERSISTENT"
         ? "key-analysis-ttl-persistent"
-        : key.ttlStatus === "NOT_FOUND"
+        : ttlStatus === "NOT_FOUND"
           ? "key-analysis-ttl-notfound"
-          : key.ttlStatus === "UNAVAILABLE"
+          : ttlStatus === "UNAVAILABLE"
             ? "key-analysis-ttl-unavailable"
             : "";
-    return <span className={badgeClass ? `key-analysis-ttl-badge ${badgeClass}` : undefined}>{text}</span>;
+
+    return (
+      <span className="key-analysis-ttl-cell">
+        <span className={badgeClass ? `key-analysis-ttl-badge ${badgeClass}` : undefined}>{text}</span>
+        {withRefresh && (
+          <button
+            type="button"
+            className="key-analysis-ttl-refresh"
+            title="Anlık TTL sorgula"
+            onClick={() => handleFetchTtl(key.keyName)}
+            disabled={live?.loading}
+          >
+            {live?.loading ? "…" : "⟳"}
+          </button>
+        )}
+        {withRefresh && live?.error && (
+          <span className="key-analysis-ttl-error" title={live.error.message}>
+            ⚠
+          </span>
+        )}
+      </span>
+    );
   }
 
   const sortedPatterns = [...patterns].sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);
@@ -436,7 +489,7 @@ export default function KeyAnalysis() {
                   <td>{key.keyName}</td>
                   {!mapListMode && <td>{key.keyType}</td>}
                   <td>{mapListMode ? key.entryCount : renderSize(key)}</td>
-                  {!mapListMode && <td>{renderTtl(key)}</td>}
+                  {!mapListMode && <td>{renderTtl(key, true)}</td>}
                 </tr>
               ))}
               {keys.length === 0 && (

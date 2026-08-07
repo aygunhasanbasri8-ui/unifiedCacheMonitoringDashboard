@@ -42,9 +42,9 @@ export function formatTtlByStatus(ttlMillis, ttlStatus) {
     case "UNAVAILABLE":
       return "Sorgulanamadı";
     case "EXPIRING":
-      return ttlMillis != null ? `${Math.round(ttlMillis / 1000)} sn` : "-";
+      return formatDurationShort(ttlMillis);
     default:
-      return ttlMillis != null ? `${Math.round(ttlMillis / 1000)} sn` : "-";
+      return formatDurationShort(ttlMillis);
   }
 }
 
