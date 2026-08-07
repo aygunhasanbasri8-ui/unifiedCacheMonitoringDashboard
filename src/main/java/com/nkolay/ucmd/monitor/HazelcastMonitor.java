@@ -680,6 +680,14 @@ public class HazelcastMonitor implements CacheMonitor {
             IMap<Object, Object> map = client.getMap(mapName);
             int mapSize = map.size();
 
+            // keySet() lazy değildir — büyük map'te tüm key'ler client'a çekilir.
+            if (mapSize > hazelcastMaxScanEntries) {
+                logger.warn("Map '{}' entry sayısı ({}) tarama sınırını ({}) aşıyor — arama reddedildi",
+                        keyMasker.maskForLog(mapName), mapSize, hazelcastMaxScanEntries);
+                PageInfo<KeyInfo> tooLarge = PageInfo.unavailable(count);
+                tooLarge.setStatus(MetricStatus.NOT_APPLICABLE);
+                return tooLarge;
+            }
             for (Object k : map.keySet()) {
                 scanned++;
                 if (scanned > hazelcastMaxScanEntries) { scanLimitHit = true; break; }
