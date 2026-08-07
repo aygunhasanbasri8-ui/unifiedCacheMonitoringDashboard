@@ -6,7 +6,9 @@ export const THRESHOLDS = {
   memoryUsagePercent: { warning: 70, critical: 90, direction: "high" },
   hitRatio: { warning: 0.8, critical: 0.5, direction: "low" }, // oran (0-1)
   fragmentationRatio: { warning: 2.5, critical: 5.0, direction: "high" },
-  connectionErrors: { warning: 1, critical: 10, direction: "high" },
+  rejectedConnections: { warning: 1, critical: 10, direction: "high" },
+  clientUsagePercent: { warning: 80, critical: 90, direction: "high" }, // yüzde (0-100)
+  fileDescriptorUsagePercent: { warning: 80, critical: 90, direction: "high" }, // yüzde (0-100)
 };
 
 // Bir değeri eşiğe göre değerlendir. "ok" | "warning" | "critical" döndür.

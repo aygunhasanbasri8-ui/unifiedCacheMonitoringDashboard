@@ -22,9 +22,9 @@ export function AuthProvider({ children }) {
       setToken(data.token);
       setUsername(data.username);
       setRole(data.role);
-      return true;
-    } catch {
-      return false;
+      return { success: true };
+    } catch (err) {
+      return { success: false, problem: err.problem };
     }
   }, []);
 

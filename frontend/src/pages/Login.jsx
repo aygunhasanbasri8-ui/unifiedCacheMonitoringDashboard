@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ProblemError from "../components/ProblemError";
 import "./Login.css";
 
 export default function Login() {
@@ -9,22 +10,25 @@ export default function Login() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    setError(null);
     setLoading(true);
 
-    const success = await login(username, password);
+    const result = await login(username, password);
 
     setLoading(false);
 
-    if (success) {
+    if (result.success) {
       navigate("/overview");
     } else {
-      setError("Kullanıcı adı veya şifre hatalı");
+      setError({
+        message: result.problem?.message ?? "Kullanıcı adı veya şifre hatalı",
+        traceId: result.problem?.traceId ?? null,
+      });
     }
   }
 
@@ -34,7 +38,7 @@ export default function Login() {
         <h1 className="login-title">UCMD</h1>
         <p className="login-subtitle">Yönetim paneline giriş yapın</p>
 
-        {error && <div className="login-error">{error}</div>}
+        {error && <ProblemError error={error} className="login-error" />}
 
         <label className="login-label" htmlFor="username">
           Kullanıcı adı

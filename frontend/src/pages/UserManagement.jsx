@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import client from "../api/client";
+import { toProblem } from "../api/problemDetails";
+import ProblemError from "../components/ProblemError";
 import { useAuth } from "../context/AuthContext";
 import { formatDateTime } from "../utils/format";
 import "./UserManagement.css";
@@ -11,25 +13,25 @@ export default function UserManagement() {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
 
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState("MONITOR");
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
+  const [createError, setCreateError] = useState(null);
   const [createSuccess, setCreateSuccess] = useState("");
 
-  const [deleteError, setDeleteError] = useState("");
+  const [deleteError, setDeleteError] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setError(null);
     try {
-      const res = await client.get("/v1/users");
+      const res = await client.get("/v1/admin/users");
       setUsers(res.data);
-    } catch {
-      setError("Kullanıcı listesi alınamadı.");
+    } catch (err) {
+      setError(toProblem(err, "Kullanıcı listesi alınamadı."));
     } finally {
       setLoading(false);
     }
@@ -45,11 +47,11 @@ export default function UserManagement() {
     if (!newUsername || !newPassword) return;
 
     setCreating(true);
-    setCreateError("");
+    setCreateError(null);
     setCreateSuccess("");
 
     try {
-      await client.post("/v1/users", {
+      await client.post("/v1/admin/users", {
         username: newUsername,
         password: newPassword,
         role: newRole,
@@ -60,9 +62,7 @@ export default function UserManagement() {
       setNewRole("MONITOR");
       fetchUsers();
     } catch (err) {
-      setCreateError(
-        err.response?.data?.detail ?? err.response?.data?.error ?? "Kullanıcı oluşturulamadı."
-      );
+      setCreateError(toProblem(err, "Kullanıcı oluşturulamadı."));
     } finally {
       setCreating(false);
     }
@@ -73,14 +73,12 @@ export default function UserManagement() {
       return;
     }
 
-    setDeleteError("");
+    setDeleteError(null);
     try {
-      await client.delete(`/v1/users/${username}`);
+      await client.delete(`/v1/admin/users/${username}`);
       fetchUsers();
     } catch (err) {
-      setDeleteError(
-        err.response?.data?.detail ?? err.response?.data?.error ?? "Kullanıcı silinemedi."
-      );
+      setDeleteError(toProblem(err, "Kullanıcı silinemedi."));
     }
   }
 
@@ -92,7 +90,7 @@ export default function UserManagement() {
         <h2 className="user-management-section-title">Yeni Kullanıcı Oluştur</h2>
 
         {createSuccess && <div className="user-management-success">{createSuccess}</div>}
-        {createError && <div className="user-management-error">{createError}</div>}
+        {createError && <ProblemError error={createError} className="user-management-error" />}
 
         <form className="user-management-form" onSubmit={handleCreate}>
           <div className="user-management-field">
@@ -136,10 +134,10 @@ export default function UserManagement() {
         </form>
       </div>
 
-      {deleteError && <div className="user-management-error">{deleteError}</div>}
+      {deleteError && <ProblemError error={deleteError} className="user-management-error" />}
 
       {loading && <div className="user-management-status">Yükleniyor...</div>}
-      {error && <div className="user-management-error">{error}</div>}
+      {error && <ProblemError error={error} className="user-management-error" />}
 
       {!loading && !error && (
         <table className="user-management-table">

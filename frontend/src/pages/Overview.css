@@ -9,6 +9,38 @@
   margin-bottom: 24px;
 }
 
+.overview-collection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.overview-collection-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.overview-collection-status-ok .overview-collection-dot {
+  background: var(--green);
+}
+
+.overview-collection-status-partial .overview-collection-dot {
+  background: var(--yellow);
+}
+
+.overview-collection-status-failed .overview-collection-dot {
+  background: var(--red);
+}
+
+.overview-collection-instances {
+  color: var(--text-dim);
+}
+
 .overview-title {
   font-size: 22px;
   font-weight: 600;
@@ -110,6 +142,34 @@
 
 .overview-error {
   color: var(--red);
+}
+
+.overview-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.overview-transient-warning {
+  font-size: 12px;
+  color: var(--yellow);
+  background: rgba(234, 179, 8, 0.12);
+  padding: 5px 10px;
+  border-radius: 6px;
+}
+
+.overview-reconnect-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.overview-reconnect-button:hover {
+  background: var(--accent-hover);
 }
 
 .overview-patterns {

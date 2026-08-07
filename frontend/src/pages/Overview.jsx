@@ -1,19 +1,22 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import client from "../api/client";
+import { toProblem } from "../api/problemDetails";
 import InstanceCard from "../components/InstanceCard";
 import RefreshIndicator from "../components/RefreshIndicator";
+import ProblemError from "../components/ProblemError";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
 import { formatBytes, formatPercent } from "../utils/format";
 import "./Overview.css";
 
 const REFRESH_INTERVAL_MS = 15000;
+const MAX_CONSECUTIVE_TRANSIENT_ERRORS = 3;
 
 const ALERT_LABELS = {
   health: "Sağlık",
   memoryUsagePercent: "Bellek Kullanımı",
   hitRatio: "Hit Ratio",
   fragmentationRatio: "Fragmentasyon Oranı",
-  connectionErrors: "Bağlantı Hataları",
+  rejectedConnections: "Reddedilen Bağlantılar",
 };
 
 function buildAlerts(instances, metricsById) {
@@ -69,13 +72,13 @@ function buildAlerts(instances, metricsById) {
       }
     }
 
-    if (m.connections?.totalConnectionErrors != null) {
-      const s = evaluateStatus("connectionErrors", m.connections.totalConnectionErrors);
+    if (m.connections?.rejectedConnections != null) {
+      const s = evaluateStatus("rejectedConnections", m.connections.rejectedConnections);
       if (s !== "ok") {
         alerts.push({
           instanceName: instance.name,
-          label: ALERT_LABELS.connectionErrors,
-          valueText: String(m.connections.totalConnectionErrors),
+          label: ALERT_LABELS.rejectedConnections,
+          valueText: String(m.connections.rejectedConnections),
           status: s,
         });
       }
@@ -124,13 +127,21 @@ export default function Overview() {
   const [instances, setInstances] = useState([]);
   const [metricsById, setMetricsById] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Fleet listesi 429/503/504 ile geçici olarak başarısız olursa polling durdurulmaz,
+  // uyarı rozeti gösterilir. Ardışık 3 hatadan sonra polling durur ve "Yeniden bağlan" gösterilir.
+  const [transientWarning, setTransientWarning] = useState(null);
+  const [consecutiveTransientErrors, setConsecutiveTransientErrors] = useState(0);
+  const [pollingStopped, setPollingStopped] = useState(false);
+
+  const [collectionHealth, setCollectionHealth] = useState(null);
 
   const [patternRows, setPatternRows] = useState([]);
   const [patternHazelcastExcluded, setPatternHazelcastExcluded] = useState(false);
   const [patternLoading, setPatternLoading] = useState(true);
-  const [patternError, setPatternError] = useState("");
+  const [patternError, setPatternError] = useState(null);
   const patternFetchedOnce = useRef(false);
 
   const fetchAll = useCallback(async () => {
@@ -164,30 +175,74 @@ export default function Overview() {
 
       setMetricsById(Object.fromEntries(entries));
       setLastUpdated(new Date());
-      setError("");
-    } catch {
-      setError("Instance listesi alınamadı.");
+      setError(null);
+      setTransientWarning(null);
+      setConsecutiveTransientErrors(0);
+    } catch (err) {
+      if (err.problem?.retryable) {
+        setTransientWarning(toProblem(err, "Geçici bir sorun oluştu, tekrar deneniyor."));
+        setConsecutiveTransientErrors((prev) => {
+          const next = prev + 1;
+          if (next >= MAX_CONSECUTIVE_TRANSIENT_ERRORS) {
+            setPollingStopped(true);
+          }
+          return next;
+        });
+      } else {
+        setError(toProblem(err, "Instance listesi alınamadı."));
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
+  function handleReconnect() {
+    setConsecutiveTransientErrors(0);
+    setPollingStopped(false);
+    setTransientWarning(null);
+  }
+
   useEffect(() => {
+    if (pollingStopped) return;
+
     // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı
     fetchAll();
     const intervalId = setInterval(fetchAll, REFRESH_INTERVAL_MS);
     return () => clearInterval(intervalId);
-  }, [fetchAll]);
+  }, [fetchAll, pollingStopped]);
+
+  // UCMD'nin kendi toplama kalitesini gösterir; auth gerektirmediği için ayrı ve sessiz bir döngüde çalışır.
+  useEffect(() => {
+    let cancelled = false;
+
+    function fetchCollectionHealth() {
+      client
+        .get("/v1/health/collection")
+        .then((res) => {
+          if (!cancelled) setCollectionHealth(res.data);
+        })
+        .catch(() => {
+          if (!cancelled) setCollectionHealth(null);
+        });
+    }
+
+    fetchCollectionHealth();
+    const intervalId = setInterval(fetchCollectionHealth, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const fetchPatternSummary = useCallback(async (instancesList) => {
     setPatternLoading(true);
-    setPatternError("");
+    setPatternError(null);
     try {
       const { rows, hazelcastExcluded } = await aggregatePatterns(instancesList);
       setPatternRows(rows);
       setPatternHazelcastExcluded(hazelcastExcluded);
-    } catch {
-      setPatternError("Pattern özeti alınamadı.");
+    } catch (err) {
+      setPatternError(toProblem(err, "Pattern özeti alınamadı."));
     } finally {
       setPatternLoading(false);
     }
@@ -233,13 +288,42 @@ export default function Overview() {
 
   return (
     <div className="overview-page">
+      {collectionHealth && (
+        <div className={`overview-collection-status overview-collection-status-${collectionHealth.status?.toLowerCase()}`}>
+          <span className="overview-collection-dot" />
+          {collectionHealth.status === "OK" && "Veri toplama normal"}
+          {collectionHealth.status === "PARTIAL" &&
+            `${collectionHealth.unavailableInstances?.length ?? 0} instance'tan veri alınamıyor`}
+          {collectionHealth.status === "FAILED" && "Veri toplama başarısız"}
+          {collectionHealth.unavailableInstances?.length > 0 && (
+            <span className="overview-collection-instances">
+              {" "}
+              ({collectionHealth.unavailableInstances.join(", ")})
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="overview-header">
         <h1 className="overview-title">Instances</h1>
-        <RefreshIndicator lastUpdated={lastUpdated} onRefresh={fetchAll} />
+        <div className="overview-header-right">
+          {transientWarning && !pollingStopped && (
+            <span className="overview-transient-warning" title={transientWarning.message}>
+              ⚠ {transientWarning.message} ({consecutiveTransientErrors}/{MAX_CONSECUTIVE_TRANSIENT_ERRORS})
+            </span>
+          )}
+          {pollingStopped ? (
+            <button type="button" className="overview-reconnect-button" onClick={handleReconnect}>
+              ⟳ Yeniden bağlan
+            </button>
+          ) : (
+            <RefreshIndicator lastUpdated={lastUpdated} onRefresh={fetchAll} />
+          )}
+        </div>
       </div>
 
       {loading && <div className="overview-status">Yükleniyor...</div>}
-      {error && <div className="overview-error">{error}</div>}
+      {error && <ProblemError error={error} className="overview-error" />}
 
       {!loading && !error && (
         <>
@@ -252,6 +336,7 @@ export default function Overview() {
                 keyCount={metricsById[instance.id]?.dataStats?.totalKeyCount}
                 hitRatio={metricsById[instance.id]?.efficiency?.hitRatio}
                 activeClients={metricsById[instance.id]?.connections?.activeClients}
+                deadlockedThreadCount={metricsById[instance.id]?.resources?.deadlockedThreadCount}
               />
             ))}
           </div>
@@ -307,7 +392,7 @@ export default function Overview() {
               <div className="overview-status">Pattern özeti hesaplanıyor...</div>
             )}
             {!patternLoading && patternError && (
-              <div className="overview-error">{patternError}</div>
+              <ProblemError error={patternError} className="overview-error" />
             )}
             {!patternLoading && !patternError && patternRows.length === 0 && (
               <div className="overview-patterns-empty">Henüz key bulunmuyor.</div>

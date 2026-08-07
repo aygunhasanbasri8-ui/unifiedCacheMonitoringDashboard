@@ -45,3 +45,23 @@
   font-size: 11px;
   text-align: center;
 }
+
+.donut-metric-stale {
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.donut-metric-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.donut-metric-meta-badge {
+  background: rgba(234, 179, 8, 0.2);
+  color: var(--yellow);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+}

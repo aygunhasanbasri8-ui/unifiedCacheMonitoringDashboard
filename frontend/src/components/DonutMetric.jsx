@@ -1,13 +1,13 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { statusColor } from "../config/thresholds";
 import { interpretStatus } from "../config/metricStatus";
-import { formatPercent } from "../utils/format";
+import { formatPercent, formatAgeSeconds } from "../utils/format";
 import "./DonutMetric.css";
 
-export default function DonutMetric({ title, percent, status = "ok", subtitle, size = 130, metricStatus }) {
-  const si = interpretStatus(metricStatus);
-
-  if (si.hidden) return null;
+export default function DonutMetric({ title, percent, status = "ok", subtitle, size = 130, metricStatus, meta }) {
+  const ageSeconds = formatAgeSeconds(meta?.ageMillis);
+  const si = interpretStatus(metricStatus, ageSeconds);
+  const isStale = si.warn || meta?.stale === true;
 
   const forcedEmpty = si.placeholder != null;
   const hasValue =
@@ -27,7 +27,7 @@ export default function DonutMetric({ title, percent, status = "ok", subtitle, s
   const effectiveSubtitle = si.note || subtitle;
 
   return (
-    <div className="donut-metric" style={si.dim ? { opacity: 0.6 } : undefined}>
+    <div className={`donut-metric ${isStale ? "donut-metric-stale" : ""}`} style={si.dim ? { opacity: 0.6 } : undefined}>
       <div className="donut-metric-title">{title}</div>
       {!hasValue ? (
         <div className="donut-metric-empty" style={{ width: size, height: size }}>
@@ -60,6 +60,12 @@ export default function DonutMetric({ title, percent, status = "ok", subtitle, s
         </div>
       )}
       {effectiveSubtitle && <div className="donut-metric-subtitle">{effectiveSubtitle}</div>}
+      {meta && (ageSeconds != null || meta.stale) && (
+        <div className="donut-metric-meta">
+          {ageSeconds != null && <span>{ageSeconds} sn önce</span>}
+          {meta.stale && <span className="donut-metric-meta-badge">Bayat veri</span>}
+        </div>
+      )}
     </div>
   );
 }
