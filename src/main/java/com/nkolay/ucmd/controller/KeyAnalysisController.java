@@ -67,7 +67,7 @@ public class KeyAnalysisController {
         auditService.log("KEY_SEARCH",
                 auditContext.currentUsername(httpRequest),
                 "instance=" + id
-                        + ", map=" + keyMasker.maskForLog(req.getMapName())
+                        + mapDetail(req.getMapName())
                         + ", prefix=" + keyMasker.maskForLog(prefix)
                         + ", matchMode=" + req.getMatchMode()
                         + ", results=" + result.getContent().size(),
@@ -137,13 +137,20 @@ public class KeyAnalysisController {
         auditService.log("KEY_TTL_QUERY",
                 auditContext.currentUsername(httpRequest),
                 "instance=" + id
-                        + ", map=" + keyMasker.maskForLog(request.getMapName())
+                        + mapDetail(request.getMapName())
                         + ", key=" + keyMasker.maskForLog(key),
                 "SUCCESS",
                 auditContext.clientIp(httpRequest));
 
         return ResponseEntity.ok(response);
 
+    }
+
+    /** Denetim detayına map adını yalnızca verilmişse ekler (Redis'te "map=null" yazılmasın). */
+    private String mapDetail(String mapName) {
+        return (mapName == null || mapName.isBlank())
+                ? ""
+                : ", map=" + keyMasker.maskForLog(mapName);
     }
 
     @Operation(summary = "Key desen istatistikleri",
