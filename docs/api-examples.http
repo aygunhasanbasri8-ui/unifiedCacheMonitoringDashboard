@@ -1,0 +1,501 @@
+### UCMD — Elle Test İstekleri
+### IntelliJ IDEA HTTP Client formatı. Üstten aşağı sırayla çalıştırın:
+### önce login, sonra diğerleri (token otomatik taşınır).
+
+@host = http://localhost:8080/api
+@token = {{login.response.body.token}}
+
+### Redis instance id'si (varsayılan seed: 1)
+@redisId = 1
+### Hazelcast dev cluster id'si (varsayılan seed: 2)
+@hzId = 2
+### Hazelcast analytics cluster id'si
+@hzAnalyticsId = 5
+
+
+# ══════════════════════════════════════════════════════════════
+# KİMLİK DOĞRULAMA
+# ══════════════════════════════════════════════════════════════
+
+### Giriş — ADMIN. Parola .env dosyasındaki TEST_USER_ADMIN_PASSWORD ile aynı olmalı.
+# @name login
+POST {{host}}/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "DEGISTIR_env_TEST_USER_ADMIN_PASSWORD"
+}
+
+### Giriş — MONITOR. Rol kısıtlarını test etmek için.
+# @name loginMonitor
+POST {{host}}/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "monitor",
+  "password": "DEGISTIR_env_TEST_USER_MONITOR_PASSWORD"
+}
+
+### Hatalı parola → 401, denetim kaydına LOGIN_FAILED / result: DENIED yazılır
+POST {{host}}/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "yanlis-parola"
+}
+
+### Çıkış — token kara listeye alınır, süresi dolana kadar reddedilir
+POST {{host}}/v1/auth/logout
+Authorization: Bearer {{token}}
+
+
+# ══════════════════════════════════════════════════════════════
+# SAĞLIK — kimlik doğrulama gerekmez
+# ══════════════════════════════════════════════════════════════
+
+### UCMD durumu. uptimeSeconds gerçek çalışma süresidir (epoch değil).
+GET {{host}}/v1/health
+
+### Basit canlılık yanıtı
+GET {{host}}/v1/health/app
+
+### Toplama kalitesi — OK / PARTIAL / FAILED, erişilemeyen instance listesi
+GET {{host}}/v1/health/collection
+
+### Prometheus — UCMD'nin kendi öz-izleme metrikleri (ucmd_* ile başlayanlar)
+GET {{host}}/actuator/prometheus
+
+
+# ══════════════════════════════════════════════════════════════
+# INSTANCE OKUMA
+# ══════════════════════════════════════════════════════════════
+
+### Kayıtlı instance listesi
+POST {{host}}/v1/instances/list
+Authorization: Bearer {{token}}
+
+### Tek instance detayı
+POST {{host}}/v1/instances/{{redisId}}/detail
+Authorization: Bearer {{token}}
+
+### Olmayan instance → 404 · instance-not-found (hibrit politika, ADR-0005)
+POST {{host}}/v1/instances/9999/detail
+Authorization: Bearer {{token}}
+
+
+# ══════════════════════════════════════════════════════════════
+# METRİKLER — REDIS
+# ══════════════════════════════════════════════════════════════
+
+### Sağlık: UP/DOWN, Redis versiyonu, uptime
+POST {{host}}/v1/instances/{{redisId}}/health
+Authorization: Bearer {{token}}
+
+### Kaynaklar: CPU, bellek, fragmentation.
+### JVM alanları (gcCollectionCount, threadCount, ...) Redis'te null,
+### jvmStatus/gcStatus/threadStatus/fileDescriptorStatus = NOT_APPLICABLE
+POST {{host}}/v1/instances/{{redisId}}/resources
+Authorization: Bearer {{token}}
+
+### Bağlantılar: connected/blocked clients, maxclients, rejected
+POST {{host}}/v1/instances/{{redisId}}/connections
+Authorization: Bearer {{token}}
+
+### Veri: key sayısı (tüm DB'ler), TTL özeti, eviction/expiration sayaçları
+POST {{host}}/v1/instances/{{redisId}}/data-stats
+Authorization: Bearer {{token}}
+
+### Verimlilik: hit/miss oranı, ops/sec, ağ I/O.
+### Hiç istek yoksa hitRatio null döner (uydurma 0 değil).
+POST {{host}}/v1/instances/{{redisId}}/efficiency
+Authorization: Bearer {{token}}
+
+### Replikasyon: rol, bağlı replica'lar, gecikme.
+### Standalone master'da overallStatus = NOT_APPLICABLE
+POST {{host}}/v1/instances/{{redisId}}/replication
+Authorization: Bearer {{token}}
+
+### Kalıcılık: RDB/AOF durumu, son bgsave sonucu
+POST {{host}}/v1/instances/{{redisId}}/persistence
+Authorization: Bearer {{token}}
+
+### Cluster: standalone Redis'te NOT_APPLICABLE, cluster modunda NOT_READY
+POST {{host}}/v1/instances/{{redisId}}/cluster
+Authorization: Bearer {{token}}
+
+### Map istatistikleri: Redis'te kavram yok → NOT_APPLICABLE
+POST {{host}}/v1/instances/{{redisId}}/map-stats
+Authorization: Bearer {{token}}
+
+### Operation/event: Redis tek thread'li → NOT_APPLICABLE
+POST {{host}}/v1/instances/{{redisId}}/operation-stats
+Authorization: Bearer {{token}}
+
+
+# ══════════════════════════════════════════════════════════════
+# METRİKLER — HAZELCAST
+# ══════════════════════════════════════════════════════════════
+
+### Sağlık: uptime Prometheus'taki runtime.uptime'dan gelir
+POST {{host}}/v1/instances/{{hzId}}/health
+Authorization: Bearer {{token}}
+
+### Kaynaklar + JVM metrikleri (rehber §5.6):
+### gcCollectionCount, threadCount, openFileDescriptors, nonHeapUsedBytes,
+### memberUptimeSeconds, loadedClassCount
+POST {{host}}/v1/instances/{{hzId}}/resources
+Authorization: Bearer {{token}}
+
+### Bağlantılar: activeClients GERÇEK client sayısıdır (member sayısı değil, §5.2)
+POST {{host}}/v1/instances/{{hzId}}/connections
+Authorization: Bearer {{token}}
+
+### Cluster (§5.4): gerçek partitionCount, member başına dağılım, skew yüzdesi.
+### İlk çağrıda partition tablosu boş olabilir — bilinen sınır madde 4.
+POST {{host}}/v1/instances/{{hzId}}/cluster
+Authorization: Bearer {{token}}
+
+### Analytics cluster — multi-cluster kanıtı.
+### nodeCount ve partitionDistribution dev cluster'dan FARKLI olmalı.
+POST {{host}}/v1/instances/{{hzAnalyticsId}}/cluster
+Authorization: Bearer {{token}}
+
+### Map istatistikleri (§5.3): entry sayısı, bellek maliyeti, get/put sayaçları,
+### ortalama gecikme. Map adları maskelidir.
+### NOT: hitRatio 1'i aşabilir — bilinen sınır madde 11.
+POST {{host}}/v1/instances/{{hzId}}/map-stats
+Authorization: Bearer {{token}}
+
+### Operation ve event metrikleri (§5.5): queue boyutları, invocation sayaçları,
+### 21 internal executor durumu
+POST {{host}}/v1/instances/{{hzId}}/operation-stats
+Authorization: Bearer {{token}}
+
+### Verimlilik: map sayaçlarından türetilir → overallStatus = ESTIMATED
+POST {{host}}/v1/instances/{{hzId}}/efficiency
+Authorization: Bearer {{token}}
+
+
+# ══════════════════════════════════════════════════════════════
+# KEY ANALİZİ — REDIS
+# ══════════════════════════════════════════════════════════════
+
+### Key tarama. Prefix ZORUNLU (en az 3 karakter), cursor tabanlı SCAN.
+### Dönen key adları maskelidir: ucmd:merchant:***:commission
+POST {{host}}/v1/instances/{{redisId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "prefix": "ucmd:merchant",
+  "cursor": "0",
+  "count": 20,
+  "matchMode": "STARTS_WITH"
+}
+
+### CONTAINS modu — prefix'i içeren key'ler
+POST {{host}}/v1/instances/{{redisId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "prefix": "commission",
+  "count": 10,
+  "matchMode": "CONTAINS"
+}
+
+### Çok kısa prefix → 400 · invalid-prefix
+POST {{host}}/v1/instances/{{redisId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "prefix": "uc"
+}
+
+### En büyük N key. Tarama tamamlanmazsa status = ESTIMATED
+POST {{host}}/v1/instances/{{redisId}}/keys/top
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "n": 10,
+  "scanLimit": 5000
+}
+
+### Tek key TTL. Yanıttaki key maskelenmez (kullanıcı ne sorguladığını bilmeli),
+### denetim kaydına maskeli yazılır.
+POST {{host}}/v1/instances/{{redisId}}/keys/ttl
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "key": "ucmd:merchant:UIY1001:status"
+}
+
+### Desen bazlı gruplama — tam SCAN, pahalı işlem
+POST {{host}}/v1/instances/{{redisId}}/key-patterns
+Authorization: Bearer {{token}}
+
+
+# ══════════════════════════════════════════════════════════════
+# KEY ANALİZİ — HAZELCAST
+# ══════════════════════════════════════════════════════════════
+
+### mapName YOK → IMap adları listelenir (dashboard'da map seçimi için).
+### keyType = "map", entryCount dolu, sizeStatus = NOT_APPLICABLE
+POST {{host}}/v1/instances/{{hzId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+### mapName VAR → o map içindeki ENTRY key'leri aranır (§5.7).
+### keyType = "entry", status = ESTIMATED (sınırlı örneklem), adlar maskeli
+POST {{host}}/v1/instances/{{hzId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mapName": "ucmd-merchants",
+  "prefix": "",
+  "count": 10
+}
+
+### Entry araması + CONTAINS filtresi
+POST {{host}}/v1/instances/{{hzId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mapName": "ucmd-merchants",
+  "prefix": "10",
+  "matchMode": "CONTAINS",
+  "count": 5
+}
+
+### Sayfalama — Hazelcast'te cursor OFFSET olarak yorumlanır.
+### Bir önceki yanıtın "cursor" değerini buraya yazın.
+POST {{host}}/v1/instances/{{hzId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mapName": "ucmd-merchants",
+  "cursor": "10",
+  "count": 10
+}
+
+### Entry TTL — mapName ile. Süresiz entry'de PERSISTENT / -1 döner.
+POST {{host}}/v1/instances/{{hzId}}/keys/ttl
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mapName": "ucmd-merchants",
+  "key": "UIY1001"
+}
+
+### Olmayan entry → NOT_FOUND / -2
+POST {{host}}/v1/instances/{{hzId}}/keys/ttl
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mapName": "ucmd-merchants",
+  "key": "OLMAYAN-KEY"
+}
+
+### Map allowlist testi.
+### application.yml'de ucmd.security.allowed-maps doluysa ve bu map listede
+### değilse → 403 · map-not-allowed (yetki kısıtı, girdi hatası değil)
+POST {{host}}/v1/instances/{{hzId}}/keys
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "mapName": "ucmd-sessions",
+  "count": 5
+}
+
+
+# ══════════════════════════════════════════════════════════════
+# ZAMAN SERİSİ
+# ══════════════════════════════════════════════════════════════
+
+### Ham snapshot listesi (son 60 dakika). Grafik için /history tercih edin.
+POST {{host}}/v1/instances/{{redisId}}/snapshots
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "lastMinutes": 60
+}
+
+### Örneklenmiş geçmiş — nokta sayısı azsa resolution = RAW
+POST {{host}}/v1/instances/{{redisId}}/history
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "lastMinutes": 60
+}
+
+### Downsampling — 7 gün / 100 nokta → resolution = DOWNSAMPLED, pointCount = 100
+POST {{host}}/v1/instances/{{redisId}}/history
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "lastMinutes": 10080,
+  "maxPoints": 100
+}
+
+### Olmayan instance → 404 (önce 200 + boş liste dönüyordu)
+POST {{host}}/v1/instances/9999/history
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+
+# ══════════════════════════════════════════════════════════════
+# YÖNETİM — yalnızca ADMIN
+# ══════════════════════════════════════════════════════════════
+
+### Denetim kaydı — sayfalı. size 1-200 aralığına sıkıştırılır.
+GET {{host}}/v1/audit?page=0&size=20
+Authorization: Bearer {{token}}
+
+### action ile filtrele
+GET {{host}}/v1/audit?action=LOGIN_SUCCESS&page=0&size=10
+Authorization: Bearer {{token}}
+
+### username ile filtrele
+GET {{host}}/v1/audit?username=admin&page=0&size=10
+Authorization: Bearer {{token}}
+
+### MONITOR rolüyle denetim kaydı → 403
+GET {{host}}/v1/audit
+Authorization: Bearer {{loginMonitor.response.body.token}}
+
+### Kullanıcı listesi
+GET {{host}}/v1/admin/users
+Authorization: Bearer {{token}}
+
+### Kullanıcı oluştur
+POST {{host}}/v1/admin/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "test-kullanici",
+  "password": "GucluBirParola123",
+  "role": "MONITOR"
+}
+
+### Kullanıcı sil
+DELETE {{host}}/v1/admin/users/test-kullanici
+Authorization: Bearer {{token}}
+
+### Instance kaydı oluştur — Redis (kimlik doğrulamasız)
+# @name createRedis
+POST {{host}}/v1/admin/instances
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Redis-test",
+  "type": "REDIS",
+  "host": "localhost",
+  "port": 6380,
+  "enabled": true
+}
+
+### Instance kaydı oluştur — Redis ACL kullanıcısıyla.
+### passwordEnvVar PAROLANIN KENDİSİ DEĞİL, okunacağı environment
+### değişkeninin ADIDIR. Parola veritabanına yazılmaz.
+POST {{host}}/v1/admin/instances
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Redis-acl",
+  "type": "REDIS",
+  "host": "localhost",
+  "port": 6380,
+  "enabled": true,
+  "username": "ucmd_readonly",
+  "passwordEnvVar": "UCMD_REDIS_RO_PASSWORD"
+}
+
+### Instance kaydı oluştur — Hazelcast.
+### clusterName ZORUNLU (boşsa 400). metricsUrl boşsa JVM/map/operation
+### metrikleri UNAVAILABLE döner.
+POST {{host}}/v1/admin/instances
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Hazelcast-test",
+  "type": "HAZELCAST",
+  "host": "localhost",
+  "port": 5703,
+  "enabled": true,
+  "clusterName": "analytics",
+  "members": "localhost:5703",
+  "metricsUrl": "http://localhost:9406/metrics"
+}
+
+### Instance güncelle — cache ve Hazelcast client geçersizlenir
+PUT {{host}}/v1/admin/instances/{{createRedis.response.body.id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Redis-test-guncel",
+  "type": "REDIS",
+  "host": "localhost",
+  "port": 6380,
+  "enabled": false
+}
+
+### Instance sil
+DELETE {{host}}/v1/admin/instances/{{createRedis.response.body.id}}
+Authorization: Bearer {{token}}
+
+### MONITOR rolüyle yazma denemesi → 403
+POST {{host}}/v1/admin/instances
+Authorization: Bearer {{loginMonitor.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "yetkisiz",
+  "type": "REDIS",
+  "host": "localhost",
+  "port": 6379,
+  "enabled": true
+}
+
+### Eski yol (yazma uçları taşındı) → 404 · endpoint-not-found
+POST {{host}}/v1/instances
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+
+# ══════════════════════════════════════════════════════════════
+# SWAGGER / OPENAPI
+# ══════════════════════════════════════════════════════════════
+
+### monitoring grubu — teslim edilen salt-okunur doküman.
+### İçinde PUT/DELETE/PATCH bulunmamalıdır.
+GET {{host}}/v3/api-docs/monitoring
+
+### admin grubu — yazma uçları
+GET {{host}}/v3/api-docs/admin
+
+### Swagger UI (tarayıcıda açın): http://localhost:8080/api/swagger-ui.html

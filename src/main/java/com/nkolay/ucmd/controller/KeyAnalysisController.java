@@ -38,10 +38,13 @@ public class KeyAnalysisController {
     private KeyMasker keyMasker;
 
     @Operation(summary = "Key tarama (sayfalamalı)",
-               description = "Cursor tabanlı SCAN. Prefix zorunludur (en az 3 karakter) — "
-                       + "KEYS * kullanılmaz. Dönen key adları maskelenir (rehber §9).")
+               description = "Redis: cursor tabanlı SCAN, prefix zorunlu (en az 3 karakter), "
+                       + "KEYS * kullanılmaz. Hazelcast: mapName boşsa IMap adları listelenir, "
+                       + "doluysa o map içindeki entry key'leri örneklenerek aranır "
+                       + "(sınırlı tarama, sonuç ESTIMATED). Dönen adlar maskelenir (rehber §9).")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "400", description = "Prefix eksik, çok kısa veya izin listesinde değil")
+    @ApiResponse(responseCode = "403", description = "Map izin verilen listede değil")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "429", description = "Sorgu limiti aşıldı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -58,12 +61,13 @@ public class KeyAnalysisController {
             throw new IllegalArgumentException("Prefix en fazla 512 karakter olabilir");
         }
 
-        PageInfo<KeyInfo> result =
-                keyAnalysisService.scanKeys(id, prefix, req.getCursor(), req.getCount(), req.getMatchMode());
+        PageInfo<KeyInfo> result = keyAnalysisService.scanKeys(
+                id, prefix, req.getCursor(), req.getCount(), req.getMatchMode(), req.getMapName());
 
         auditService.log("KEY_SEARCH",
                 auditContext.currentUsername(httpRequest),
                 "instance=" + id
+                        + ", map=" + keyMasker.maskForLog(req.getMapName())
                         + ", prefix=" + keyMasker.maskForLog(prefix)
                         + ", matchMode=" + req.getMatchMode()
                         + ", results=" + result.getContent().size(),
@@ -104,10 +108,12 @@ public class KeyAnalysisController {
     }
 
     @Operation(summary = "Key TTL sorgusu",
-               description = "Tek key'in kalan yaşam süresi (PTTL). Yanıttaki key "
-                       + "maskelenmez — denetim kaydına maskeli yazılır.")
+               description = "Redis: PTTL. Hazelcast: mapName verilirse o map içindeki "
+                       + "entry'nin kalan süresi, verilmezse key bir IMap adı sayılır. "
+                       + "Yanıttaki key maskelenmez — denetim kaydına maskeli yazılır.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "400", description = "Key boş veya 512 karakterden uzun")
+    @ApiResponse(responseCode = "403", description = "Map izin verilen listede değil")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
     @PostMapping("/{id}/keys/ttl")
@@ -126,11 +132,13 @@ public class KeyAnalysisController {
 
         }
 
-        KeyTtlResponse response = keyAnalysisService.getKeyTTL(id, key);
+        KeyTtlResponse response = keyAnalysisService.getKeyTTL(id, key, request.getMapName());
 
         auditService.log("KEY_TTL_QUERY",
                 auditContext.currentUsername(httpRequest),
-                "instance=" + id + ", key=" + keyMasker.maskForLog(key),
+                "instance=" + id
+                        + ", map=" + keyMasker.maskForLog(request.getMapName())
+                        + ", key=" + keyMasker.maskForLog(key),
                 "SUCCESS",
                 auditContext.clientIp(httpRequest));
 

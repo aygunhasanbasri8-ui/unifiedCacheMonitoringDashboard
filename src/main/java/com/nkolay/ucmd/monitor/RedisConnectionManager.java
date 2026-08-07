@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.monitor;
 
+import com.nkolay.ucmd.model.entity.InstanceRef;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -14,24 +15,32 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Her Redis instance'ı için ayrı bağlantı tutar (host:port bazlı).
+ * Her Redis instance'ı için ayrı bağlantı tutar (host:port:username bazlı).
  * Bağlantılar önbelleğe alınır — her istekte yeni bağlantı açılmaz.
+ *
+ * Parola veritabanında saklanmaz; instance yalnızca hangi environment
+ * değişkeninden okunacağının ADINI taşır (rehber §9).
  */
 @Component
 public class RedisConnectionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisConnectionManager.class);
 
-    // "host:port" -> bağlantı
+    // "host:port:username" -> bağlantı
     private final Map<String, StatefulRedisConnection<byte[], byte[]>> connections =
             new ConcurrentHashMap<>();
     private final Map<String, RedisClient> clients = new ConcurrentHashMap<>();
 
     /**
-     * Verilen host/port için bağlantı döner (yoksa kurar).
+     * Verilen instance için bağlantı döner (yoksa kurar).
+     * Aynı sunucuya farklı kullanıcıyla bağlanma senaryosu için cache anahtarı
+     * kullanıcı adını da içerir.
      */
-    public StatefulRedisConnection<byte[], byte[]> getConnection(String host, int port) {
-        String key = host + ":" + port;
+    public StatefulRedisConnection<byte[], byte[]> getConnection(InstanceRef instance) {
+        String host = instance.getHost();
+        int port = instance.getPort();
+        String username = instance.getUsername();
+        String key = host + ":" + port + ":" + (username == null ? "" : username);
 
         return connections.compute(key, (k, existing) -> {
             if (existing != null && existing.isOpen()) {
@@ -39,10 +48,19 @@ public class RedisConnectionManager {
             }
             // Yok veya kapalı → yeni kur
             try {
-                RedisURI uri = RedisURI.Builder.redis(host, port)
-                        .withTimeout(Duration.ofSeconds(5))
-                        .build();
-                RedisClient client = RedisClient.create(uri);
+                RedisURI.Builder builder = RedisURI.Builder.redis(host, port)
+                        .withTimeout(Duration.ofSeconds(5));
+
+                String password = resolvePassword(instance);
+                if (password != null && !password.isBlank()) {
+                    if (username != null && !username.isBlank()) {
+                        builder.withAuthentication(username, password.toCharArray());
+                    } else {
+                        builder.withPassword(password.toCharArray());
+                    }
+                }
+
+                RedisClient client = RedisClient.create(builder.build());
                 clients.put(k, client);
                 StatefulRedisConnection<byte[], byte[]> conn =
                         client.connect(ByteArrayCodec.INSTANCE);
@@ -53,6 +71,19 @@ public class RedisConnectionManager {
                 return null;
             }
         });
+    }
+
+    /** Parolayı environment değişkeninden okur. Tanımlı değilse null. */
+    private String resolvePassword(InstanceRef instance) {
+        String envVar = instance.getPasswordEnvVar();
+        if (envVar == null || envVar.isBlank()) return null;
+
+        String value = System.getenv(envVar);
+        if (value == null || value.isBlank()) {
+            logger.warn("Instance '{}' için parola env değişkeni '{}' tanımlı değil",
+                    instance.getName(), envVar);
+        }
+        return value;
     }
 
     @PreDestroy

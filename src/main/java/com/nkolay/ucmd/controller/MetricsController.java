@@ -105,4 +105,16 @@ public class MetricsController {
     public ResponseEntity<MapStatsInfo> getMapStats(@PathVariable Long id) {
         return ResponseEntity.ok(monitoringService.getMapStats(id));
     }
+
+    @Operation(summary = "Operation ve event metrikleri",
+               description = "Rehber §5.5 — Hazelcast operation queue, invocation, "
+                       + "event queue ve internal executor durumu. Cluster'ın yoğunluk "
+                       + "altında olup olmadığını gösterir. Redis'te N/A.")
+    @ApiResponse(responseCode = "200", description = "Başarılı")
+    @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
+    @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
+    @PostMapping("/{id}/operation-stats")
+    public ResponseEntity<OperationStatsInfo> getOperationStats(@PathVariable Long id) {
+        return ResponseEntity.ok(monitoringService.getOperationStats(id));
+    }
 }

@@ -33,11 +33,17 @@ public interface CacheMonitor {
     /** Rehber §5.3 — map/data structure istatistikleri. Redis'te NOT_APPLICABLE. */
     MapStatsInfo getMapStats(InstanceRef instance);
 
-    PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count, MatchMode matchMode);
+    /** Rehber §5.5 — operation/event metrikleri. Redis'te NOT_APPLICABLE. */
+    OperationStatsInfo getOperationStats(InstanceRef instance);
+
+    /** @param mapName Hazelcast'te aranacak IMap; null ise map adları listelenir. Redis'te yok sayılır. */
+    PageInfo<KeyInfo> scanKeys(InstanceRef instance, String prefix, String cursor, int count,
+                               MatchMode matchMode, String mapName);
 
     TopKeysResponse getTopNKeys(InstanceRef instance, int n, Integer scanLimit);
 
-    KeyTtlResponse getKeyTTL(InstanceRef instance, String key);
+    /** @param mapName Hazelcast'te entry'nin bulunduğu IMap. Redis'te yok sayılır. */
+    KeyTtlResponse getKeyTTL(InstanceRef instance, String key, String mapName);
 
     CacheEfficiencyStats getCacheEfficiency(InstanceRef instance);
 

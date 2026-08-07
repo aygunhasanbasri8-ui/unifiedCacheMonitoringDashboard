@@ -94,6 +94,17 @@ public class ProtectedMonitorExecutor {
             lastKnownCache.put(key, stamped);
             return CachedResult.fresh(result, stamped.collectedAt());
 
+        } catch (MonitorTimeoutException e) {
+            logger.warn("Metric call '{}' timed out for {}", operation, instance.getName());
+
+            // Son bilinen değer varsa STALE olarak dön, yoksa TIMEOUT
+            Timestamped<T> lastKnown = (Timestamped<T>) lastKnownCache.getIfPresent(key);
+            if (lastKnown != null) {
+                logger.debug("Serving STALE value for {} / {}", instance.getName(), operation);
+                return CachedResult.stale(lastKnown.value(), lastKnown.collectedAt());
+            }
+            return CachedResult.timeout();
+
         } catch (Exception e) {
             logger.warn("Metric call '{}' failed for {}: {}",
                     operation, instance.getName(), e.getMessage());
@@ -236,7 +247,7 @@ public class ProtectedMonitorExecutor {
 
     /** Değerin taze mi, bayat mı, yok mu olduğunu taşır. */
     public record CachedResult<T>(T value, Freshness freshness, Instant collectedAt) {
-        public enum Freshness { FRESH, STALE, UNAVAILABLE }
+        public enum Freshness { FRESH, STALE, UNAVAILABLE, TIMEOUT }
 
         public static <T> CachedResult<T> fresh(T v, Instant at) {
             return new CachedResult<>(v, Freshness.FRESH, at);
@@ -247,8 +258,12 @@ public class ProtectedMonitorExecutor {
         public static <T> CachedResult<T> unavailable() {
             return new CachedResult<>(null, Freshness.UNAVAILABLE, null);
         }
+        public static <T> CachedResult<T> timeout() {
+            return new CachedResult<>(null, Freshness.TIMEOUT, null);
+        }
         public boolean isStale() { return freshness == Freshness.STALE; }
         public boolean isUnavailable() { return freshness == Freshness.UNAVAILABLE; }
+        public boolean isTimeout() { return freshness == Freshness.TIMEOUT; }
 
         /** DTO'ya gömülecek meta bilgisi. */
         public MetricMeta toMeta() {

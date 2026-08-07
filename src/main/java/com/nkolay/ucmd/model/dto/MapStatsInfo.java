@@ -57,10 +57,28 @@ public class MapStatsInfo {
     public static class MapDetail {
         private String name;
         private long entryCount;
-        private Long ownedEntryMemoryCost;   // null = client-only'de alınamaz
+        private Long ownedEntryMemoryCost;   // null = Prometheus scrape yoksa alınamaz
         private Long backupEntryCount;
         private Long hits;
         private MetricStatus entryCountStatus;
+
+        // ── Rehber §5.3 — Prometheus scrape'ten gelen detaylar ──
+        private Long ownedEntryCount;
+        private Long backupEntryMemoryCost;
+        private Long heapCost;
+        private Long getCount;
+        private Long putCount;
+        private Long removeCount;
+        private Long lockedEntryCount;
+        private Long dirtyEntryCount;
+        private Long evictionCount;
+        private Long expirationCount;
+        private Integer backupCount;
+        private Double avgGetLatencyMillis;
+        private Double avgPutLatencyMillis;
+        private Long lastAccessTime;      // epoch millis, 0 = hiç erişilmedi
+        private Long lastUpdateTime;
+        private Double hitRatio;          // hits / getCount, getCount=0 ise null
 
         public MapDetail() {}
 
@@ -93,5 +111,55 @@ public class MapStatsInfo {
         public void setEntryCountStatus(MetricStatus entryCountStatus) {
             this.entryCountStatus = entryCountStatus;
         }
+
+        // ── Rehber §5.3 detayları ──
+
+        public Long getOwnedEntryCount() { return ownedEntryCount; }
+        public void setOwnedEntryCount(Long v) { this.ownedEntryCount = v; }
+
+        public Long getBackupEntryMemoryCost() { return backupEntryMemoryCost; }
+        public void setBackupEntryMemoryCost(Long v) { this.backupEntryMemoryCost = v; }
+
+        public Long getHeapCost() { return heapCost; }
+        public void setHeapCost(Long v) { this.heapCost = v; }
+
+        public Long getGetCount() { return getCount; }
+        public void setGetCount(Long v) { this.getCount = v; }
+
+        public Long getPutCount() { return putCount; }
+        public void setPutCount(Long v) { this.putCount = v; }
+
+        public Long getRemoveCount() { return removeCount; }
+        public void setRemoveCount(Long v) { this.removeCount = v; }
+
+        public Long getLockedEntryCount() { return lockedEntryCount; }
+        public void setLockedEntryCount(Long v) { this.lockedEntryCount = v; }
+
+        public Long getDirtyEntryCount() { return dirtyEntryCount; }
+        public void setDirtyEntryCount(Long v) { this.dirtyEntryCount = v; }
+
+        public Long getEvictionCount() { return evictionCount; }
+        public void setEvictionCount(Long v) { this.evictionCount = v; }
+
+        public Long getExpirationCount() { return expirationCount; }
+        public void setExpirationCount(Long v) { this.expirationCount = v; }
+
+        public Integer getBackupCount() { return backupCount; }
+        public void setBackupCount(Integer v) { this.backupCount = v; }
+
+        public Double getAvgGetLatencyMillis() { return avgGetLatencyMillis; }
+        public void setAvgGetLatencyMillis(Double v) { this.avgGetLatencyMillis = v; }
+
+        public Double getAvgPutLatencyMillis() { return avgPutLatencyMillis; }
+        public void setAvgPutLatencyMillis(Double v) { this.avgPutLatencyMillis = v; }
+
+        public Long getLastAccessTime() { return lastAccessTime; }
+        public void setLastAccessTime(Long v) { this.lastAccessTime = v; }
+
+        public Long getLastUpdateTime() { return lastUpdateTime; }
+        public void setLastUpdateTime(Long v) { this.lastUpdateTime = v; }
+
+        public Double getHitRatio() { return hitRatio; }
+        public void setHitRatio(Double v) { this.hitRatio = v; }
     }
 }

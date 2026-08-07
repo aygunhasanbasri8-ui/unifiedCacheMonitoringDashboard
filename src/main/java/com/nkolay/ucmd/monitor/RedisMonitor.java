@@ -56,8 +56,21 @@ public class RedisMonitor implements CacheMonitor {
     // ═══════════════ Yardımcılar ═══════════════
 
     private RedisCommands<byte[], byte[]> commandsFor(InstanceRef instance) {
-        var conn = connectionManager.getConnection(instance.getHost(), instance.getPort());
+        var conn = connectionManager.getConnection(instance);
         return conn != null ? conn.sync() : null;
+    }
+
+    /**
+     * Rehber §9 — ACL kullanıcısı bir komuta yetkisizse Redis NOPERM döner.
+     * Bu durum erişilemezlikten ayrılmalı: PERMISSION_DENIED.
+     */
+    private MetricStatus failureStatus(Exception e) {
+        String msg = e.getMessage();
+        if (msg != null && (msg.contains("NOPERM") || msg.contains("WRONGPASS")
+                || msg.contains("NOAUTH"))) {
+            return MetricStatus.PERMISSION_DENIED;
+        }
+        return MetricStatus.UNAVAILABLE;
     }
 
     private String infoValue(String info, String field, String defaultValue) {
@@ -141,6 +154,7 @@ public class RedisMonitor implements CacheMonitor {
                     down.setCpuStats(MetricStatus.UNAVAILABLE);
                     down.setMemoryStatus(MetricStatus.UNAVAILABLE);
                     down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
+                    applyJvmNotApplicable(down);
                     return down;
             }
 
@@ -167,18 +181,29 @@ public class RedisMonitor implements CacheMonitor {
             stats.setFragmentationStatus(MetricStatus.AVAILABLE);
 
             stats.setCpuStats(cpuReady ? MetricStatus.AVAILABLE : MetricStatus.UNAVAILABLE);
+            applyJvmNotApplicable(stats);
             return stats;
 
         } catch (Exception e) {
             logger.error("Error fetching resource stats for {}: {}",
                     instance.getName(), e.getMessage());
+            MetricStatus status = failureStatus(e);
             ResourceStats down = new ResourceStats(0,0,0);
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setCpuStats(MetricStatus.UNAVAILABLE);
-            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
-            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
+            down.setOverallStatus(status);
+            down.setCpuStats(status);
+            down.setFragmentationStatus(status);
+            down.setMemoryStatus(status);
+            applyJvmNotApplicable(down);
             return down;
         }
+    }
+
+    /** Rehber §5.6 JVM metrikleri Redis'te yoktur — alanlar null, statüler N/A. */
+    private void applyJvmNotApplicable(ResourceStats stats) {
+        stats.setJvmStatus(MetricStatus.NOT_APPLICABLE);
+        stats.setGcStatus(MetricStatus.NOT_APPLICABLE);
+        stats.setThreadStatus(MetricStatus.NOT_APPLICABLE);
+        stats.setFileDescriptorStatus(MetricStatus.NOT_APPLICABLE);
     }
 
 
@@ -254,12 +279,13 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching connection stats for {}: {}",
                     instance.getName(), e.getMessage());
+            MetricStatus status = failureStatus(e);
             ConnectionStats down = new ConnectionStats(0, 0, 0);
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
-            down.setErrorStatus(MetricStatus.UNAVAILABLE);
-            down.setMaxClientsStatus(MetricStatus.UNAVAILABLE);
-            down.setBlockedClientsStatus(MetricStatus.UNAVAILABLE);
+            down.setOverallStatus(status);
+            down.setActiveClientStatus(status);
+            down.setErrorStatus(status);
+            down.setMaxClientsStatus(status);
+            down.setBlockedClientsStatus(status);
             return down;
         }
     }
@@ -311,12 +337,13 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching data stats for {}: {}",
                     instance.getName(), e.getMessage());
+            MetricStatus status = failureStatus(e);
             DataStats down = new DataStats(0,0,0);
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
-            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
-            down.setEvictionStatus(MetricStatus.UNAVAILABLE);
-            down.setTtlStatus(MetricStatus.UNAVAILABLE);
+            down.setOverallStatus(status);
+            down.setMemoryStatus(status);
+            down.setFragmentationStatus(status);
+            down.setEvictionStatus(status);
+            down.setTtlStatus(status);
             return down;
         }
     }
@@ -354,7 +381,7 @@ public class RedisMonitor implements CacheMonitor {
             logger.warn("Cluster info check failed for {}: {}",
                     instance.getName(), e.getMessage());
             ClusterInfo down = new ClusterInfo();
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
+            down.setOverallStatus(failureStatus(e));
             return down;
         }
     }
@@ -363,6 +390,12 @@ public class RedisMonitor implements CacheMonitor {
     @Override
     public MapStatsInfo getMapStats(InstanceRef instance) {
         return MapStatsInfo.notApplicable();
+    }
+
+    /** Redis tek thread'li çalışır — operation/event kuyruğu kavramı yoktur. */
+    @Override
+    public OperationStatsInfo getOperationStats(InstanceRef instance) {
+        return OperationStatsInfo.notApplicable();
     }
 
     // ═══════════════ Cache verimliliği ═══════════════
@@ -397,11 +430,12 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching cache efficiency for {}: {}",
                     instance.getName(), e.getMessage());
+            MetricStatus status = failureStatus(e);
             CacheEfficiencyStats down = new CacheEfficiencyStats(0, 0);
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setHitRatioStatus(MetricStatus.UNAVAILABLE);
-            down.setThroughputStatus(MetricStatus.UNAVAILABLE);
-            down.setNetworkStatus(MetricStatus.UNAVAILABLE);
+            down.setOverallStatus(status);
+            down.setHitRatioStatus(status);
+            down.setThroughputStatus(status);
+            down.setNetworkStatus(status);
             return down;
         }
     }
@@ -413,7 +447,9 @@ public class RedisMonitor implements CacheMonitor {
                                       String prefix,
                                       String cursor,
                                       int count,
-                                      MatchMode matchMode) {
+                                      MatchMode matchMode,
+                                      String mapName) {
+        // mapName Hazelcast'e özgüdür, Redis'te yok sayılır.
         final String search = (prefix == null) ? "" : prefix.trim();
         if (search.isEmpty()) {
             throw new InvalidPrefixException("prefix zorunludur");
@@ -481,7 +517,7 @@ public class RedisMonitor implements CacheMonitor {
         catch (Exception e) {
             logger.error("Error scanning keys for {}: {}",
                     instance.getName(), e.getMessage());
-            return PageInfo.unavailable(count);
+            return new PageInfo<>(new ArrayList<>(), "0", false, count, failureStatus(e));
         }
     }
 
@@ -525,7 +561,9 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching top N keys for {}: {}",
                     instance.getName(), e.getMessage());
-            return TopKeysResponse.unavailable();
+            TopKeysResponse down = TopKeysResponse.unavailable();
+            down.setStatus(failureStatus(e));
+            return down;
         }
 
         keys.sort((a, b) -> Long.compare(b.getSizeBytes(), a.getSizeBytes()));
@@ -536,7 +574,8 @@ public class RedisMonitor implements CacheMonitor {
     // ═══════════════ Key TTL ═══════════════
 
     @Override
-    public KeyTtlResponse getKeyTTL(InstanceRef instance, String key) {
+    public KeyTtlResponse getKeyTTL(InstanceRef instance, String key, String mapName) {
+        // mapName Hazelcast'e özgüdür, Redis'te yok sayılır.
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
             if (cmd == null) return KeyTtlResponse.unavailable(key);
@@ -590,7 +629,9 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching replication info for {}: {}",
                     instance.getName(), e.getMessage());
-            return ReplicationInfo.unavailable();
+            ReplicationInfo down = ReplicationInfo.unavailable();
+            down.setOverallStatus(failureStatus(e));
+            return down;
         }
     }
 
@@ -667,7 +708,9 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching persistence info for {}: {}",
                     instance.getName(), e.getMessage());
-            return PersistenceInfo.unavailable();
+            PersistenceInfo down = PersistenceInfo.unavailable();
+            down.setOverallStatus(failureStatus(e));
+            return down;
         }
     }
 

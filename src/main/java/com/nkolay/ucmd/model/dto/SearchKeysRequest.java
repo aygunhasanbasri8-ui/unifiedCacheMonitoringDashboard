@@ -6,8 +6,14 @@ public class SearchKeysRequest {
     private int count = 20;
     private MatchMode matchMode = MatchMode.STARTS_WITH;
 
+    /** Hazelcast: hangi map içinde aranacak. Redis'te kullanılmaz. */
+    private String mapName;
+
 
     public SearchKeysRequest() {}
+
+    public String getMapName() { return mapName; }
+    public void setMapName(String mapName) { this.mapName = mapName; }
 
     public String getPrefix () {return prefix;}
     public void setPrefix(String prefix ) { this.prefix = prefix;}

@@ -138,6 +138,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "resources",
                 () -> monitor.getResourceStats(instance));
 
+        if (result.isTimeout()) {
+            ResourceStats s = unavailableResourceStats();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return unavailableResourceStats();
         }
@@ -157,6 +162,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "connections",
                 () -> monitor.getConnectionStats(instance));
 
+        if (result.isTimeout()) {
+            ConnectionStats s = unavailableConnectionStats();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return unavailableConnectionStats();
         }
@@ -175,6 +185,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "data-stats",
                 () -> monitor.getDataStats(instance));
 
+        if (result.isTimeout()) {
+            DataStats s = unavailableDataStats();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return unavailableDataStats();
         }
@@ -193,6 +208,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "cluster",
                 () -> monitor.getClusterInfo(instance));
 
+        if (result.isTimeout()) {
+            ClusterInfo s = unavailableClusterInfo();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return unavailableClusterInfo();
         }
@@ -211,6 +231,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "efficiency",
                 () -> monitor.getCacheEfficiency(instance));
 
+        if (result.isTimeout()) {
+            CacheEfficiencyStats s = unavailableCacheEfficiencyStats();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return unavailableCacheEfficiencyStats();
         }
@@ -229,6 +254,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "replication",
                 () -> monitor.getReplicationInfo(instance));
 
+        if (result.isTimeout()) {
+            ReplicationInfo s = ReplicationInfo.unavailable();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return ReplicationInfo.unavailable();
         }
@@ -248,6 +278,11 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "persistence",
                 () -> monitor.getPersistenceInfo(instance));
 
+        if (result.isTimeout()) {
+            PersistenceInfo s = PersistenceInfo.unavailable();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return PersistenceInfo.unavailable();
         }
@@ -267,10 +302,39 @@ public class MonitoringServiceImpl implements MonitoringService {
         var result = executor.executeCachedMetric(instance, "map-stats",
                 () -> monitor.getMapStats(instance));
 
+        if (result.isTimeout()) {
+            MapStatsInfo s = MapStatsInfo.unavailable();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
         if (result.isUnavailable() || result.value() == null) {
             return MapStatsInfo.unavailable();
         }
         MapStatsInfo info = result.value();
+        info.setMeta(result.toMeta());
+        if (result.isStale()) {
+            info.setOverallStatus(MetricStatus.STALE);
+        }
+        return info;
+    }
+
+    @Override
+    public OperationStatsInfo getOperationStats(Long id) {
+        InstanceRef instance = getInstanceById(id);
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+
+        var result = executor.executeCachedMetric(instance, "operation-stats",
+                () -> monitor.getOperationStats(instance));
+
+        if (result.isTimeout()) {
+            OperationStatsInfo s = OperationStatsInfo.unavailable();
+            s.setOverallStatus(MetricStatus.TIMEOUT);
+            return s;
+        }
+        if (result.isUnavailable() || result.value() == null) {
+            return OperationStatsInfo.unavailable();
+        }
+        OperationStatsInfo info = result.value();
         info.setMeta(result.toMeta());
         if (result.isStale()) {
             info.setOverallStatus(MetricStatus.STALE);

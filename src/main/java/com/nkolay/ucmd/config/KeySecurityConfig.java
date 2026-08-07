@@ -12,12 +12,16 @@ import java.util.List;
 public class KeySecurityConfig {
 
     private List<String> allowedPrefixes = new ArrayList<>();
+    private List<String> allowedMaps = new ArrayList<>();
     private KeyMaskingProps keyMasking = new KeyMaskingProps();
 
     public List<String> getAllowedPrefixes() { return allowedPrefixes; }
     public void setAllowedPrefixes(List<String> allowedPrefixes) {
         this.allowedPrefixes = allowedPrefixes;
     }
+
+    public List<String> getAllowedMaps() { return allowedMaps; }
+    public void setAllowedMaps(List<String> allowedMaps) { this.allowedMaps = allowedMaps; }
 
     public KeyMaskingProps getKeyMasking() { return keyMasking; }
     public void setKeyMasking(KeyMaskingProps keyMasking) { this.keyMasking = keyMasking; }
@@ -34,5 +38,12 @@ public class KeySecurityConfig {
         if (allowedPrefixes == null || allowedPrefixes.isEmpty()) return true;
         if (prefix == null) return false;
         return allowedPrefixes.stream().anyMatch(prefix::startsWith);
+    }
+
+    /** Liste boşsa kısıt yok. Doluysa map adı listede olmalı. */
+    public boolean isMapAllowed(String mapName) {
+        if (allowedMaps == null || allowedMaps.isEmpty()) return true;
+        if (mapName == null) return false;
+        return allowedMaps.contains(mapName);
     }
 }

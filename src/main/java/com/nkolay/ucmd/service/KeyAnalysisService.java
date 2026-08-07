@@ -6,9 +6,10 @@ import java.util.List;
 
 public interface KeyAnalysisService {
 
-    PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count, MatchMode matchMode);
+    PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count,
+                               MatchMode matchMode, String mapName);
     TopKeysResponse getTopNKeys(Long instanceId, int n, Integer scanLimit);
-    KeyTtlResponse getKeyTTL(Long instanceId, String key);
+    KeyTtlResponse getKeyTTL(Long instanceId, String key, String mapName);
 
 
 }

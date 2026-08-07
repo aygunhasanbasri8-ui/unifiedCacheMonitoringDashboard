@@ -63,6 +63,15 @@ public class GlobalExceptionHandler {
                 e.getMessage(), request);
     }
 
+    /** Rehber §5.7 — yetki kısıtı (girdi hatası değil) → 403. */
+    @ExceptionHandler(MapNotAllowedException.class)
+    public ResponseEntity<ErrorResponse> handleMapNotAllowed(
+            MapNotAllowedException e, HttpServletRequest request) {
+        logger.warn("Map not allowed: {}", e.getMessage());
+        return build(HttpStatus.FORBIDDEN, "map-not-allowed", "Map Not Allowed",
+                e.getMessage(), request);
+    }
+
     @ExceptionHandler(NullPointerException.class)
     public ResponseEntity<ErrorResponse> handleNullPointer(
             NullPointerException e, HttpServletRequest request) {

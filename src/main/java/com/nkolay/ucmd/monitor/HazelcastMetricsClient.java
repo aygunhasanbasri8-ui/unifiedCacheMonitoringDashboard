@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.monitor;
 
 import com.nkolay.ucmd.model.entity.InstanceRef;
+import com.nkolay.ucmd.monitor.prometheus.NodeMetrics;
+import com.nkolay.ucmd.monitor.prometheus.PrometheusTextParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -11,13 +13,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Hazelcast cluster üyelerinin jmx_exporter endpoint'lerinden metrik okur.
- * Birden çok node destekler — değerler toplanır (bellek) veya ortalanır (CPU).
+ * Her node ayrı bir {@link NodeMetrics} olarak döner; cluster geneli değerler
+ * {@link #sum}, {@link #avg}, {@link #max} ile toplanır.
  */
 @Component
 public class HazelcastMetricsClient {
@@ -28,49 +30,9 @@ public class HazelcastMetricsClient {
             .connectTimeout(Duration.ofSeconds(3))
             .build();
 
-    /** Tek bir node'dan metrikleri çeker. */
-    private Map<String, Double> fetchFromUrl(String url) {
-        Map<String, Double> metrics = new HashMap<>();
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(5))
-                    .GET().build();
-
-            HttpResponse<String> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200) {
-                logger.warn("Hazelcast metrics endpoint {} returned {}", url, response.statusCode());
-                return metrics;
-            }
-
-            for (String line : response.body().split("\n")) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) continue;
-
-                int lastSpace = line.lastIndexOf(' ');
-                if (lastSpace < 0) continue;
-
-                String nameWithLabels = line.substring(0, lastSpace).trim();
-                String valueStr = line.substring(lastSpace + 1).trim();
-
-                try {
-                    metrics.put(nameWithLabels, Double.parseDouble(valueStr));
-                } catch (NumberFormatException ignored) {}
-            }
-        } catch (Exception e) {
-            logger.warn("Could not fetch Hazelcast metrics from {}: {}", url, e.getMessage());
-        }
-        return metrics;
-    }
-
-    /**
-     * Instance'ın tanımlı tüm jmx_exporter adreslerinden metrikleri çeker
-     * (her node ayrı map). Adres tanımlı değilse boş liste döner.
-     */
-    public List<Map<String, Double>> fetchAllNodes(InstanceRef instance) {
-        List<Map<String, Double>> result = new ArrayList<>();
+    /** Instance'ın metricsUrl'indeki tüm node'lardan metrik çeker. */
+    public List<NodeMetrics> fetchAllNodes(InstanceRef instance) {
+        List<NodeMetrics> result = new ArrayList<>();
 
         String metricsUrl = (instance != null) ? instance.getMetricsUrl() : null;
         if (metricsUrl == null || metricsUrl.isBlank()) {
@@ -82,37 +44,75 @@ public class HazelcastMetricsClient {
         for (String url : metricsUrl.split(",")) {
             url = url.trim();
             if (url.isEmpty()) continue;
-            Map<String, Double> m = fetchFromUrl(url);
-            if (!m.isEmpty()) result.add(m);
+
+            NodeMetrics node = fetchFromUrl(url);
+            if (node != null && !node.isEmpty()) result.add(node);
         }
+
         logger.debug("Fetched metrics from {} Hazelcast node(s)", result.size());
         return result;
     }
 
-    /** Belirli bir metriği bulur (etiket filtresiyle). */
-    public double findMetric(Map<String, Double> metrics, String metricName, String labelFilter) {
-        for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-            String key = entry.getKey();
-            if (!key.startsWith(metricName)) continue;
-            if (labelFilter == null || labelFilter.isEmpty() || key.contains(labelFilter)) {
-                return entry.getValue();
+    /** Tek bir node'dan metrikleri çeker. Başarısızlıkta null. */
+    private NodeMetrics fetchFromUrl(String url) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET().build();
+
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                logger.warn("Hazelcast metrics endpoint {} returned {}", url, response.statusCode());
+                return null;
             }
+
+            return PrometheusTextParser.parse(response.body());
+
+        } catch (Exception e) {
+            logger.warn("Could not fetch Hazelcast metrics from {}: {}", url, e.getMessage());
+            return null;
         }
-        return 0.0;
     }
 
-    /** Tüm node'lardan bir metriği toplar (bellek gibi toplanabilir değerler için). */
-    public double sumAcrossNodes(List<Map<String, Double>> nodes, String metricName, String labelFilter) {
+    // ═══════════════ Cluster geneli toplayıcılar ═══════════════
+
+    /** Tüm node'lardan toplar. Hiçbir node'da yoksa null. */
+    public static Double sum(List<NodeMetrics> nodes, Function<NodeMetrics, Double> extractor) {
         double total = 0;
-        for (Map<String, Double> node : nodes) {
-            total += findMetric(node, metricName, labelFilter);
+        boolean found = false;
+        for (NodeMetrics node : nodes) {
+            Double value = extractor.apply(node);
+            if (value == null) continue;
+            total += value;
+            found = true;
         }
-        return total;
+        return found ? total : null;
     }
 
-    /** Tüm node'lardan bir metriğin ortalamasını alır (CPU gibi oransal değerler için). */
-    public double avgAcrossNodes(List<Map<String, Double>> nodes, String metricName, String labelFilter) {
-        if (nodes.isEmpty()) return 0;
-        return sumAcrossNodes(nodes, metricName, labelFilter) / nodes.size();
+    /** Node ortalaması (oransal değerler için). Hiçbir node'da yoksa null. */
+    public static Double avg(List<NodeMetrics> nodes, Function<NodeMetrics, Double> extractor) {
+        double total = 0;
+        int count = 0;
+        for (NodeMetrics node : nodes) {
+            Double value = extractor.apply(node);
+            if (value == null) continue;
+            total += value;
+            count++;
+        }
+        return count > 0 ? total / count : null;
+    }
+
+    /** En büyük değer (peak metrikleri için). Hiçbir node'da yoksa null. */
+    public static Double max(List<NodeMetrics> nodes, Function<NodeMetrics, Double> extractor) {
+        Double best = null;
+        for (NodeMetrics node : nodes) {
+            Double value = extractor.apply(node);
+            if (value == null) continue;
+            if (best == null || value > best) best = value;
+        }
+        return best;
     }
 }

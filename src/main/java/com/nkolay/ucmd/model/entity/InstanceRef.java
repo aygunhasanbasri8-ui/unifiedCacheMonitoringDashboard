@@ -29,6 +29,13 @@ public class InstanceRef {
     @Column(length = 1000)
     private String metricsUrl;
 
+    /** Redis ACL kullanıcı adı. Boşsa kimlik doğrulamasız bağlanılır. */
+    private String username;
+
+    /** Parolanın okunacağı environment değişkeninin ADI.
+     *  Parola asla veritabanında saklanmaz. */
+    private String passwordEnvVar;
+
     public InstanceRef() {}
 
     public InstanceRef(Long id, String name, String type, String host, int port, boolean enabled) {
@@ -66,6 +73,12 @@ public class InstanceRef {
 
     public String getMetricsUrl() { return metricsUrl; }
     public void setMetricsUrl(String metricsUrl) { this.metricsUrl = metricsUrl; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    public String getPasswordEnvVar() { return passwordEnvVar; }
+    public void setPasswordEnvVar(String passwordEnvVar) { this.passwordEnvVar = passwordEnvVar; }
 
     public String resolveMembers() {
         if (members != null && !members.isBlank()) return members;
