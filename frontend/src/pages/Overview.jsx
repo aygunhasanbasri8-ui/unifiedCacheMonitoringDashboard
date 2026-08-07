@@ -375,6 +375,25 @@ export default function Overview() {
             </div>
           </div>
 
+          <div className="overview-alerts">
+            <h2 className="overview-section-title">Aktif Uyarılar</h2>
+            {alerts.length === 0 ? (
+              <div className="overview-alerts-clear">✓ Tüm sistemler normal</div>
+            ) : (
+              <ul className="overview-alerts-list">
+                {alerts.map((alert) => (
+                  <li
+                    key={`${alert.instanceName}-${alert.label}`}
+                    className={`overview-alert-item overview-alert-${alert.status}`}
+                  >
+                    {alert.instanceName} — {alert.label}: {alert.valueText} (
+                    {alert.status === "critical" ? "Kritik" : "Uyarı"})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="overview-patterns">
             <div className="overview-patterns-header">
               <h2 className="overview-section-title">Key Pattern Özeti (Fleet)</h2>
@@ -433,25 +452,6 @@ export default function Overview() {
                   </div>
                 )}
               </>
-            )}
-          </div>
-
-          <div className="overview-alerts">
-            <h2 className="overview-section-title">Aktif Uyarılar</h2>
-            {alerts.length === 0 ? (
-              <div className="overview-alerts-clear">✓ Tüm sistemler normal</div>
-            ) : (
-              <ul className="overview-alerts-list">
-                {alerts.map((alert) => (
-                  <li
-                    key={`${alert.instanceName}-${alert.label}`}
-                    className={`overview-alert-item overview-alert-${alert.status}`}
-                  >
-                    {alert.instanceName} — {alert.label}: {alert.valueText} (
-                    {alert.status === "critical" ? "Kritik" : "Uyarı"})
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
         </>
