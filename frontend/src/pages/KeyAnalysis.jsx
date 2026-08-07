@@ -9,6 +9,24 @@ import "./KeyAnalysis.css";
 const PAGE_SIZE = 20;
 const MIN_REDIS_PREFIX_LENGTH = 3;
 const WILDCARD_PATTERN = /[*?]/;
+const BUSY_RETRY_DELAY_MS = 2000;
+const BUSY_MESSAGE = "Sistem yoğun, biraz sonra tekrar deneyin.";
+
+// Koruma katmanı bulkhead reddi (InstanceBusyException) 503 döner.
+function isBusyError(err) {
+  return (err?.problem?.status ?? err?.response?.status) === 503;
+}
+
+// 503 alınırsa iki saniye bekleyip TEK bir kez daha dener; ikinci hata çağırana iletilir.
+async function withBusyRetry(request) {
+  try {
+    return await request();
+  } catch (err) {
+    if (!isBusyError(err)) throw err;
+    await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_DELAY_MS));
+    return request();
+  }
+}
 
 export default function KeyAnalysis() {
   const { id } = useParams();
@@ -51,30 +69,49 @@ export default function KeyAnalysis() {
   const prefixTooShort = !isHazelcast && trimmedPrefix.length < MIN_REDIS_PREFIX_LENGTH;
   const searchDisabled = instance != null && prefixTooShort;
 
-  useEffect(() => {
-    client
-      .post(`/v1/instances/${id}/detail`, {})
-      .then((res) => setInstance(res.data))
-      .catch(() => setInstance(null));
-  }, [id]);
-
   const fetchPatterns = useCallback(async () => {
     setPatternsLoading(true);
     setPatternsError(null);
     try {
-      const res = await client.post(`/v1/instances/${id}/key-patterns`, {});
+      const res = await withBusyRetry(() =>
+        client.post(`/v1/instances/${id}/key-patterns`, {})
+      );
       setPatterns(res.data);
     } catch (err) {
-      setPatternsError(toProblem(err, "Pattern dağılımı alınamadı."));
+      setPatternsError(
+        isBusyError(err) ? { message: BUSY_MESSAGE, traceId: err.problem?.traceId ?? null }
+                         : toProblem(err, "Pattern dağılımı alınamadı.")
+      );
     } finally {
       setPatternsLoading(false);
     }
   }, [id]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı, sonrası manuel
-    fetchPatterns();
-  }, [fetchPatterns]);
+  const fetchTopKeys = useCallback(async () => {
+    setTopLoading(true);
+    setTopError(null);
+    try {
+      const res = await withBusyRetry(() =>
+        client.post(`/v1/instances/${id}/keys/top`, { n: 10 })
+      );
+      const data = res.data;
+      setTopKeys(data.keys ?? []);
+      setTopMeta({
+        estimated: data.estimated,
+        scannedCount: data.scannedCount,
+        scanLimit: data.scanLimit,
+        scanCompleted: data.scanCompleted,
+        status: data.status,
+      });
+    } catch (err) {
+      setTopError(
+        isBusyError(err) ? { message: BUSY_MESSAGE, traceId: err.problem?.traceId ?? null }
+                         : toProblem(err, "En büyük key'ler alınamadı.")
+      );
+    } finally {
+      setTopLoading(false);
+    }
+  }, [id]);
 
   const fetchPage = useCallback(
     async (prefixValue, cursorValue, append, mode, mapNameValue) => {
@@ -110,36 +147,45 @@ export default function KeyAnalysis() {
     [id]
   );
 
-  // Hazelcast'te önce map listesi (mapName boş) otomatik yüklenir; Redis'te kullanıcı arama yapmadan
-  // (min 3 karakter) istek atılmaz, çünkü backend boş/kısa prefix'i 400 ile reddeder.
+  // Sayfa açılışındaki pahalı çağrılar SIRALI yapılır. Eşzamanlı gönderilirse
+  // instance başına 2 olan bulkhead limiti (expensiveConcurrency) aşılır ve
+  // çağrılar 503 (instance-busy) ile reddedilir; StrictMode'un effect'i iki kez
+  // çalıştırması bu sınırı kesin olarak aştırır.
+  // ignore bayrağı, StrictMode'un ikinci turunun sonuçlarını yok sayar.
   useEffect(() => {
-    if (!instance) return;
-    if (instance.type === "HAZELCAST") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı
-      fetchPage("", "0", false, matchMode);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnızca instance yüklendiğinde bir kez çalışsın
-  }, [instance]);
+    let ignore = false;
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı
-    setTopLoading(true);
-    client
-      .post(`/v1/instances/${id}/keys/top`, { n: 10 })
-      .then((res) => {
-        const data = res.data;
-        setTopKeys(data.keys ?? []);
-        setTopMeta({
-          estimated: data.estimated,
-          scannedCount: data.scannedCount,
-          scanLimit: data.scanLimit,
-          scanCompleted: data.scanCompleted,
-          status: data.status,
-        });
-      })
-      .catch((err) => setTopError(toProblem(err, "En büyük key'ler alınamadı.")))
-      .finally(() => setTopLoading(false));
-  }, [id]);
+    (async () => {
+      // 1) Instance detayı — ucuz, koruma katmanından geçmez
+      let loaded;
+      try {
+        const res = await client.post(`/v1/instances/${id}/detail`, {});
+        loaded = res.data;
+      } catch {
+        loaded = null;
+      }
+      if (ignore) return;
+      setInstance(loaded);
+
+      // 2) Pattern dağılımı — pahalı
+      await fetchPatterns();
+      if (ignore) return;
+
+      // 3) Hazelcast'te map listesi (mapName boş) — pahalı.
+      // Redis'te otomatik istek atılmaz: backend boş/kısa prefix'i 400 ile reddeder.
+      if (loaded?.type === "HAZELCAST") {
+        await fetchPage("", "0", false, "STARTS_WITH");
+        if (ignore) return;
+      }
+
+      // 4) En büyük key'ler — pahalı
+      await fetchTopKeys();
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [id, fetchPatterns, fetchPage, fetchTopKeys]);
 
   function handleSearch(e) {
     e.preventDefault();
@@ -241,7 +287,12 @@ export default function KeyAnalysis() {
 
         {patternsLoading && <div className="key-analysis-status">Pattern dağılımı hesaplanıyor...</div>}
         {!patternsLoading && patternsError && (
-          <ProblemError error={patternsError} className="key-analysis-error" />
+          <>
+            <ProblemError error={patternsError} className="key-analysis-error" />
+            <button type="button" className="key-analysis-retry-button" onClick={fetchPatterns}>
+              Tekrar dene
+            </button>
+          </>
         )}
         {!patternsLoading && !patternsError && patterns.length === 0 && (
           <div className="key-analysis-empty-patterns">Bu instance'ta henüz {unitWord} bulunmuyor.</div>
@@ -418,12 +469,29 @@ export default function KeyAnalysis() {
       )}
 
       <div className="key-analysis-top">
-        <h2 className="key-analysis-section-title">
-          {isHazelcast ? "En Büyük IMap'ler" : "En Büyük Key'ler"}
-        </h2>
+        <div className="key-analysis-patterns-header">
+          <h2 className="key-analysis-section-title">
+            {isHazelcast ? "En Büyük IMap'ler" : "En Büyük Key'ler"}
+          </h2>
+          <button
+            type="button"
+            className="key-analysis-patterns-refresh"
+            onClick={fetchTopKeys}
+            disabled={topLoading}
+          >
+            {topLoading ? "Yükleniyor..." : "⟳ Yenile"}
+          </button>
+        </div>
 
         {topLoading && <div className="key-analysis-status">Yükleniyor...</div>}
-        {topError && <ProblemError error={topError} className="key-analysis-error" />}
+        {topError && (
+          <>
+            <ProblemError error={topError} className="key-analysis-error" />
+            <button type="button" className="key-analysis-retry-button" onClick={fetchTopKeys}>
+              Tekrar dene
+            </button>
+          </>
+        )}
 
         {!topLoading && !topError && (
           <>

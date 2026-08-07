@@ -63,7 +63,12 @@ function TimeSeriesChart({ title, data, dataKey, color, valueFormatter, seriesNa
               color: "var(--text)",
             }}
             labelFormatter={formatTime}
-            formatter={(value) => [valueFormatter ? valueFormatter(value) : value, seriesName]}
+            // Seri değeri null olabilir (ör. hitRatio hiç sorgu yapılmamışsa) —
+            // formatter'a null geçmek toFixed çağrısında crash'e yol açar.
+            formatter={(value) => [
+              value == null ? "-" : valueFormatter ? valueFormatter(value) : value,
+              seriesName,
+            ]}
           />
           <Line
             type="monotone"
@@ -238,8 +243,9 @@ export default function InstanceDetail() {
   }
 
   const isHazelcast = instance?.type === "HAZELCAST";
-  const clientUsagePercent =
-    connections?.clientUsagePercent != null ? connections.clientUsagePercent * 100 : null;
+  // Backend ConnectionStats.getClientUsagePercent() zaten yüzde döner (activeClients/maxClients*100).
+  // Burada tekrar 100 ile çarpmak değeri 100 kat şişiriyordu ve eşikleri erken tetikliyordu.
+  const clientUsagePercent = connections?.clientUsagePercent ?? null;
 
   return (
     <div className="instance-detail-page">
@@ -329,7 +335,7 @@ export default function InstanceDetail() {
           title="Bloklu Client"
           value={connections?.blockedClients ?? "-"}
           status={connections && connections.blockedClients > 0 ? "warning" : "ok"}
-          metricStatus={connections?.blockedClientStatus}
+          metricStatus={connections?.blockedClientsStatus}
           meta={connections?.meta}
         />
         <MetricCard
@@ -830,7 +836,9 @@ export default function InstanceDetail() {
             />
             <MetricCard
               title="Durum"
-              value={cluster.balanced ? "Dengeli" : "Dengesiz"}
+              // balanced null olabilir (partition tablosu henüz gelmemişse).
+              // null'ı "Dengesiz" göstermek yanlış iddia olur.
+              value={cluster.balanced == null ? "Bilinmiyor" : cluster.balanced ? "Dengeli" : "Dengesiz"}
               subtitle={cluster.clusterName}
               metricStatus={cluster.balancedStatus ?? cluster.overallStatus}
               meta={cluster.meta}

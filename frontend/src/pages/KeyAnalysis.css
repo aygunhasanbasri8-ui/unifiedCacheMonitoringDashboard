@@ -232,6 +232,22 @@
   cursor: not-allowed;
 }
 
+.key-analysis-retry-button {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.key-analysis-retry-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
 .key-analysis-empty-patterns {
   color: var(--text-dim);
   font-size: 13px;
