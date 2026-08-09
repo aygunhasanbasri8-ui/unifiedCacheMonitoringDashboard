@@ -448,7 +448,7 @@ export default function KeyAnalysis() {
             </div>
             {searchDisabled && <div className="key-analysis-search-hint">En az 3 karakter girin</div>}
             {hasWildcard && (
-              <div className="key-analysis-search-warning">Joker karakter desteklenmiyor</div>
+              <div className="key-analysis-search-warning">Joker karakterden (*) önce en az 3 karakter olmalı. Örnek: ucmd:*:commission</div>
             )}
           </div>
         </form>
@@ -567,7 +567,7 @@ export default function KeyAnalysis() {
                   <tr key={key.keyName}>
                     <td>{key.keyName}</td>
                     {!isHazelcast && <td>{key.keyType}</td>}
-                    <td>{isHazelcast ? key.sizeBytes : renderSize(key)}</td>
+                    <td>{isHazelcast ? (key.entryCount ?? "-") : renderSize(key)}</td>
                     {!isHazelcast && <td>{renderTtl(key)}</td>}
                   </tr>
                 ))}
