@@ -81,3 +81,23 @@ export function interpretStatus(status, ageSeconds) {
       return { placeholder: null, badge: "", dim: false, warn: false, note: "", usable: true };
   }
 }
+
+/**
+ * Metriğin bu instance tipinde fiziksel olarak var olup olmadığı.
+ * Yalnızca NOT_APPLICABLE gizlenir — UNAVAILABLE/TIMEOUT/STALE gerçek
+ * sinyallerdir ve kullanıcıdan saklanmamalıdır.
+ */
+export function isApplicable(status) {
+  return status !== "NOT_APPLICABLE";
+}
+
+/**
+ * Bölümün render edilip edilmeyeceği.
+ * @param sectionStatus bölümün ana statüsü
+ * @param cardStatuses bölümdeki kartların statüleri
+ */
+export function isSectionVisible(sectionStatus, cardStatuses = []) {
+  if (sectionStatus === "NOT_APPLICABLE") return false;
+  if (cardStatuses.length === 0) return true;
+  return cardStatuses.some(isApplicable);
+}

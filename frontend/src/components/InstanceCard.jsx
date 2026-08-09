@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { healthStatus } from "../config/thresholds";
+import { isApplicable } from "../config/metricStatus";
 import { formatPercent } from "../utils/format";
 import "./InstanceCard.css";
 
@@ -8,6 +9,7 @@ export default function InstanceCard({
   health,
   keyCount,
   hitRatio,
+  hitRatioStatus,
   activeClients,
   deadlockedThreadCount,
 }) {
@@ -46,12 +48,14 @@ export default function InstanceCard({
           <span className="instance-card-metric-label">Key</span>
           <span className="instance-card-metric-value">{keyCount ?? "-"}</span>
         </div>
-        <div className="instance-card-metric">
-          <span className="instance-card-metric-label">Hit Ratio</span>
-          <span className="instance-card-metric-value">
-            {hitRatio != null ? formatPercent(hitRatio * 100) : "N/A"}
-          </span>
-        </div>
+        {isApplicable(hitRatioStatus) && (
+          <div className="instance-card-metric">
+            <span className="instance-card-metric-label">Hit Ratio</span>
+            <span className="instance-card-metric-value">
+              {hitRatio != null ? formatPercent(hitRatio * 100) : "N/A"}
+            </span>
+          </div>
+        )}
         <div className="instance-card-metric">
           <span className="instance-card-metric-label">Bağlantı</span>
           <span className="instance-card-metric-value">{activeClients ?? "-"}</span>

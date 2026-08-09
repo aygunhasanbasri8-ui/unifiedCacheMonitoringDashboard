@@ -335,6 +335,7 @@ export default function Overview() {
                 health={metricsById[instance.id]?.health?.status ?? null}
                 keyCount={metricsById[instance.id]?.dataStats?.totalKeyCount}
                 hitRatio={metricsById[instance.id]?.efficiency?.hitRatio}
+                hitRatioStatus={metricsById[instance.id]?.efficiency?.hitRatioStatus}
                 activeClients={metricsById[instance.id]?.connections?.activeClients}
                 deadlockedThreadCount={metricsById[instance.id]?.resources?.deadlockedThreadCount}
               />

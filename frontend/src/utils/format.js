@@ -116,3 +116,14 @@ export function formatDateTime(isoString) {
   const yyyy = date.getFullYear();
   return `${dd}.${mo}.${yyyy} ${formatTime(isoString)}`;
 }
+
+// Uyarı geçmişi satırları için kısa biçim: yıl ve saniye olmadan "DD.MM HH:mm".
+export function formatShortDateTime(isoString) {
+  if (!isoString) return "-";
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mo} ${formatTime(isoString).slice(0, 5)}`;
+}
