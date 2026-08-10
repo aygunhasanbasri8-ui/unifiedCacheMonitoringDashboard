@@ -1,4 +1,5 @@
 .metric-card {
+  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-left: 4px solid transparent;
@@ -16,6 +17,35 @@
 
 .metric-card-critical {
   border-left-color: var(--red);
+}
+
+.metric-card-stale {
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.metric-card-meta {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.metric-card-meta-badge {
+  background: rgba(234, 179, 8, 0.2);
+  color: var(--yellow);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.metric-card-warn-icon {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--yellow);
 }
 
 .metric-card-title {

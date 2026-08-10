@@ -6,7 +6,15 @@ export const THRESHOLDS = {
   memoryUsagePercent: { warning: 70, critical: 90, direction: "high" },
   hitRatio: { warning: 0.8, critical: 0.5, direction: "low" }, // oran (0-1)
   fragmentationRatio: { warning: 2.5, critical: 5.0, direction: "high" },
-  connectionErrors: { warning: 1, critical: 10, direction: "high" },
+  rejectedConnections: { warning: 1, critical: 10, direction: "high" },
+  clientUsagePercent: { warning: 80, critical: 90, direction: "high" }, // yüzde (0-100)
+  fileDescriptorUsagePercent: { warning: 80, critical: 90, direction: "high" }, // yüzde (0-100)
+  cpuUsagePercent: { warning: 80, critical: 90, direction: "high" }, // yüzde (0-100)
+  // Uyarı geçmişi (utils/alertEvents.js), snapshot noktasındaki ham memoryUsed/maxMemory
+  // oranı üzerinden çalışır — resources.memoryUsagePercent'ten (canlı metrik) bağımsızdır.
+  alertMemoryUsageRatio: { warning: 0.85, critical: 0.95, direction: "high" }, // oran (0-1)
+  // Uyarı geçmişinde tek kademeli (yalnızca warning) değerlendirilir.
+  alertHitRatioLow: { warning: 0.7, direction: "low" }, // oran (0-1)
 };
 
 // Bir değeri eşiğe göre değerlendir. "ok" | "warning" | "critical" döndür.

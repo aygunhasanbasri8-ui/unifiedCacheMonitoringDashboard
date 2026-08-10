@@ -1,19 +1,22 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import client from "../api/client";
+import { toProblem } from "../api/problemDetails";
 import InstanceCard from "../components/InstanceCard";
 import RefreshIndicator from "../components/RefreshIndicator";
+import ProblemError from "../components/ProblemError";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
 import { formatBytes, formatPercent } from "../utils/format";
 import "./Overview.css";
 
 const REFRESH_INTERVAL_MS = 15000;
+const MAX_CONSECUTIVE_TRANSIENT_ERRORS = 3;
 
 const ALERT_LABELS = {
   health: "Sağlık",
   memoryUsagePercent: "Bellek Kullanımı",
   hitRatio: "Hit Ratio",
   fragmentationRatio: "Fragmentasyon Oranı",
-  connectionErrors: "Bağlantı Hataları",
+  rejectedConnections: "Reddedilen Bağlantılar",
 };
 
 function buildAlerts(instances, metricsById) {
@@ -45,7 +48,7 @@ function buildAlerts(instances, metricsById) {
       }
     }
 
-    if (m.efficiency?.hitRatio != null) {
+    if (instance.type === "REDIS" && m.efficiency?.hitRatio != null) {
       const s = evaluateStatus("hitRatio", m.efficiency.hitRatio);
       if (s !== "ok") {
         alerts.push({
@@ -57,7 +60,7 @@ function buildAlerts(instances, metricsById) {
       }
     }
 
-    if (m.resources?.fragmentationRatio != null) {
+    if (instance.type === "REDIS" && m.resources?.fragmentationRatio != null) {
       const s = evaluateStatus("fragmentationRatio", m.resources.fragmentationRatio);
       if (s !== "ok") {
         alerts.push({
@@ -69,13 +72,13 @@ function buildAlerts(instances, metricsById) {
       }
     }
 
-    if (m.connections?.totalConnectionErrors != null) {
-      const s = evaluateStatus("connectionErrors", m.connections.totalConnectionErrors);
+    if (m.connections?.rejectedConnections != null) {
+      const s = evaluateStatus("rejectedConnections", m.connections.rejectedConnections);
       if (s !== "ok") {
         alerts.push({
           instanceName: instance.name,
-          label: ALERT_LABELS.connectionErrors,
-          valueText: String(m.connections.totalConnectionErrors),
+          label: ALERT_LABELS.rejectedConnections,
+          valueText: String(m.connections.rejectedConnections),
           status: s,
         });
       }
@@ -94,7 +97,7 @@ const TOP_PATTERN_COUNT = 5;
 
 async function aggregatePatterns(instances) {
   const results = await Promise.allSettled(
-    instances.map((inst) => client.get(`/v1/instances/${inst.id}/key-patterns`))
+    instances.map((inst) => client.post(`/v1/instances/${inst.id}/key-patterns`, {}))
   );
 
   const byKey = new Map();
@@ -124,29 +127,37 @@ export default function Overview() {
   const [instances, setInstances] = useState([]);
   const [metricsById, setMetricsById] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Fleet listesi 429/503/504 ile geçici olarak başarısız olursa polling durdurulmaz,
+  // uyarı rozeti gösterilir. Ardışık 3 hatadan sonra polling durur ve "Yeniden bağlan" gösterilir.
+  const [transientWarning, setTransientWarning] = useState(null);
+  const [consecutiveTransientErrors, setConsecutiveTransientErrors] = useState(0);
+  const [pollingStopped, setPollingStopped] = useState(false);
+
+  const [collectionHealth, setCollectionHealth] = useState(null);
 
   const [patternRows, setPatternRows] = useState([]);
   const [patternHazelcastExcluded, setPatternHazelcastExcluded] = useState(false);
   const [patternLoading, setPatternLoading] = useState(true);
-  const [patternError, setPatternError] = useState("");
+  const [patternError, setPatternError] = useState(null);
   const patternFetchedOnce = useRef(false);
 
   const fetchAll = useCallback(async () => {
     try {
-      const instancesRes = await client.get("/v1/instances");
+      const instancesRes = await client.post("/v1/instances/list", {});
       const list = instancesRes.data;
       setInstances(list);
 
       const entries = await Promise.all(
         list.map(async (inst) => {
           const [healthR, resourcesR, connectionsR, dataStatsR, efficiencyR] = await Promise.allSettled([
-            client.get(`/v1/instances/${inst.id}/health`),
-            client.get(`/v1/instances/${inst.id}/resources`),
-            client.get(`/v1/instances/${inst.id}/connections`),
-            client.get(`/v1/instances/${inst.id}/data-stats`),
-            client.get(`/v1/instances/${inst.id}/efficiency`),
+            client.post(`/v1/instances/${inst.id}/health`, {}),
+            client.post(`/v1/instances/${inst.id}/resources`, {}),
+            client.post(`/v1/instances/${inst.id}/connections`, {}),
+            client.post(`/v1/instances/${inst.id}/data-stats`, {}),
+            client.post(`/v1/instances/${inst.id}/efficiency`, {}),
           ]);
 
           return [
@@ -164,30 +175,74 @@ export default function Overview() {
 
       setMetricsById(Object.fromEntries(entries));
       setLastUpdated(new Date());
-      setError("");
-    } catch {
-      setError("Instance listesi alınamadı.");
+      setError(null);
+      setTransientWarning(null);
+      setConsecutiveTransientErrors(0);
+    } catch (err) {
+      if (err.problem?.retryable) {
+        setTransientWarning(toProblem(err, "Geçici bir sorun oluştu, tekrar deneniyor."));
+        setConsecutiveTransientErrors((prev) => {
+          const next = prev + 1;
+          if (next >= MAX_CONSECUTIVE_TRANSIENT_ERRORS) {
+            setPollingStopped(true);
+          }
+          return next;
+        });
+      } else {
+        setError(toProblem(err, "Instance listesi alınamadı."));
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
+  function handleReconnect() {
+    setConsecutiveTransientErrors(0);
+    setPollingStopped(false);
+    setTransientWarning(null);
+  }
+
   useEffect(() => {
+    if (pollingStopped) return;
+
     // eslint-disable-next-line react-hooks/set-state-in-effect -- ilk veri çekimi için kasıtlı
     fetchAll();
     const intervalId = setInterval(fetchAll, REFRESH_INTERVAL_MS);
     return () => clearInterval(intervalId);
-  }, [fetchAll]);
+  }, [fetchAll, pollingStopped]);
+
+  // UCMD'nin kendi toplama kalitesini gösterir; auth gerektirmediği için ayrı ve sessiz bir döngüde çalışır.
+  useEffect(() => {
+    let cancelled = false;
+
+    function fetchCollectionHealth() {
+      client
+        .get("/v1/health/collection")
+        .then((res) => {
+          if (!cancelled) setCollectionHealth(res.data);
+        })
+        .catch(() => {
+          if (!cancelled) setCollectionHealth(null);
+        });
+    }
+
+    fetchCollectionHealth();
+    const intervalId = setInterval(fetchCollectionHealth, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const fetchPatternSummary = useCallback(async (instancesList) => {
     setPatternLoading(true);
-    setPatternError("");
+    setPatternError(null);
     try {
       const { rows, hazelcastExcluded } = await aggregatePatterns(instancesList);
       setPatternRows(rows);
       setPatternHazelcastExcluded(hazelcastExcluded);
-    } catch {
-      setPatternError("Desen özeti alınamadı.");
+    } catch (err) {
+      setPatternError(toProblem(err, "Pattern özeti alınamadı."));
     } finally {
       setPatternLoading(false);
     }
@@ -215,6 +270,7 @@ export default function Overview() {
   }, 0);
 
   const hitRatios = instances
+    .filter((i) => i.type === "REDIS")
     .map((i) => metricsById[i.id]?.efficiency?.hitRatio)
     .filter((v) => v != null);
   const avgHitRatio =
@@ -232,16 +288,60 @@ export default function Overview() {
 
   return (
     <div className="overview-page">
+      {collectionHealth && (
+        <div className={`overview-collection-status overview-collection-status-${collectionHealth.status?.toLowerCase()}`}>
+          <span className="overview-collection-dot" />
+          {collectionHealth.status === "OK" && "Veri toplama normal"}
+          {collectionHealth.status === "PARTIAL" &&
+            `${collectionHealth.unavailableInstances?.length ?? 0} instance'tan veri alınamıyor`}
+          {collectionHealth.status === "FAILED" && "Veri toplama başarısız"}
+          {collectionHealth.unavailableInstances?.length > 0 && (
+            <span className="overview-collection-instances">
+              {" "}
+              ({collectionHealth.unavailableInstances.join(", ")})
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="overview-header">
         <h1 className="overview-title">Instances</h1>
-        <RefreshIndicator lastUpdated={lastUpdated} onRefresh={fetchAll} />
+        <div className="overview-header-right">
+          {transientWarning && !pollingStopped && (
+            <span className="overview-transient-warning" title={transientWarning.message}>
+              ⚠ {transientWarning.message} ({consecutiveTransientErrors}/{MAX_CONSECUTIVE_TRANSIENT_ERRORS})
+            </span>
+          )}
+          {pollingStopped ? (
+            <button type="button" className="overview-reconnect-button" onClick={handleReconnect}>
+              ⟳ Yeniden bağlan
+            </button>
+          ) : (
+            <RefreshIndicator lastUpdated={lastUpdated} onRefresh={fetchAll} />
+          )}
+        </div>
       </div>
 
       {loading && <div className="overview-status">Yükleniyor...</div>}
-      {error && <div className="overview-error">{error}</div>}
+      {error && <ProblemError error={error} className="overview-error" />}
 
       {!loading && !error && (
         <>
+          <div className="overview-grid">
+            {instances.map((instance) => (
+              <InstanceCard
+                key={instance.id}
+                instance={instance}
+                health={metricsById[instance.id]?.health?.status ?? null}
+                keyCount={metricsById[instance.id]?.dataStats?.totalKeyCount}
+                hitRatio={metricsById[instance.id]?.efficiency?.hitRatio}
+                hitRatioStatus={metricsById[instance.id]?.efficiency?.hitRatioStatus}
+                activeClients={metricsById[instance.id]?.connections?.activeClients}
+                deadlockedThreadCount={metricsById[instance.id]?.resources?.deadlockedThreadCount}
+              />
+            ))}
+          </div>
+
           <div className="overview-summary">
             <div className="overview-summary-box">
               <div className="overview-summary-value">{instances.length}</div>
@@ -265,9 +365,10 @@ export default function Overview() {
             </div>
             <div className="overview-summary-box">
               <div className="overview-summary-value">
-                {avgHitRatio != null ? formatPercent(avgHitRatio * 100) : "-"}
+                {avgHitRatio != null ? formatPercent(avgHitRatio * 100) : "—"}
               </div>
               <div className="overview-summary-label">Ortalama Hit Ratio</div>
+              <div className="overview-summary-caption">(yalnızca Redis)</div>
             </div>
             <div className={`overview-summary-box ${criticalCount > 0 ? "overview-summary-down" : ""}`}>
               <div className="overview-summary-value">{criticalCount}</div>
@@ -275,9 +376,28 @@ export default function Overview() {
             </div>
           </div>
 
+          <div className="overview-alerts">
+            <h2 className="overview-section-title">Aktif Uyarılar</h2>
+            {alerts.length === 0 ? (
+              <div className="overview-alerts-clear">✓ Tüm sistemler normal</div>
+            ) : (
+              <ul className="overview-alerts-list">
+                {alerts.map((alert) => (
+                  <li
+                    key={`${alert.instanceName}-${alert.label}`}
+                    className={`overview-alert-item overview-alert-${alert.status}`}
+                  >
+                    {alert.instanceName} — {alert.label}: {alert.valueText} (
+                    {alert.status === "critical" ? "Kritik" : "Uyarı"})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="overview-patterns">
             <div className="overview-patterns-header">
-              <h2 className="overview-section-title">Key Desen Özeti (Fleet)</h2>
+              <h2 className="overview-section-title">Key Pattern Özeti (Fleet)</h2>
               <button
                 type="button"
                 className="overview-patterns-refresh"
@@ -289,10 +409,10 @@ export default function Overview() {
             </div>
 
             {patternLoading && (
-              <div className="overview-status">Desen özeti hesaplanıyor...</div>
+              <div className="overview-status">Pattern özeti hesaplanıyor...</div>
             )}
             {!patternLoading && patternError && (
-              <div className="overview-error">{patternError}</div>
+              <ProblemError error={patternError} className="overview-error" />
             )}
             {!patternLoading && !patternError && patternRows.length === 0 && (
               <div className="overview-patterns-empty">Henüz key bulunmuyor.</div>
@@ -334,38 +454,6 @@ export default function Overview() {
                 )}
               </>
             )}
-          </div>
-
-          <div className="overview-alerts">
-            <h2 className="overview-section-title">Aktif Uyarılar</h2>
-            {alerts.length === 0 ? (
-              <div className="overview-alerts-clear">✓ Tüm sistemler normal</div>
-            ) : (
-              <ul className="overview-alerts-list">
-                {alerts.map((alert) => (
-                  <li
-                    key={`${alert.instanceName}-${alert.label}`}
-                    className={`overview-alert-item overview-alert-${alert.status}`}
-                  >
-                    {alert.instanceName} — {alert.label}: {alert.valueText} (
-                    {alert.status === "critical" ? "Kritik" : "Uyarı"})
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="overview-grid">
-            {instances.map((instance) => (
-              <InstanceCard
-                key={instance.id}
-                instance={instance}
-                health={metricsById[instance.id]?.health?.status ?? null}
-                keyCount={metricsById[instance.id]?.dataStats?.totalKeyCount}
-                hitRatio={metricsById[instance.id]?.efficiency?.hitRatio}
-                activeClients={metricsById[instance.id]?.connections?.activeClients}
-              />
-            ))}
           </div>
         </>
       )}

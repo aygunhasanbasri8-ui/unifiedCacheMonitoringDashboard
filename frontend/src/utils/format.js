@@ -32,10 +32,67 @@ export function formatPercent(value, digits = 1) {
   return `%${value.toFixed(digits)}`;
 }
 
-export function formatTtl(ttlMillis) {
-  if (ttlMillis === -1) return "Süresiz";
-  if (ttlMillis === -2) return "Yok";
-  return `${Math.round(ttlMillis / 1000)} sn`;
+// ttlStatus enumu: EXPIRING · PERSISTENT · NOT_FOUND · UNAVAILABLE
+export function formatTtlByStatus(ttlMillis, ttlStatus) {
+  switch (ttlStatus) {
+    case "PERSISTENT":
+      return "Süresiz";
+    case "NOT_FOUND":
+      return "Key bulunamadı";
+    case "UNAVAILABLE":
+      return "Sorgulanamadı";
+    case "EXPIRING":
+      return formatDurationShort(ttlMillis);
+    default:
+      return formatDurationShort(ttlMillis);
+  }
+}
+
+// meta.ageMillis -> tam saniye (yuvarlanmış)
+export function formatAgeSeconds(ageMillis) {
+  if (ageMillis === null || ageMillis === undefined || Number.isNaN(ageMillis)) return null;
+  return Math.max(0, Math.round(ageMillis / 1000));
+}
+
+// Milisaniye süreyi insan okunur biçime çevirir: "25 dk", "3 sa 12 dk", "45 sn"
+export function formatDurationShort(millis) {
+  if (millis === null || millis === undefined || Number.isNaN(millis)) return "-";
+
+  const totalSeconds = Math.round(millis / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days} gün ${hours} sa`;
+  if (hours > 0) return `${hours} sa ${minutes} dk`;
+  if (minutes > 0) return `${minutes} dk`;
+  return `${seconds} sn`;
+}
+
+// Saniye hassasiyetli epoch zaman damgasını (ör. rdbLastSaveTime) tarih/saate çevirir.
+export function formatEpochSeconds(epochSeconds) {
+  if (epochSeconds === null || epochSeconds === undefined || Number.isNaN(epochSeconds)) return "-";
+  return formatDateTime(new Date(epochSeconds * 1000).toISOString());
+}
+
+// Milisaniye hassasiyetli epoch zaman damgasını (ör. Hazelcast lastAccessTime) tarih/saate çevirir.
+export function formatEpochMillis(epochMillis) {
+  if (epochMillis === null || epochMillis === undefined || Number.isNaN(epochMillis)) return "-";
+  return formatDateTime(new Date(epochMillis).toISOString());
+}
+
+// Büyük sayıları kısaltılmış biçime çevirir: 184232 -> "184.2K"
+export function formatCompactNumber(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-";
+
+  const abs = Math.abs(value);
+  const trim = (v) => (v.endsWith(".0") ? v.slice(0, -2) : v);
+
+  if (abs >= 1_000_000_000) return `${trim((value / 1_000_000_000).toFixed(1))}B`;
+  if (abs >= 1_000_000) return `${trim((value / 1_000_000).toFixed(1))}M`;
+  if (abs >= 1_000) return `${trim((value / 1_000).toFixed(1))}K`;
+  return String(value);
 }
 
 export function formatTime(isoString) {
@@ -58,4 +115,15 @@ export function formatDateTime(isoString) {
   const mo = String(date.getMonth() + 1).padStart(2, "0");
   const yyyy = date.getFullYear();
   return `${dd}.${mo}.${yyyy} ${formatTime(isoString)}`;
+}
+
+// Uyarı geçmişi satırları için kısa biçim: yıl ve saniye olmadan "DD.MM HH:mm".
+export function formatShortDateTime(isoString) {
+  if (!isoString) return "-";
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mo} ${formatTime(isoString).slice(0, 5)}`;
 }
