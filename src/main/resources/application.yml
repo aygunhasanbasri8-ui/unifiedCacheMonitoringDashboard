@@ -2,6 +2,11 @@ spring:
   application:
     name: ucmd
 
+  task:
+    scheduling:
+      pool:
+        size: 3
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
@@ -103,7 +108,7 @@ ucmd:
 
   # İzlenen sistemi koruma limitleri (rehber §2.2, §2.3)
   protection:
-    cheap-concurrency: 5                # ucuz metrik çağrılarında eş zamanlılık
+    cheap-concurrency: 12                # ucuz metrik çağrılarında eş zamanlılık
     expensive-concurrency: 2            # SCAN tabanlı çağrılarda eş zamanlılık
     cheap-timeout-ms: 5000              # ucuz çağrı zaman aşımı
     expensive-timeout-ms: 15000         # pahalı çağrı zaman aşımı
@@ -111,7 +116,7 @@ ucmd:
     circuit-failure-rate-percent: 50    # devreyi açan hata oranı
     circuit-sliding-window: 10          # hata oranının ölçüldüğü çağrı sayısı
     circuit-open-duration-seconds: 30   # devre açık kalma süresi
-    bulkhead-max-wait-ms: 0             # 0 = beklemeden reddet
+    bulkhead-max-wait-ms: 2000             # 2 sn bekleyip reddet
 
   # Key/map maskeleme ve allowlist (rehber §9)
   security:

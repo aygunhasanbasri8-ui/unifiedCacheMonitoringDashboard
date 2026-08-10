@@ -329,9 +329,7 @@ public class RedisMonitor implements CacheMonitor {
             stats.setOverallStatus(MetricStatus.AVAILABLE);
             stats.setFragmentationStatus(MetricStatus.AVAILABLE);
             stats.setEvictionStatus(MetricStatus.AVAILABLE);
-            stats.setTtlStatus(ks.avgTtlMillis() != null
-                    ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
-            // memoryStatus constructor'da set edildi (maxmemory=0 → NOT_APPLICABLE)
+            stats.setTtlStatus(MetricStatus.ESTIMATED);
             return stats;
 
         } catch (Exception e) {
@@ -454,8 +452,9 @@ public class RedisMonitor implements CacheMonitor {
         if (search.isEmpty()) {
             throw new InvalidPrefixException("prefix zorunludur");
         }
-        if (search.length() < minPrefixLength) {
-            throw new InvalidPrefixException("Prefix uzunluğu en az" + minPrefixLength + "olmalıdır");
+        int literalLen = literalPrefixLength(search);
+        if( literalLen < minPrefixLength) {
+            throw new InvalidPrefixException("İlk joker karakterden (*-?) önce en az " + minPrefixLength + " karakter olmalıdır.");
         }
         if (!keySecurityConfig.isPrefixAllowed(search)) {
             throw new InvalidPrefixException("prefix izin verilen listede değil");
@@ -463,8 +462,17 @@ public class RedisMonitor implements CacheMonitor {
 
         List<KeyInfo> keys = new ArrayList<>();
         MatchMode mode = (matchMode == null) ? MatchMode.STARTS_WITH : matchMode;
-        String escaped = escapeGlob(search);
-        String pattern = (mode == MatchMode.CONTAINS) ? "*" + escaped + "*" : escaped + "*";
+        String sanitized = sanitizeGlob(search);
+        boolean hasWildcard = literalLen < search.length();
+
+        String pattern;
+        if (hasWildcard) {
+            pattern = sanitized;
+        } else if (mode == MatchMode.CONTAINS) {
+            pattern = "*" + sanitized + "*";
+        } else {
+            pattern = sanitized + "*";
+        }
         final String startCursor = (cursor == null || cursor.isEmpty()) ? "0" : cursor;
 
         try {
@@ -696,10 +704,8 @@ public class RedisMonitor implements CacheMonitor {
                 p.setAofRewriteInProgress(infoLong(info, "aof_rewrite_in_progress", 0) == 1);
                 p.setAofLastBgrewriteStatus(infoValue(info, "aof_last_bgrewrite_status", "unknown"));
                 p.setAofLastWriteStatus(infoValue(info, "aof_last_write_status", "unknown"));
-                p.setAofStatus(MetricStatus.AVAILABLE);
-            } else {
-                p.setAofStatus(MetricStatus.NOT_APPLICABLE);
             }
+            p.setAofStatus(MetricStatus.AVAILABLE);
 
             p.setOverallStatus((rdbActive || aofEnabled)
                     ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
@@ -842,19 +848,29 @@ public class RedisMonitor implements CacheMonitor {
         long sizeBytes = safeMemoryUsage(cmd, keyBytes);
 
         KeyInfo ki = new KeyInfo(keyMasker.mask(keyName), type, sizeBytes, ttl);
+        ki.setKeyRef(keyName);
         ki.setSizeStatus(MetricStatus.AVAILABLE);
         return ki;
     }
 
-    private String escapeGlob(String input) {
+
+    private String sanitizeGlob(String input) {
         StringBuilder sb = new StringBuilder(input.length() + 8);
         for (char c : input.toCharArray()) {
-            if (c == '*' || c == '?' || c == '[' || c == ']' || c == '\\') {
+            if (c == '[' || c == ']' || c == '\\') {
                 sb.append('\\');
             }
             sb.append(c);
         }
         return sb.toString();
+    }
+
+    private int literalPrefixLength(String pattern) {
+        for (int i = 0; i < pattern.length(); i++) {
+            char c = pattern.charAt(i);
+            if (c == '*' || c == '?' || c == '[') return i;
+        }
+        return pattern.length();
     }
 
     /** Redis glob desenini (yalnızca *) regex'e çevirip eşleştirir. */

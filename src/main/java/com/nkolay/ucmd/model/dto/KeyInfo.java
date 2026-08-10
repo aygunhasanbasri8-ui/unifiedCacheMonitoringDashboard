@@ -5,11 +5,11 @@ public class KeyInfo {
     private String keyType;        // string, hash, list, set, zset
     private long sizeBytes;
     private long ttlMillis;        // -1 = no expire, -2 = key doesn't exist
-    private Long idleSeconds;
     /** Hazelcast IMap'lerinde entry sayısı; Redis'te null. */
     private Long entryCount;
     private TtlStatus ttlStatus;
     private MetricStatus sizeStatus;
+    private String keyRef;
     public KeyInfo() {}
 
     public KeyInfo(String keyName, String keyType, long sizeBytes, long ttlMillis) {
@@ -20,6 +20,10 @@ public class KeyInfo {
         this.ttlStatus = (ttlMillis == -1) ? TtlStatus.PERSISTENT
                 : (ttlMillis == -2) ? TtlStatus.NOT_FOUND : TtlStatus.EXPIRING;
     }
+
+
+    public String getKeyRef() {return keyRef;}
+    public void setKeyRef(String keyRef) {this.keyRef = keyRef;}
 
     public String getKeyName() { return keyName; }
     public void setKeyName(String keyName) { this.keyName = keyName; }
@@ -32,10 +36,7 @@ public class KeyInfo {
 
     public long getTtlMillis() { return ttlMillis; }
     public void setTtlMillis(long ttlMillis) { this.ttlMillis = ttlMillis; }
-
-    public Long getIdleSeconds() { return idleSeconds; }
-    public void setIdleSeconds(Long idleSeconds) { this.idleSeconds = idleSeconds; }
-
+    
     public Long getEntryCount() { return entryCount; }
     public void setEntryCount(Long entryCount) { this.entryCount = entryCount; }
 

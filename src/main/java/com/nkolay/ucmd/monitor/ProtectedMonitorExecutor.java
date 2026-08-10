@@ -70,16 +70,18 @@ public class ProtectedMonitorExecutor {
 
     /**
      * UCUZ + CACHE'Lİ okuma (metrik uçları).
-     * Karar 2.8: rate limit ve bulkhead reddi YOK — dashboard kilitlenmesin.
-     * Karar 3.5: hata durumunda son bilinen değer STALE olarak döner.
-     *
-     * @param staleMarker cache'ten dönen değeri STALE işaretleyen fonksiyon (null olabilir)
      */
+
+    public <T> CachedResult<T> executeCachedMetric(InstanceRef instance, String operation, Supplier<T> call) {
+        return executeCachedMetric(instance, operation, operation, call);
+    }
+
     @SuppressWarnings("unchecked")
     public <T> CachedResult<T> executeCachedMetric(InstanceRef instance,
-                                                   String operation,
+                                                   String cacheSuffix,
+                                                   String logLabel,
                                                    Supplier<T> call) {
-        String key = cacheKey(instance, operation);
+        String key = cacheKey(instance, cacheSuffix);
 
         Timestamped<T> cached = (Timestamped<T>) metricsCache.getIfPresent(key);
         if (cached != null) {
@@ -87,7 +89,7 @@ public class ProtectedMonitorExecutor {
         }
 
         try {
-            T result = runProtected(instance, operation, call,
+            T result = runProtected(instance, logLabel, call,
                     "cheap", config.getCheapTimeoutMs(), false);
             Timestamped<T> stamped = new Timestamped<>(result, Instant.now());
             metricsCache.put(key, stamped);
@@ -95,23 +97,23 @@ public class ProtectedMonitorExecutor {
             return CachedResult.fresh(result, stamped.collectedAt());
 
         } catch (MonitorTimeoutException e) {
-            logger.warn("Metric call '{}' timed out for {}", operation, instance.getName());
+            logger.warn("Metric call '{}' timed out for {}", logLabel, instance.getName());
 
             // Son bilinen değer varsa STALE olarak dön, yoksa TIMEOUT
             Timestamped<T> lastKnown = (Timestamped<T>) lastKnownCache.getIfPresent(key);
             if (lastKnown != null) {
-                logger.debug("Serving STALE value for {} / {}", instance.getName(), operation);
+                logger.debug("Serving STALE value for {} / {}", instance.getName(), logLabel);
                 return CachedResult.stale(lastKnown.value(), lastKnown.collectedAt());
             }
             return CachedResult.timeout();
 
         } catch (Exception e) {
             logger.warn("Metric call '{}' failed for {}: {}",
-                    operation, instance.getName(), e.getMessage());
+                    logLabel, instance.getName(), e.getMessage());
 
             Timestamped<T> lastKnown = (Timestamped<T>) lastKnownCache.getIfPresent(key);
             if (lastKnown != null) {
-                logger.debug("Serving STALE value for {} / {}", instance.getName(), operation);
+                logger.debug("Serving STALE value for {} / {}", instance.getName(), logLabel);
                 return CachedResult.stale(lastKnown.value(), lastKnown.collectedAt());
             }
             return CachedResult.unavailable();

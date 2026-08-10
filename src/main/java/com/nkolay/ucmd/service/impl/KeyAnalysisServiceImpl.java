@@ -68,7 +68,7 @@ public class KeyAnalysisServiceImpl implements KeyAnalysisService {
                 ? "key-ttl:" + key
                 : "key-ttl:" + mapName + ":" + key;
 
-        var result = executor.executeCachedMetric(instance, operation,
+        var result = executor.executeCachedMetric(instance, operation,"key-ttl",
                 () -> monitor.getKeyTTL(instance, key, mapName));
         if (result.isUnavailable() || result.value() == null) {
             return KeyTtlResponse.unavailable(key);

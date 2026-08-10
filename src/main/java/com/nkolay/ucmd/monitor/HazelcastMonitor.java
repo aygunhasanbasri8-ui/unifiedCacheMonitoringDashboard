@@ -121,6 +121,10 @@ public class HazelcastMonitor implements CacheMonitor {
             // processcpuload iki yerde var — prefix="os" olanı doğrusu.
             Double cpuLoad = HazelcastMetricsClient.avg(nodes,
                     n -> n.hz("processcpuload", "os"));
+            if (cpuLoad != null && (cpuLoad < 0 || cpuLoad > 1)) {
+                logger.warn("processcpuload beklenmeyen aralıkta ({}), metrik kullanılamıyor", cpuLoad);
+                cpuLoad = null;
+            }
 
             logger.debug("HZ resources: {} node, heap {} bytes", nodes.size(), usedHeap);
 
@@ -137,8 +141,13 @@ public class HazelcastMonitor implements CacheMonitor {
             stats.setFragmentationStatus(MetricStatus.NOT_APPLICABLE);
 
             // ── §5.6 JVM metrikleri ──
-            stats.setSystemCpuPercent(mul100(HazelcastMetricsClient.avg(nodes,
-                    n -> n.hz("systemcpuload", "os"))));
+            Double systemCpu = HazelcastMetricsClient.avg(nodes, n -> n.value("java_lang_operatingsystem_systemcpuload"));
+
+            if (systemCpu != null && (systemCpu < 0 || systemCpu > 1 )) {
+                logger.warn("systemcpuload beklenmeyen aralıkta ({}), metrik kullanılamıyor", systemCpu);
+                systemCpu = null;
+            }
+            stats.setSystemCpuPercent(mul100(systemCpu));
             stats.setSystemLoadAverage(HazelcastMetricsClient.avg(nodes,
                     n -> n.hz("systemloadaverage", "os")));
 
@@ -579,10 +588,8 @@ public class HazelcastMonitor implements CacheMonitor {
                     d.setAvgPutLatencyMillis(avgLatency(
                             sumMapMetric(nodes, "totalputlatency", mapName), d.getPutCount()));
 
-                    // Hit ratio: hits / getCount. Payda 0 ise null (rehber §4.4 ilkesi)
-                    if (d.getGetCount() != null && d.getGetCount() > 0 && d.getHits() != null) {
-                        d.setHitRatio((double) d.getHits() / d.getGetCount());
-                    }
+
+                    d.setHitRatio(null);
                 }
 
                 details.add(d);
@@ -706,9 +713,19 @@ public class HazelcastMonitor implements CacheMonitor {
                         ? Math.max(0, view.getExpirationTime() - System.currentTimeMillis())
                         : -1;
 
-                KeyInfo ki = new KeyInfo(keyMasker.mask(keyStr), "entry",
-                        view != null ? view.getCost() : 0, ttl);
-                ki.setSizeStatus(view != null ? MetricStatus.ESTIMATED : MetricStatus.UNAVAILABLE);
+                long cost = (view != null) ? view.getCost() : 0;
+                KeyInfo ki = new KeyInfo(keyMasker.mask(keyStr), "entry", cost, ttl);
+                ki.setKeyRef(keyStr);
+
+                // getCost() yalnızca BINARY in-memory format'ta anlamlı değer döner.
+                // OBJECT format'ta 0 gelir — o durumda ölçülemiyor demektir.
+                if (view == null) {
+                    ki.setSizeStatus(MetricStatus.UNAVAILABLE);
+                } else if (cost > 0) {
+                    ki.setSizeStatus(MetricStatus.AVAILABLE);
+                } else {
+                    ki.setSizeStatus(MetricStatus.NOT_APPLICABLE);
+                }
                 keys.add(ki);
 
                 if (++collected >= count) break;
@@ -763,8 +780,6 @@ public class HazelcastMonitor implements CacheMonitor {
                 a.getEntryCount() != null ? a.getEntryCount() : 0));
         List<KeyInfo> top = new ArrayList<>(keys.stream().limit(n).toList());
         TopKeysResponse response = new TopKeysResponse(top, scanned, scanned, true);
-        response.setEstimated(true);
-        response.setStatus(MetricStatus.ESTIMATED);
 
         return response;
     }
@@ -813,45 +828,12 @@ public class HazelcastMonitor implements CacheMonitor {
 
     @Override
     public CacheEfficiencyStats getCacheEfficiency(InstanceRef instance) {
-        try {
-            List<NodeMetrics> nodes = metricsClient.fetchAllNodes(instance);
-            if (nodes.isEmpty()) {
-                CacheEfficiencyStats down = new CacheEfficiencyStats(0, 0);
-                down.setOverallStatus(MetricStatus.UNAVAILABLE);
-                down.setHitRatioStatus(MetricStatus.UNAVAILABLE);
-                return down;
-            }
-
-            long totalHits = 0;
-            long totalGets = 0;
-            for (NodeMetrics node : nodes) {
-                for (String mapName : node.objectNames("map")) {
-                    Double h = node.hz("hits", "map", mapName);
-                    Double g = node.hz("getcount", "map", mapName);
-                    if (h != null) totalHits += h.longValue();
-                    if (g != null) totalGets += g.longValue();
-                }
-            }
-
-            long misses = Math.max(0, totalGets - totalHits);
-            CacheEfficiencyStats ce = new CacheEfficiencyStats(totalHits, misses);
-
-            // Redis'teki gibi kesin sayaç değil, map istatistiklerinden türetildi
-            ce.setOverallStatus(MetricStatus.ESTIMATED);
-            ce.setHitRatioStatus(totalGets > 0
-                    ? MetricStatus.ESTIMATED : MetricStatus.NOT_APPLICABLE);
-            ce.setThroughputStatus(MetricStatus.NOT_APPLICABLE);
-            ce.setNetworkStatus(MetricStatus.NOT_APPLICABLE);
-            return ce;
-
-        } catch (Exception e) {
-            logger.error("Error fetching cache efficiency for {}: {}",
-                    instance.getName(), e.getMessage());
-            CacheEfficiencyStats down = new CacheEfficiencyStats(0, 0);
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setHitRatioStatus(MetricStatus.UNAVAILABLE);
-            return down;
-        }
+        CacheEfficiencyStats stats = new CacheEfficiencyStats(0, 0);
+        stats.setOverallStatus(MetricStatus.NOT_APPLICABLE);
+        stats.setHitRatioStatus(MetricStatus.NOT_APPLICABLE);
+        stats.setThroughputStatus(MetricStatus.NOT_APPLICABLE);
+        stats.setNetworkStatus(MetricStatus.NOT_APPLICABLE);
+        return stats;
     }
 
     @Override
