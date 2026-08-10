@@ -28,7 +28,11 @@ public class SecurityConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/v1/auth/login",
                         "/v1/health",
-                        "/actuator/**");
+                        "/v1/health/**",
+                        "/actuator/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**");
     }
 
 }

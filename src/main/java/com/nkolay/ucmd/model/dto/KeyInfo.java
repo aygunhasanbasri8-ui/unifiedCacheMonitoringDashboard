@@ -5,9 +5,11 @@ public class KeyInfo {
     private String keyType;        // string, hash, list, set, zset
     private long sizeBytes;
     private long ttlMillis;        // -1 = no expire, -2 = key doesn't exist
-    private long lastAccessTime;
-    private long accessCount;
-
+    /** Hazelcast IMap'lerinde entry sayısı; Redis'te null. */
+    private Long entryCount;
+    private TtlStatus ttlStatus;
+    private MetricStatus sizeStatus;
+    private String keyRef;
     public KeyInfo() {}
 
     public KeyInfo(String keyName, String keyType, long sizeBytes, long ttlMillis) {
@@ -15,8 +17,13 @@ public class KeyInfo {
         this.keyType = keyType;
         this.sizeBytes = sizeBytes;
         this.ttlMillis = ttlMillis;
-        this.lastAccessTime = System.currentTimeMillis();
+        this.ttlStatus = (ttlMillis == -1) ? TtlStatus.PERSISTENT
+                : (ttlMillis == -2) ? TtlStatus.NOT_FOUND : TtlStatus.EXPIRING;
     }
+
+
+    public String getKeyRef() {return keyRef;}
+    public void setKeyRef(String keyRef) {this.keyRef = keyRef;}
 
     public String getKeyName() { return keyName; }
     public void setKeyName(String keyName) { this.keyName = keyName; }
@@ -29,16 +36,27 @@ public class KeyInfo {
 
     public long getTtlMillis() { return ttlMillis; }
     public void setTtlMillis(long ttlMillis) { this.ttlMillis = ttlMillis; }
+    
+    public Long getEntryCount() { return entryCount; }
+    public void setEntryCount(Long entryCount) { this.entryCount = entryCount; }
 
-    public long getLastAccessTime() { return lastAccessTime; }
-    public void setLastAccessTime(long lastAccessTime) { this.lastAccessTime = lastAccessTime; }
-
-    public long getAccessCount() { return accessCount; }
-    public void setAccessCount(long accessCount) { this.accessCount = accessCount; }
+    public TtlStatus getTtlStatus() {return ttlStatus;}
+    public void setTtlStatus(TtlStatus ttlStatus) {this.ttlStatus = ttlStatus;}
 
     public String getTtlDisplay() {
-        if (ttlMillis == -1) return "No expiration";
-        if (ttlMillis == -2) return "Key doesn't exist";
-        return ttlMillis / 1000 + " seconds";
+        if (ttlStatus == null) return "Unknwon";
+        return switch (ttlStatus) {
+            case PERSISTENT -> "No expiration";
+            case NOT_FOUND -> "Key doesn't exist";
+            case UNAVAILABLE -> "Unavailable";
+            case EXPIRING -> ttlMillis / 1000 + "seconds";
+        };
     }
+
+    public MetricStatus getSizeStatus() { return sizeStatus;}
+    public void setSizeStatus(MetricStatus sizeStatus) { this.sizeStatus = sizeStatus;}
+    
 }
+
+
+ 

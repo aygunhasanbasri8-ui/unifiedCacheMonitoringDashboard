@@ -1,28 +1,32 @@
 package com.nkolay.ucmd.security;
 
 import com.nkolay.ucmd.model.entity.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.security.Keys;
 
-import java.util.Base64;
-
-
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 public class JwtTokenProvider {
-    private static final String SECRET_KEY;
+
+    private static final SecretKey SECRET_KEY;
     private static final long EXPIRATION_TIME;
 
     static {
-        SECRET_KEY = getEnvVariable("JWT_SECRET", null);
-        if (SECRET_KEY == null || SECRET_KEY.isEmpty()) {
+        String secret = getEnvVariable("JWT_SECRET", null);
+        if (secret == null || secret.isEmpty()) {
             throw new IllegalStateException(
                     "JWT_SECRET environment variable is not set. " +
-                            "Set it via .env file or system environment variables."
-            );
+                            "Set it via .env file or system environment variables.");
         }
-        if (SECRET_KEY.length() < 32) {
+        if (secret.length() < 32) {
             throw new IllegalStateException(
-                    "JWT_SECRET must be at least 32 characters long for security."
-            );
+                    "JWT_SECRET must be at least 32 characters long for security.");
         }
+        SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
         String expirationHours = getEnvVariable("JWT_EXPIRATION_HOURS", "24");
         EXPIRATION_TIME = Long.parseLong(expirationHours) * 60 * 60 * 1000;
@@ -34,80 +38,64 @@ public class JwtTokenProvider {
     }
 
 
-    /**
-     *Demo için JWT
-     *
-     **/
     public static String generateToken(User user) {
         long now = System.currentTimeMillis();
-        long expiryDate = now + EXPIRATION_TIME;
-
-        //Basic format: username:role:expiryTime
-        String payload = user.getUsername() + ":" + user.getRole() + ":" + expiryDate;
-        String encoded = Base64.getEncoder().encodeToString(payload.getBytes());
-
-        //Siganture
-        String signature = Base64.getEncoder().encodeToString(
-                (payload + SECRET_KEY).getBytes()
-        ).substring(0,20);
-
-        return encoded + "." + signature;
+        return Jwts.builder()
+                .subject(user.getUsername())
+                .claim("role", user.getRole())
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + EXPIRATION_TIME))
+                .signWith(SECRET_KEY)
+                .compact();
     }
 
-    /**
-     *Token Validate
-     *
-     */
+
     public static boolean validateToken(String token) {
         try {
-            if (token == null || !token.contains(".")){
-                return false;
-            }
-            String[] parts = token.split("\\.");
-            if (parts.length != 2) return false;
-
-            String payload = new String(Base64.getDecoder().decode(parts[0]));
-            String[] data = payload .split(":");
-
-            if (data.length < 3) return false;
-
-            long expiryDate = Long.parseLong(data[2]);
-            return System.currentTimeMillis() < expiryDate;
-        }catch (Exception e) {
+            parseClaims(token);   // imza ve süre kontrolü
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
-
-    /**
-     * Token-->username
-     */
-    public static String getUsernameFromToken(String token){
-        try{
-            String payload = new String(Base64.getDecoder().decode(token.split("\\.")[0]));
-            return payload.split(":")[0];
+    public static String getUsernameFromToken(String token) {
+        try {
+            return parseClaims(token).getSubject();
         } catch (Exception e) {
             return null;
         }
     }
 
-
-    /**
-     * Token-->role
-     *
-     */
     public static String getRoleFromToken(String token) {
         try {
-            String payload = new String(Base64.getDecoder().decode(token.split("\\.")[0]));
-            return payload.split(":")[1];
+            return parseClaims(token).get("role", String.class);
         } catch (Exception e) {
             return null;
         }
     }
 
+    /**
+     * Token'ın son geçerlilik zamanı (epoch millis).
+     */
     public static long getExpiryFromToken(String token) {
-        String payload = new String(Base64.getDecoder().decode(token.split("\\.")[0]));
-        return Long.parseLong(payload.split(":")[2]);   // index 2 = expiry
+        try {
+            Date exp = parseClaims(token).getExpiration();
+            return exp != null ? exp.getTime() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
+    /**
+     * Token'ı doğrular ve claim'leri döner.
+     * İmza geçersizse veya süresi dolmuşsa JwtException fırlatır.
+     */
+    private static Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(SECRET_KEY)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
 }

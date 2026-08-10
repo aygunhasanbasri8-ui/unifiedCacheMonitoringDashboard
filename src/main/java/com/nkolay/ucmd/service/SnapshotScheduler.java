@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.service;
 
+import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.MetricSnapshot;
+import com.nkolay.ucmd.monitor.CollectionMetrics;
 import com.nkolay.ucmd.repository.SnapshotRepository;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -9,11 +11,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PreDestroy;
-import com.nkolay.ucmd.model.dto.HealthInfo;
-import com.nkolay.ucmd.model.dto.ResourceStats;
-import com.nkolay.ucmd.model.dto.DataStats;
-import com.nkolay.ucmd.model.dto.ConnectionStats;
-import com.nkolay.ucmd.model.dto.ClusterInfo;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -34,6 +31,9 @@ public class SnapshotScheduler {
 
     @Autowired
     private AuditService auditService;
+
+    @Autowired
+    private CollectionMetrics collectionMetrics;
 
     public List<MetricSnapshot> getSnapshots() {
         return snapshotRepository.findAll();
@@ -56,7 +56,7 @@ public class SnapshotScheduler {
         shuttingDown.set(true);
     }
 
-    @Scheduled(fixedRate = 15000)
+    @Scheduled(fixedRate = 30000)
     public void collectMetrics() {
 
         if (shuttingDown.get()) {
@@ -70,6 +70,7 @@ public class SnapshotScheduler {
             List<java.util.concurrent.Future<?>> futures = new ArrayList<>(
                     monitoringService.getAllInstances().stream()
                             .map(instance -> (java.util.concurrent.Future<?>) virtualThreadExecutor.submit(() -> {
+                                long start = System.nanoTime();
                                 try {
                                     Long id = instance.getId();
                                     MetricSnapshot snapshot = new MetricSnapshot();
@@ -83,7 +84,9 @@ public class SnapshotScheduler {
                                         snapshot.setStatus("DOWN");
                                         snapshot.setVersion(health != null ? health.getVersion() : "unknown");
                                         snapshot.setUptimeSeconds(0);
+                                        snapshot.setOverallStatus(MetricStatus.UNAVAILABLE);
                                         currentSnapshots.add(snapshot);
+                                        collectionMetrics.recordCollectionFailure(instance.getName());
                                         logger.debug("Instance {} is DOWN, recorded DOWN snapshot", instance.getName());
                                         return;
                                     }
@@ -92,6 +95,7 @@ public class SnapshotScheduler {
                                     snapshot.setStatus("UP");
                                     snapshot.setVersion(health.getVersion());
                                     snapshot.setUptimeSeconds(health.getUptimeSeconds());
+                                    snapshot.setOverallStatus(MetricStatus.AVAILABLE);
 
                                     ResourceStats resources = monitoringService.getResourceStats(id);
                                     if (resources != null) {
@@ -112,6 +116,27 @@ public class SnapshotScheduler {
                                         snapshot.setConnectionErrors(connections.getTotalConnectionErrors());
                                     }
 
+                                    CacheEfficiencyStats efficiency =
+                                            monitoringService.getCacheEfficiency(id);
+                                    if (efficiency != null) {
+                                        snapshot.setHitRatio(efficiency.getHitRatio());
+                                        snapshot.setOpsPerSec(
+                                                efficiency.getInstantaneousOpsPerSec());
+                                    }
+
+                                    if (data != null) {
+                                        snapshot.setEvictedKeys(data.getEvictedKeys());
+                                        snapshot.setExpiredKeys(data.getExpiredKeys());
+                                    }
+
+                                    ReplicationInfo replication =
+                                            monitoringService.getReplicationInfo(id);
+                                    if (replication != null) {
+                                        snapshot.setReplicationRole(replication.getRole());
+                                        snapshot.setConnectedReplicas(
+                                                replication.getConnectedReplicas());
+                                    }
+
                                     // Hazelcast ise cluster bilgisi (Redis'te null döner)
                                     ClusterInfo cluster = monitoringService.getClusterInfo(id);
                                     if (cluster != null) {
@@ -119,9 +144,12 @@ public class SnapshotScheduler {
                                     }
 
                                     currentSnapshots.add(snapshot);
+                                    collectionMetrics.recordCollectionSuccess(instance.getName(),
+                                            (System.nanoTime() - start) / 1_000_000);
                                     logger.debug("Collected real metrics for instance: {}", instance.getName());
 
                                 } catch (Exception e) {
+                                    collectionMetrics.recordCollectionFailure(instance.getName());
                                     logger.error("Failed to collect metrics for {}: {}", instance.getName(), e.getMessage());
                                 }
                             }))
@@ -138,8 +166,7 @@ public class SnapshotScheduler {
 
             snapshotRepository.saveAll(currentSnapshots);
 
-
-            auditService.log("METRICS_COLLECTED", "Collected metrics from " + currentSnapshots.size() + " instances");
+            logger.debug("Metrics collected from {} instances", currentSnapshots.size());
 
         } catch (Exception e) {
             auditService.logError("METRICS_COLLECTION_FAILED", e.getMessage());

@@ -2,8 +2,28 @@ $kind: collection
 name: UCMD API
 description: Unified Cache Monitoring Dashboard - Tüm API endpoint'leri
 variables:
-  baseUrl: http://localhost:8080
+  - key: baseUrl
+    value: http://localhost:8080
+    disabled: false
+  - key: supabase_service_role_api_key_05uw
+    secret: true
+    disabled: false
+  - key: json_web_token_15u7
+    secret: true
+    disabled: false
+  - key: json_web_token_02jt
+    secret: true
+    disabled: false
+  - key: supabase_service_role_api_key_0p36
+    secret: true
+    disabled: false
+  - key: json_web_token_0mte
+    secret: true
+    disabled: false
+  - key: json_web_token_0ugb
+    secret: true
+    disabled: false
 auth:
   type: bearer
   credentials:
-    token: bW9uaXRvcjpNT05JVE9SOjE3ODQ2NDE2Nzk0ODY=.bW9uaXRvcjpNT05JVE9S
+    token: "{{json_web_token_0ugb}}"

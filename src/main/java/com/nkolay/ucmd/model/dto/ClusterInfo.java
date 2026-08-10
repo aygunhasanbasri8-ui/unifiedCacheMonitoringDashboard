@@ -2,14 +2,29 @@
 package com.nkolay.ucmd.model.dto;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ClusterInfo {
     private int nodeCount;
     private int partitionCount;
     private List<MemberInfo> members = new ArrayList<>();
     private String clusterName;
-    private boolean balanced;
+    private Boolean balanced;
+
+    // ── Rehber §5.4 — partition dağılımı ──
+    private Map<String, Integer> partitionDistribution = new LinkedHashMap<>();
+    private Double distributionSkewPercent;   // null = hesaplanamadı
+    private Boolean clusterSafe;              // null = client-only'de alınamadı
+    private Integer unassignedPartitions;
+    private MetricStatus distributionStatus;
+    private MetricStatus safetyStatus;
+
+    private MetricStatus overallStatus;
+    private MetricStatus partitionCountStatus;
+    private MetricStatus balancedStatus;
+    private MetricMeta meta = new MetricMeta();
 
     public ClusterInfo() {}
 
@@ -31,8 +46,46 @@ public class ClusterInfo {
     public String getClusterName() { return clusterName; }
     public void setClusterName(String clusterName) { this.clusterName = clusterName; }
 
-    public boolean isBalanced() { return balanced; }
-    public void setBalanced(boolean balanced) { this.balanced = balanced; }
+    public Boolean getBalanced() { return balanced; }
+    public void setBalanced(Boolean balanced) { this.balanced = balanced; }
+
+    public Map<String, Integer> getPartitionDistribution() { return partitionDistribution; }
+    public void setPartitionDistribution(Map<String, Integer> partitionDistribution) {
+        this.partitionDistribution = partitionDistribution;
+    }
+
+    public Double getDistributionSkewPercent() { return distributionSkewPercent; }
+    public void setDistributionSkewPercent(Double distributionSkewPercent) {
+        this.distributionSkewPercent = distributionSkewPercent;
+    }
+
+    public Boolean getClusterSafe() { return clusterSafe; }
+    public void setClusterSafe(Boolean clusterSafe) { this.clusterSafe = clusterSafe; }
+
+    public Integer getUnassignedPartitions() { return unassignedPartitions; }
+    public void setUnassignedPartitions(Integer unassignedPartitions) {
+        this.unassignedPartitions = unassignedPartitions;
+    }
+
+    public MetricStatus getDistributionStatus() { return distributionStatus; }
+    public void setDistributionStatus(MetricStatus distributionStatus) {
+        this.distributionStatus = distributionStatus;
+    }
+
+    public MetricStatus getSafetyStatus() { return safetyStatus; }
+    public void setSafetyStatus(MetricStatus safetyStatus) { this.safetyStatus = safetyStatus; }
+
+    public MetricStatus getOverallStatus() { return overallStatus;}
+    public void setOverallStatus(MetricStatus overallStatus) { this.overallStatus = overallStatus;}
+
+    public MetricStatus getPartitionCountStatus() { return partitionCountStatus;}
+    public void setPartitionCountStatus(MetricStatus partitionCountStatus) { this.partitionCountStatus = partitionCountStatus;}
+
+    public MetricStatus getBalancedStatus() { return balancedStatus;}
+    public void setBalancedStatus(MetricStatus balancedStatus) { this.balancedStatus = balancedStatus;}
+
+    public MetricMeta getMeta() {return meta;}
+    public void setMeta(MetricMeta meta) {this.meta = meta;}
 
     // Inner class for member info
     public static class MemberInfo {
@@ -62,5 +115,6 @@ public class ClusterInfo {
         public boolean isLeader() { return isLeader; }
         public void setLeader(boolean leader) { isLeader = leader; }
     }
+
 }
  

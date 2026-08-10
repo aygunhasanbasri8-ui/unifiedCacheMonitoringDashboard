@@ -29,12 +29,6 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         String path = request.getRequestURI();
 
-        if (path.contains("/auth/login") ||
-                path.contains("/health") ||
-                path.contains("/actuator")||
-                path.contains("/h2-console")) {
-            return true;
-        }
 
         String authHeader = request.getHeader("Authorization");
 
@@ -72,6 +66,14 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         request.setAttribute("currentUser", user);
 
+        // Savunma derinliği: @RequireRole unutulsa bile /v1/admin/** korunur
+        if (path.contains("/v1/admin/") && !"ADMIN".equalsIgnoreCase(user.getRole())) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Admin yetkisi gerekli\"}");
+            return false;
+        }
+
         if (handler instanceof org.springframework.web.method.HandlerMethod handlerMethod) {
             RequireRole requireRole = handlerMethod.getMethodAnnotation(RequireRole.class);
             if (requireRole == null) {
@@ -80,7 +82,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
             if (requireRole != null) {
                 String requiredRole = requireRole.value();
-                if (!requiredRole.equalsIgnoreCase(user.getRole())) {
+                String userRole = user.getRole();
+                boolean allowed = requiredRole.equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole);
+                if (!allowed) {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json");
                     response.getWriter().write(

@@ -2,6 +2,11 @@ spring:
   application:
     name: ucmd
 
+  task:
+    scheduling:
+      pool:
+        size: 3
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
@@ -16,8 +21,9 @@ spring:
     driver-class-name: org.postgresql.Driver
 
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -41,7 +47,6 @@ spring:
 
 hazelcast:
   cluster-name: ${HAZELCAST_CLUSTER_NAME:dev}
-  members: ${HAZELCAST_MEMBERS:localhost:5701}
   username: ${HAZELCAST_USERNAME:}
   password: ${HAZELCAST_PASSWORD:}
   tls-enabled: ${HAZELCAST_TLS_ENABLED:false}
@@ -64,6 +69,14 @@ logging:
     com.nkolay: DEBUG
 
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
 management:
   endpoints:
     web:
@@ -75,3 +88,116 @@ management:
   metrics:
     tags:
       application: ucmd
+
+ucmd:
+  # Denetim kaydı saklama politikası (kimlik + mutasyon + key erişimi)
+  audit:
+    retention-days: 90                  # bu süreden eski kayıtlar silinir
+    retention-cron: "0 0 3 * * *"       # her gece 03:00 temizlik
+
+  # Metrik cache (kısa TTL) ve STALE fallback penceresi
+  cache:
+    ttl-seconds: 10                     # taze kabul edilen süre
+    stale-ttl-minutes: 30               # son bilinen değerin saklandığı süre
+    max-size: 500                       # cache'teki azami giriş sayısı
+
+  # Key arama kısıtları
+  key-search:
+    min-prefix-length: 3                # Redis'te prefix için asgari uzunluk
+    hazelcast-max-scan-entries: 5000    # map içi entry taramasında üst sınır
+
+  # İzlenen sistemi koruma limitleri (rehber §2.2, §2.3)
+  protection:
+    cheap-concurrency: 12                # ucuz metrik çağrılarında eş zamanlılık
+    expensive-concurrency: 2            # SCAN tabanlı çağrılarda eş zamanlılık
+    cheap-timeout-ms: 5000              # ucuz çağrı zaman aşımı
+    expensive-timeout-ms: 15000         # pahalı çağrı zaman aşımı
+    expensive-rate-limit-per-minute: 10 # instance başına dakikalık pahalı sorgu
+    circuit-failure-rate-percent: 50    # devreyi açan hata oranı
+    circuit-sliding-window: 10          # hata oranının ölçüldüğü çağrı sayısı
+    circuit-open-duration-seconds: 30   # devre açık kalma süresi
+    bulkhead-max-wait-ms: 2000             # 2 sn bekleyip reddet
+
+  # Key/map maskeleme ve allowlist (rehber §9)
+  security:
+    key-masking:
+      enabled: true                     # 3+ haneli rakam dizileri *** ile maskelenir
+    allowed-prefixes: []                # boş = kısıt yok
+    allowed-maps: []                    # boş = kısıt yok
+
+  # Snapshot saklama ve grafik çözünürlüğü
+  snapshot:
+    retention-days: 7                   # hacim yüksek, denetim değeri yok
+    retention-cron: "0 30 3 * * *"      # her gece 03:30 temizlik
+    default-max-points: 500             # /history varsayılan nokta sayısı
+    max-points-limit: 2000              # /history azami nokta sayısı
+
+  # Key desen sınıflandırması (dashboard grupları)
+  key-patterns:
+    # ── Kritik hot field'lar (en spesifik — önce gelmeli) ──
+    - pattern: "ucmd:merchant:*:commission"
+      label: "Komisyon Oranları"
+    - pattern: "ucmd:merchant:*:status"
+      label: "Üye İşyeri Durumları"
+    - pattern: "ucmd:merchant:*:risk"
+      label: "Risk Skorları"
+    - pattern: "ucmd:merchant:*:settlement"
+      label: "Valör Periyotları"
+    - pattern: "ucmd:merchant:*:dailyvolume"
+      label: "Günlük İşlem Hacimleri"
+    - pattern: "ucmd:merchant:*:dailycount"
+      label: "Günlük İşlem Adetleri"
+    - pattern: "ucmd:merchant:*:terminals"
+      label: "Üye İşyeri Terminal Listeleri"
+
+    # ── Terminal hot field'ları ──
+    - pattern: "ucmd:terminal:*:status"
+      label: "Terminal Durumları"
+    - pattern: "ucmd:terminal:*:daily"
+      label: "Terminal Günlük Aktiflik"
+    - pattern: "ucmd:terminal:*:lasttx"
+      label: "Terminal Son İşlem Zamanları"
+
+    # ── İşlem özetleri ──
+    - pattern: "ucmd:transaction:daily:*"
+      label: "Günlük İşlem Özetleri"
+
+    # ── Listeler (gruplu görünümler) ──
+    - pattern: "ucmd:merchantlist:status:*"
+      label: "Üye İşyeri Durum Listeleri"
+    - pattern: "ucmd:merchantlist:city:*"
+      label: "Şehir Bazlı Listeler"
+    - pattern: "ucmd:merchantlist:sector:*"
+      label: "Sektör Bazlı Listeler"
+    - pattern: "ucmd:merchantlist:highrisk"
+      label: "Yüksek Riskli İşyerleri"
+    - pattern: "ucmd:terminallist:status:*"
+      label: "Terminal Durum Listeleri"
+    - pattern: "ucmd:terminallist:daily:*"
+      label: "Terminal Aktiflik Listeleri"
+
+    # ── İstatistikler ──
+    - pattern: "ucmd:stats:sector:*"
+      label: "Sektör İstatistikleri"
+    - pattern: "ucmd:stats:daily:*"
+      label: "Global Günlük İstatistikler"
+
+    # ── Tam kayıtlar (genel — hot field'lardan SONRA gelmeli) ──
+    - pattern: "ucmd:merchant:*"
+      label: "Üye İşyeri Kayıtları (tam)"
+    - pattern: "ucmd:terminal:*"
+      label: "Terminal Kayıtları (tam)"
+    - pattern: "ucmd:merchantlist:*"
+      label: "Diğer İşyeri Listeleri"
+    - pattern: "ucmd:terminallist:*"
+      label: "Diğer Terminal Listeleri"
+    - pattern: "ucmd:transaction:*"
+      label:  "Transaction Kayıtları (tam)"
+
+    # ── Eski/test key'leri (Hazelcast feeder veya manuel testler) ──
+    - pattern: "ucmd-*"
+      label: "Hazelcast IMap'leri"
+    - pattern: "ucmd:session:*"
+      label: "Oturumlar"
+    - pattern: "ucmd:user:*"
+      label: "Kullanıcılar"

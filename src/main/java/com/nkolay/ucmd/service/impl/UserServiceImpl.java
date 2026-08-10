@@ -1,109 +1,111 @@
 package com.nkolay.ucmd.service.impl;
 
-import com.nkolay.ucmd.model.dto.LoginResponse;
 import com.nkolay.ucmd.model.entity.User;
+import com.nkolay.ucmd.model.dto.LoginResponse;
+import com.nkolay.ucmd.repository.UserRepository;
 import com.nkolay.ucmd.security.JwtTokenProvider;
-import com.nkolay.ucmd.security.SimplePasswordEncoder;
 import com.nkolay.ucmd.service.UserService;
+import jakarta.annotation.PostConstruct;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collection;
+import java.util.List;
 
 @Service
 public class UserServiceImpl implements UserService {
 
-    private Map<String, User> users = new HashMap<>();
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
-    public UserServiceImpl() {
+    @PostConstruct
+    public void initDefaultUsers() {
         boolean isProduction = "production".equalsIgnoreCase(System.getenv("APP_ENVIRONMENT"));
-
-        if (!isProduction) {
-            String monitorPass = System.getenv("TEST_USER_MONITOR_PASSWORD");
-            String adminPass = System.getenv("TEST_USER_ADMIN_PASSWORD");
-
-
-            if (monitorPass == null || adminPass == null) {
-                throw new IllegalStateException(
-                        "Test user passwords not configured. Set TEST_USER_MONITOR_PASSWORD " +
-                                "and TEST_USER_ADMIN_PASSWORD in .env"
-                );
-            }
-
-            User monitor = new User(
-                    "monitor",
-                    SimplePasswordEncoder.encode(monitorPass),
-                    "monitor@ucmd.local",
-                    "MONITOR"
-            );
-            monitor.setId(1L);
-            users.put("monitor", monitor);
-
-            User admin = new User(
-                    "admin",
-                    SimplePasswordEncoder.encode(adminPass),
-                    "admin@ucmd.local",
-                    "ADMIN"
-            );
-            admin.setId(2L);
-            users.put("admin", admin);
+        if (isProduction) {
+            return;
         }
-        // Prod'da kullanıcılar veritabanından yüklenecek
+
+        String monitorPass = System.getenv("TEST_USER_MONITOR_PASSWORD");
+        String adminPass = System.getenv("TEST_USER_ADMIN_PASSWORD");
+
+        if (monitorPass == null || adminPass == null) {
+            throw new IllegalStateException(
+                    "Test user passwords not configured. Set TEST_USER_MONITOR_PASSWORD " +
+                            "and TEST_USER_ADMIN_PASSWORD in .env");
+        }
+
+        // DB boşsa varsayılan kullanıcıları ekle (BCrypt ile)
+        if (!userRepository.existsByUsername("monitor")) {
+            User monitor = new User("monitor",
+                    passwordEncoder.encode(monitorPass), "MONITOR");
+            userRepository.save(monitor);
+        }
+        if (!userRepository.existsByUsername("admin")) {
+            User admin = new User("admin",
+                    passwordEncoder.encode(adminPass), "ADMIN");
+            userRepository.save(admin);
+        }
     }
 
-    /**
-     * USER AUTHENTICATION
-     *
-     */
-    public LoginResponse authenticate(String username, String password){
-        User user =users.get(username);
-
-        if ( user==null || !user.isActive()) {
+    @Override
+    public LoginResponse authenticate(String username, String password) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null || !user.isActive()) {
+            return null;
+        }
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             return null;
         }
 
-        if (!SimplePasswordEncoder.matches(password, user.getPasswordHash())) {
-            return null;
+        String token = JwtTokenProvider.generateToken(user);
+        user.setLastLoginAt(System.currentTimeMillis());
+        userRepository.save(user);
 
-        }
-
-        String token= JwtTokenProvider.generateToken(user);
-        user.setLastLoginAt((System.currentTimeMillis()));
-
-        return new LoginResponse(token, user.getUsername(), user.getRole(), 24*60*60);
-
+        return new LoginResponse(token, user.getUsername(), user.getRole(), 24 * 60 * 60);
     }
 
-    /**
-     * USER FROM TOKEN
-     *
-     */
+    @Override
     public User getUserFromToken(String token) {
         String username = JwtTokenProvider.getUsernameFromToken(token);
-        return username != null ? users.get(username): null;
+        if (username == null) return null;
+        return userRepository.findByUsername(username).orElse(null);
     }
 
-    /**
-     * NEW USER
-     *
-     */
-    public User createUser(String username, String password, String email, String role) {
-        User user = new User(
-                username,
-                SimplePasswordEncoder.encode(password),
-                email,
-                role
-        );
-        user.setId((long)(users.size() + 1));
-        users.put(username,user);
-        return user;
+    @Override
+    public User createUser(String username, String password, String role) {
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Kullanıcı adı zaten mevcut: " + username);
+        }
+        User user = new User(username,
+                passwordEncoder.encode(password),
+                 role);
+        return userRepository.save(user);
     }
 
-    /**
-     * GET USER
-     */
-    public java.util.Collection<User> getAllUsers() {
-        return users.values();
+    @Override
+    public Collection<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+
+    @Override
+    public void deleteUser(String username) {
+        // Varsayılan monitor kullanıcısı silinemez
+        if ("monitor".equalsIgnoreCase(username)) {
+            throw new IllegalArgumentException("Varsayılan 'monitor' kullanıcısı silinemez");
+        }
+        if("admin".equalsIgnoreCase(username)) {
+            throw new IllegalArgumentException("Varsayılan 'admin' kullanıcısı silinemez");
+        }
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) {
+            throw new IllegalArgumentException("Kullanıcı bulunamadı: " + username);
+        }
+        userRepository.delete(user);
     }
 }

@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.model.entity;
 
 import java.time.LocalDateTime;
+
+import com.nkolay.ucmd.model.dto.MetricStatus;
 import jakarta.persistence.*;
 
 @Entity
@@ -9,6 +11,7 @@ public class MetricSnapshot {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+
 
     private Long id;
     private Long instanceId;
@@ -25,6 +28,15 @@ public class MetricSnapshot {
     private double fragmentationRatio;
     private int nodeCount;
     private String partitionJson;   // Hazelcast partition dağılımı
+    private long evictedKeys;
+    private long expiredKeys;
+    private long opsPerSec;
+    private Double hitRatio;
+    private String replicationRole;
+    private int connectedReplicas;
+
+    @Enumerated(EnumType.STRING)
+    private com.nkolay.ucmd.model.dto.MetricStatus overallStatus;
 
     public MetricSnapshot() {
         this.collectedAt = LocalDateTime.now();
@@ -75,4 +87,57 @@ public class MetricSnapshot {
 
     public String getPartitionJson() { return partitionJson; }
     public void setPartitionJson(String partitionJson) { this.partitionJson = partitionJson; }
+
+    public com.nkolay.ucmd.model.dto.MetricStatus getOverallStatus() { return overallStatus;}
+    public void setOverallStatus (com.nkolay.ucmd.model.dto.MetricStatus overallStatus) {this.overallStatus = overallStatus;}
+
+    public Double getHitRatio() {
+        return hitRatio;
+    }
+
+    public void setHitRatio(Double hitRatio) {
+        this.hitRatio = hitRatio;
+    }
+
+    public long getEvictedKeys() {
+        return evictedKeys;
+    }
+
+    public void setEvictedKeys(long evictedKeys) {
+        this.evictedKeys = evictedKeys;
+    }
+
+    public long getOpsPerSec() {
+        return opsPerSec;
+    }
+
+    public void setOpsPerSec(long opsPerSec) {
+        this.opsPerSec = opsPerSec;
+    }
+
+    public long getExpiredKeys() {
+        return expiredKeys;
+    }
+
+    public void setExpiredKeys(long expiredKeys) {
+        this.expiredKeys = expiredKeys;
+    }
+
+    public String getReplicationRole() {
+        return replicationRole;
+    }
+
+    public void setReplicationRole(String replicationRole) {
+        this.replicationRole = replicationRole;
+    }
+
+    public int getConnectedReplicas() {
+        return connectedReplicas;
+    }
+
+    public void setConnectedReplicas(int connectedReplicas) {
+        this.connectedReplicas = connectedReplicas;
+    }
+
+
 }

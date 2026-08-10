@@ -17,6 +17,25 @@ public class InstanceRef {
     private int port;
     private boolean enabled;
 
+    /** Hazelcast cluster adı. Redis instance'larında null. */
+    private String clusterName;
+
+    /** Virgülle ayrılmış member listesi. Boşsa host:port kullanılır. */
+    @Column(length = 1000)
+    private String members;
+
+    /** jmx_exporter scrape adresi(leri), virgülle ayrılmış.
+     *  Boşsa JVM metrikleri UNAVAILABLE döner. */
+    @Column(length = 1000)
+    private String metricsUrl;
+
+    /** Redis ACL kullanıcı adı. Boşsa kimlik doğrulamasız bağlanılır. */
+    private String username;
+
+    /** Parolanın okunacağı environment değişkeninin ADI.
+     *  Parola asla veritabanında saklanmaz. */
+    private String passwordEnvVar;
+
     public InstanceRef() {}
 
     public InstanceRef(Long id, String name, String type, String host, int port, boolean enabled) {
@@ -45,4 +64,28 @@ public class InstanceRef {
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public String getClusterName() { return clusterName; }
+    public void setClusterName(String clusterName) { this.clusterName = clusterName; }
+
+    public String getMembers() { return members; }
+    public void setMembers(String members) { this.members = members; }
+
+    public String getMetricsUrl() { return metricsUrl; }
+    public void setMetricsUrl(String metricsUrl) { this.metricsUrl = metricsUrl; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    public String getPasswordEnvVar() { return passwordEnvVar; }
+    public void setPasswordEnvVar(String passwordEnvVar) { this.passwordEnvVar = passwordEnvVar; }
+
+    public String resolveMembers() {
+        if (members != null && !members.isBlank()) return members;
+        return host + ":" + port;
+    }
+
+    public String connectionKey() {
+        return (clusterName == null ? "" : clusterName) + "|" + resolveMembers();
+    }
 }

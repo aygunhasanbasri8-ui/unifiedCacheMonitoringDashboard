@@ -1,61 +1,83 @@
 package com.nkolay.ucmd.service.impl;
 
-
+import com.nkolay.ucmd.config.KeySecurityConfig;
+import com.nkolay.ucmd.exception.MapNotAllowedException;
+import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
-import com.nkolay.ucmd.model.dto.KeyInfo;
-import com.nkolay.ucmd.model.dto.PageInfo;
 import com.nkolay.ucmd.monitor.CacheMonitor;
 import com.nkolay.ucmd.monitor.MonitorRegistry;
+import com.nkolay.ucmd.monitor.ProtectedMonitorExecutor;
 import com.nkolay.ucmd.service.KeyAnalysisService;
 import com.nkolay.ucmd.service.MonitoringService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class KeyAnalysisServiceImpl implements KeyAnalysisService {
 
-    @Autowired
-    public MonitoringService monitoringService;
+    private final MonitoringService monitoringService;
+    private final MonitorRegistry monitorRegistry;
+    private final ProtectedMonitorExecutor executor;
+    private final KeySecurityConfig keySecurityConfig;
 
-    @Autowired
-    public MonitorRegistry monitorRegistry;
-
-    @Autowired
-    public RedisTemplate<String, String> redisTemplate;
-
-
-
-    public PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor, int count) {
-        InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instance == null) return new PageInfo<>(new ArrayList<>(), "0", false, count);
-
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-        return monitor.scanKeys(instance, prefix, cursor, count);
+    public KeyAnalysisServiceImpl(MonitoringService monitoringService,
+                                  MonitorRegistry monitorRegistry,
+                                  ProtectedMonitorExecutor executor,
+                                  KeySecurityConfig keySecurityConfig) {
+        this.monitoringService = monitoringService;
+        this.monitorRegistry = monitorRegistry;
+        this.executor = executor;
+        this.keySecurityConfig = keySecurityConfig;
     }
 
-
-
-    public List<KeyInfo> getTopNKeys(Long instanceId, int n) {
+    @Override
+    public PageInfo<KeyInfo> scanKeys(Long instanceId, String prefix, String cursor,
+                                      int count, MatchMode matchMode, String mapName) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instance == null) return new ArrayList<>();
-
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-        return monitor.getTopNKeys(instance, n);
+
+        return executor.executeExpensive(instance, "scan-keys",
+                () -> monitor.scanKeys(instance, prefix, cursor, count, matchMode, mapName));
     }
 
-
-    /**
-     * GUNCELLENDI
-     */
-    public long getKeyTTL(Long instanceId, String key) {
+    @Override
+    public TopKeysResponse getTopNKeys(Long instanceId, int n,Integer scanLimit) {
         InstanceRef instance = monitoringService.getInstanceById(instanceId);
-        if (instance == null) return -2;
-
         CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-        return monitor.getKeyTTL(instance, key);
+
+        return executor.executeExpensive(instance, "top-keys",
+                () -> monitor.getTopNKeys(instance, n, scanLimit));
+    }
+
+    @Override
+    public KeyTtlResponse getKeyTTL(Long instanceId, String key, String mapName) {
+        InstanceRef instance = monitoringService.getInstanceById(instanceId);
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+
+        // Allowlist kontrolü korumanın DIŞINDA: executeCachedMetric tüm exception'ları
+        // yutup UNAVAILABLE döndürdüğü için 403 istemciye ulaşmazdı.
+        // Monitor içindeki kontrol savunma derinliği olarak yerinde kalır.
+        if (mapName != null && !mapName.isBlank()
+                && !keySecurityConfig.isMapAllowed(mapName)) {
+            throw new MapNotAllowedException("map izin verilen listede değil");
+        }
+
+        // Aynı key farklı map'lerde bulunabilir — cache anahtarı map'i de içermeli
+        String operation = (mapName == null || mapName.isBlank())
+                ? "key-ttl:" + key
+                : "key-ttl:" + mapName + ":" + key;
+
+        var result = executor.executeCachedMetric(instance, operation,"key-ttl",
+                () -> monitor.getKeyTTL(instance, key, mapName));
+        if (result.isUnavailable() || result.value() == null) {
+            return KeyTtlResponse.unavailable(key);
+        }
+        KeyTtlResponse response = result.value();
+        if (result.isStale()) {
+            response.getMeta().setStale(true);
+        }
+        return response;
+
     }
 }
