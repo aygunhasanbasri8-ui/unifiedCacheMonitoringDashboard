@@ -545,7 +545,13 @@ export default function InstanceDetail() {
         {isApplicable(dataStats?.ttlStatus) && (
           <MetricCard
             title="Ortalama TTL"
-            value={dataStats ? formatDurationShort(dataStats.avgTtlMillis) : "-"}
+            value={
+              !dataStats
+                ? "-"
+                : dataStats.avgTtlMillis === null
+                  ? <span style={{ color: "var(--text-dim)" }}>TTL tanımlı key yok</span>
+                  : formatDurationShort(dataStats.avgTtlMillis)
+            }
             metricStatus={dataStats?.ttlStatus}
             meta={dataStats?.meta}
           />
@@ -963,6 +969,7 @@ export default function InstanceDetail() {
       {efficiency && isSectionVisible(efficiency.overallStatus, [
         efficiency.throughputStatus,
         efficiency.networkStatus,
+        efficiency.overallStatus,
       ]) && (
         <div className="instance-detail-section">
           <h2 className="instance-detail-section-title">Cache Verimliliği</h2>
@@ -999,10 +1006,7 @@ export default function InstanceDetail() {
                 />
               </>
             )}
-            {/* totalErrorReplies'ın kendi statüsü yok; throughput/network ikisi de NOT_APPLICABLE ise
-                (Hazelcast gibi) bu kart da anlamsızdır — efficiency.overallStatus tek başına güvenilir
-                değil (Hazelcast'te ESTIMATED dönebiliyor, bkz. rapor: backend gözlemi). */}
-            {(isApplicable(efficiency.throughputStatus) || isApplicable(efficiency.networkStatus)) && (
+            {isApplicable(efficiency.overallStatus) && (
               <MetricCard
                 title="Hata Yanıtları"
                 value={efficiency?.totalErrorReplies ?? "-"}
@@ -1137,75 +1141,85 @@ export default function InstanceDetail() {
             {isApplicable(persistence.rdbStatus) && (
               <div className="instance-detail-persistence-block">
                 <h3 className="instance-detail-persistence-block-title">RDB</h3>
-                <div className="instance-detail-grid">
-                  <MetricCard
-                    title="Etkin"
-                    value={persistence.rdbEnabled ? "Evet" : "Hayır"}
-                    metricStatus={persistence.rdbStatus}
-                    meta={persistence.meta}
-                  />
-                  <MetricCard
-                    title="Son Kayıt Durumu"
-                    value={persistence.rdbLastBgsaveStatus ?? "-"}
-                    status={
-                      persistence.rdbLastBgsaveStatus && persistence.rdbLastBgsaveStatus !== "ok"
-                        ? "critical"
-                        : "ok"
-                    }
-                    metricStatus={persistence.rdbStatus}
-                    meta={persistence.meta}
-                  />
-                  <MetricCard
-                    title="Son Kayıt Zamanı"
-                    value={formatEpochSeconds(persistence.rdbLastSaveTime)}
-                    metricStatus={persistence.rdbStatus}
-                    meta={persistence.meta}
-                  />
-                  <MetricCard
-                    title="Kayıt Sonrası Değişiklik"
-                    value={persistence.rdbChangesSinceLastSave ?? "-"}
-                    metricStatus={persistence.rdbStatus}
-                    meta={persistence.meta}
-                  />
-                </div>
-                {persistence.rdbBgsaveInProgress && (
-                  <div className="instance-detail-persistence-note">Arka planda kayıt yapılıyor...</div>
+                {persistence.rdbEnabled === false ? (
+                  <span className="instance-detail-persistence-disabled-badge">RDB devre dışı</span>
+                ) : (
+                  <>
+                    <div className="instance-detail-grid">
+                      <MetricCard
+                        title="Etkin"
+                        value={persistence.rdbEnabled ? "Evet" : "Hayır"}
+                        metricStatus={persistence.rdbStatus}
+                        meta={persistence.meta}
+                      />
+                      <MetricCard
+                        title="Son Kayıt Durumu"
+                        value={persistence.rdbLastBgsaveStatus ?? "-"}
+                        status={
+                          persistence.rdbLastBgsaveStatus && persistence.rdbLastBgsaveStatus !== "ok"
+                            ? "critical"
+                            : "ok"
+                        }
+                        metricStatus={persistence.rdbStatus}
+                        meta={persistence.meta}
+                      />
+                      <MetricCard
+                        title="Son Kayıt Zamanı"
+                        value={formatEpochSeconds(persistence.rdbLastSaveTime)}
+                        metricStatus={persistence.rdbStatus}
+                        meta={persistence.meta}
+                      />
+                      <MetricCard
+                        title="Kayıt Sonrası Değişiklik"
+                        value={persistence.rdbChangesSinceLastSave ?? "-"}
+                        metricStatus={persistence.rdbStatus}
+                        meta={persistence.meta}
+                      />
+                    </div>
+                    {persistence.rdbBgsaveInProgress && (
+                      <div className="instance-detail-persistence-note">Arka planda kayıt yapılıyor...</div>
+                    )}
+                  </>
                 )}
               </div>
             )}
             {isApplicable(persistence.aofStatus) && (
               <div className="instance-detail-persistence-block">
                 <h3 className="instance-detail-persistence-block-title">AOF</h3>
-                <div className="instance-detail-grid">
-                  <MetricCard
-                    title="Etkin"
-                    value={persistence.aofEnabled ? "Evet" : "Hayır"}
-                    metricStatus={persistence.aofStatus}
-                    meta={persistence.meta}
-                  />
-                  <MetricCard
-                    title="Son Rewrite Durumu"
-                    value={persistence.aofLastBgrewriteStatus ?? "-"}
-                    status={
-                      persistence.aofLastBgrewriteStatus && persistence.aofLastBgrewriteStatus !== "ok"
-                        ? "critical"
-                        : "ok"
-                    }
-                    metricStatus={persistence.aofStatus}
-                    meta={persistence.meta}
-                  />
-                  <MetricCard
-                    title="Son Yazma Durumu"
-                    value={persistence.aofLastWriteStatus ?? "-"}
-                    status={
-                      persistence.aofLastWriteStatus && persistence.aofLastWriteStatus !== "ok"
-                        ? "critical"
-                        : "ok"
-                    }
-                    metricStatus={persistence.aofStatus}
-                    meta={persistence.meta}
-                  />
-                </div>
+                {persistence.aofEnabled === false ? (
+                  <span className="instance-detail-persistence-disabled-badge">AOF devre dışı</span>
+                ) : (
+                  <div className="instance-detail-grid">
+                    <MetricCard
+                      title="Etkin"
+                      value={persistence.aofEnabled ? "Evet" : "Hayır"}
+                      metricStatus={persistence.aofStatus}
+                      meta={persistence.meta}
+                    />
+                    <MetricCard
+                      title="Son Rewrite Durumu"
+                      value={persistence.aofLastBgrewriteStatus ?? "-"}
+                      status={
+                        persistence.aofLastBgrewriteStatus && persistence.aofLastBgrewriteStatus !== "ok"
+                          ? "critical"
+                          : "ok"
+                      }
+                      metricStatus={persistence.aofStatus}
+                      meta={persistence.meta}
+                    />
+                    <MetricCard
+                      title="Son Yazma Durumu"
+                      value={persistence.aofLastWriteStatus ?? "-"}
+                      status={
+                        persistence.aofLastWriteStatus && persistence.aofLastWriteStatus !== "ok"
+                          ? "critical"
+                          : "ok"
+                      }
+                      metricStatus={persistence.aofStatus}
+                      meta={persistence.meta}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

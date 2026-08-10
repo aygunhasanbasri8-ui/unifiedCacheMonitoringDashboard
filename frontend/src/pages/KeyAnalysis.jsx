@@ -258,6 +258,15 @@ export default function KeyAnalysis() {
   }
 
   function renderSize(key) {
+    // Hazelcast entry aramasında (mapName dolu) sizeStatus AVAILABLE/NOT_APPLICABLE/UNAVAILABLE
+    // olabilir — OBJECT in-memory format boyutu ölçülemez (NOT_APPLICABLE), EntryView alınamayabilir
+    // (UNAVAILABLE). Redis'te ayrıca ESTIMATED gelebilir (mevcut davranış korunur).
+    if (key.sizeStatus === "NOT_APPLICABLE") {
+      return <span style={{ color: "var(--text-dim)" }}>—</span>;
+    }
+    if (key.sizeStatus === "UNAVAILABLE") {
+      return <span style={{ color: "var(--text-dim)" }}>Veri alınamadı</span>;
+    }
     const estimated = key.sizeStatus === "ESTIMATED";
     return (
       <>

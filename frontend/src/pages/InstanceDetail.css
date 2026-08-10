@@ -265,6 +265,17 @@
   color: var(--yellow);
 }
 
+.instance-detail-persistence-disabled-badge {
+  display: inline-block;
+  color: var(--text-dim);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .instance-detail-transient-warning {
   font-size: 12px;
   color: var(--yellow);
