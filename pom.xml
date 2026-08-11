@@ -101,11 +101,23 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
 
 		<dependency>
 			<groupId>org.springframework.security</groupId>
@@ -122,7 +134,7 @@
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -154,11 +166,25 @@
 
 	</dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
+    <build>
+        <plugins>
+            <!-- JwtTokenProvider ve UserServiceImpl env değişkeni okur; test için sabit değerler -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <JWT_SECRET>ucmd-test-secret-key-min-32-characters-long</JWT_SECRET>
+                        <TEST_USER_MONITOR_PASSWORD>test-monitor-pass</TEST_USER_MONITOR_PASSWORD>
+                        <TEST_USER_ADMIN_PASSWORD>test-admin-pass</TEST_USER_ADMIN_PASSWORD>
+                        <UCMD_TEST_REDIS_PASSWORD>ucmdTestPass</UCMD_TEST_REDIS_PASSWORD>
+                        <UCMD_TEST_REDIS_LIMITED_PASSWORD>limitedTestPass</UCMD_TEST_REDIS_LIMITED_PASSWORD>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<excludes>
 						<exclude>
