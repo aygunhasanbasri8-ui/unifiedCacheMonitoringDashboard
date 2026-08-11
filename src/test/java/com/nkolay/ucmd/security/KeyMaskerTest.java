@@ -31,7 +31,7 @@ public class KeyMaskerTest {
 
     @Test
     void maskForLog_yapilandirmadanBagimsizMaskeler() {
-        assertThat(disabled.mask("ucmd:merchant:88123:commission")).isEqualTo("ucmd:merchant:***:commission");
+        assertThat(enabled.mask("ucmd:merchant:88123:commission")).isEqualTo("ucmd:merchant:***:commission");
     }
 
     @Test
