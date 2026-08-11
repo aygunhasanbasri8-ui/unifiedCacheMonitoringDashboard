@@ -82,7 +82,8 @@ Yan dallar:
 | Java | 21 | Virtual Threads aktif (`spring.threads.virtual.enabled`) |
 | Spring Boot | 3.5.16 | Web, Data JPA, Actuator, AOP |
 | PostgreSQL | 15 | `ucmd_db` |
-| H2 | runtime | test profili |
+| H2 | test | test profili in-memory DB |
+| Testcontainers | Spring Boot yönetimli | integration testlerde gerçek Redis |
 | Lettuce | Spring Boot yönetimli | `RedisClient`, `ByteArrayCodec` |
 | Hazelcast Client | 5.3.8 | unisocket (`smartRouting=false`) |
 | resilience4j | 2.2.0 | rate limiter, bulkhead, circuit breaker |
@@ -448,8 +449,7 @@ Tam liste: [`docs/known-limitations.md`](docs/known-limitations.md)
 - Redis Cluster (`CLUSTER INFO/NODES`) desteklenmiyor
 - `ddl-auto: update` güvenilmez, migration elle yapılıyor
 - Vault entegrasyonu yok
-- Bu fazda otomatik test yazılmadı
-
+- TLS desteği kodda mevcut ancak TLS'li bir ortamda doğrulanmadı
 ---
 
 ## 10. Geliştirme Notları
@@ -461,8 +461,43 @@ Tam liste: [`docs/known-limitations.md`](docs/known-limitations.md)
 index ve constraint değişikliklerini kaçırır. Teslim edilen SQL'ler (bölüm 4.4) elle
 çalıştırılmalıdır. Flyway/Liquibase önerilir, bu fazda kapsam dışı.
 
-### Profiller
+### Test
 
+```bash
+mvn clean test
+```
+
+109 test, iki katman:
+
+| Katman | Kapsam |
+|---|---|
+| Unit | INFO parser, keyspace parser, CPU delta, hit ratio, cursor pagination, metric status eşleme, HZ partition aggregation, sampling, maskeleme, Prometheus parser |
+| Integration | Redis standalone, Redis ACL + yetki reddi, bağlantı kaybı, HZ multi-member, koruma katmanı (timeout / STALE / bulkhead / rate limit) |
+
+**Docker gereksinimi.** Redis integration testleri Testcontainers ile gerçek bir
+`redis:7-alpine` container'ı ayağa kaldırır. Docker yoksa bu sınıflar
+`@Testcontainers(disabledWithoutDocker = true)` sayesinde **atlanır**, build kırılmaz.
+Hazelcast testleri gömülü member kullanır, Docker gerektirmez.
+
+**IntelliJ'den çalıştırma.** `pom.xml`'deki surefire `environmentVariables` bloğu
+yalnızca Maven üzerinden geçerlidir. IntelliJ'den test çalıştıracaksan
+Run/Debug Configurations → Templates → JUnit → Environment variables kısmına
+şunları ekle, yoksa `contextLoads` ve ACL testi kırmızı olur:
+
+JWT_SECRET=ucmd-test-secret-key-min-32-characters-long
+TEST_USER_MONITOR_PASSWORD=test-monitor-pass
+TEST_USER_ADMIN_PASSWORD=test-admin-pass
+UCMD_TEST_REDIS_PASSWORD=ucmdTestPass
+UCMD_TEST_REDIS_LIMITED_PASSWORD=limitedTestPass
+
+Test profili H2 in-memory kullanır (`src/test/resources/application-test.yml`);
+PostgreSQL'in ayakta olması gerekmez.
+
+`RedisMonitor` ve `HazelcastMonitor`'daki ayrıştırıcılar `private`. Testler bunlara
+`ReflectionTestUtils.invokeMethod` ile erişir — üretim kodunda test uğruna
+görünürlük gevşetilmemiştir.
+
+### Profiller
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
