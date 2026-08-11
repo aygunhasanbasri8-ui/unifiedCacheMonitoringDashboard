@@ -18,9 +18,10 @@ import java.util.List;
 @RequireRole("MONITOR")
 @RequestMapping("/v1/instances")
 public class InstanceController {
-    
-    @Autowired
-    private MonitoringService monitoringService;
+
+    private final MonitoringService monitoringService;
+
+    public InstanceController(MonitoringService monitoringService) {this.monitoringService = monitoringService;}
 
     @Operation(summary = "Instance listesi",
                description = "Kayıtlı tüm Redis ve Hazelcast instance'larını döner.")

@@ -22,20 +22,24 @@ import java.util.List;
 @RequestMapping("/v1/instances")
 public class KeyAnalysisController {
 
-    @Autowired
-    private KeyAnalysisService keyAnalysisService;
 
-    @Autowired
-    private MonitoringService monitoringService;
+    private final KeyAnalysisService keyAnalysisService;
 
-    @Autowired
-    private AuditService auditService;
+    private final MonitoringService monitoringService;
 
-    @Autowired
-    private AuditContext auditContext;
+    private final AuditService auditService;
 
-    @Autowired
-    private KeyMasker keyMasker;
+    private final AuditContext auditContext;
+
+    private final KeyMasker keyMasker;
+
+    public KeyAnalysisController(KeyAnalysisService keyAnalysisService, MonitoringService monitoringService, AuditService auditService, AuditContext auditContext, KeyMasker keyMasker) {
+        this.keyAnalysisService = keyAnalysisService;
+        this.monitoringService = monitoringService;
+        this.auditService = auditService;
+        this.auditContext = auditContext;
+        this.keyMasker = keyMasker;
+    }
 
     @Operation(summary = "Key tarama (sayfalamalı)",
                description = "Redis: cursor tabanlı SCAN, prefix zorunlu (en az 3 karakter), "

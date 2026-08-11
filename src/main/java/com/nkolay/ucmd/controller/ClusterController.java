@@ -16,8 +16,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/v1/instances")
 public class ClusterController {
 
-    @Autowired
-    private MonitoringService monitoringService;
+    private final MonitoringService monitoringService;
+
+    public ClusterController(MonitoringService monitoringService) {this.monitoringService = monitoringService;}
 
     @Operation(summary = "Cluster bilgisi",
                description = "Rehber §5.4 — üye listesi, gerçek partition sayısı, "

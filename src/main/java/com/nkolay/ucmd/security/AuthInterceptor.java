@@ -11,11 +11,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
-    @Autowired
-    private TokenBlacklist tokenBlacklist;
+    private final TokenBlacklist tokenBlacklist;
+
+    public AuthInterceptor(UserService userService, TokenBlacklist tokenBlacklist) {
+        this.userService = userService;
+        this.tokenBlacklist = tokenBlacklist;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request,

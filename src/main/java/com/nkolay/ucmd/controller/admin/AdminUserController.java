@@ -23,14 +23,20 @@ import java.util.stream.Collectors;
 @RequireRole("ADMIN")
 public class AdminUserController {
 
-    @Autowired
-    private UserService userService;
+    
+    private final UserService userService;
 
-    @Autowired
-    private AuditService auditService;
+    
+    private final AuditService auditService;
 
-    @Autowired
-    private AuditContext auditContext;
+    
+    private final AuditContext auditContext;
+
+    public AdminUserController(UserService userService, AuditService auditService, AuditContext auditContext) {
+        this.userService = userService;
+        this.auditService = auditService;
+        this.auditContext = auditContext;
+    }
 
     @Operation(summary = "Kullanıcı listesi",
                description = "Kayıtlı kullanıcılar. Parola özeti dönmez.")

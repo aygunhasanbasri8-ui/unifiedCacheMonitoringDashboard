@@ -22,17 +22,24 @@ import org.springframework.web.bind.annotation.*;
 
 public class AuthController {
 
-    @Autowired
-    private UserService userService;
+    
+    private final UserService userService;
 
-    @Autowired
-    private TokenBlacklist tokenBlacklist;
+    
+    private final TokenBlacklist tokenBlacklist;
 
-    @Autowired
-    private AuditService auditService;
+    
+    private final AuditService auditService;
 
-    @Autowired
-    private AuditContext auditContext;
+    
+    private final AuditContext auditContext;
+
+    public AuthController(UserService userService, TokenBlacklist tokenBlacklist, AuditService auditService, AuditContext auditContext) {
+        this.userService = userService;
+        this.tokenBlacklist = tokenBlacklist;
+        this.auditService = auditService;
+        this.auditContext = auditContext;
+    }
 
     @Operation(summary = "Giriş",
                description = "Kullanıcı adı/parola karşılığında JWT üretir. "

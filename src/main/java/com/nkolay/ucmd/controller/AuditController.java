@@ -19,8 +19,9 @@ import org.springframework.web.bind.annotation.*;
 @RequireRole("ADMIN")
 public class AuditController {
 
-    @Autowired
-    private AuditService auditService;
+    private final AuditService auditService;
+
+    public AuditController(AuditService auditService) {this.auditService = auditService;}
 
     @Operation(summary = "Denetim kayıtları",
                description = "Sayfalı denetim kaydı. action veya username ile filtrelenebilir. "

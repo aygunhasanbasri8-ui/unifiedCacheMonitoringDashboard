@@ -16,8 +16,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/v1/instances")
 public class MetricsController {
 
-    @Autowired
-    private MonitoringService monitoringService;
+    private final MonitoringService monitoringService;
+
+    public MetricsController(MonitoringService monitoringService) {this.monitoringService = monitoringService;}
 
     @Operation(summary = "Instance sağlık durumu",
                description = "Instance'ın UP/DOWN durumu, versiyon ve uptime bilgisi.")

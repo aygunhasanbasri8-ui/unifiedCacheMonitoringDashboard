@@ -22,14 +22,20 @@ import java.util.List;
 @RequestMapping("/v1/instances")
 public class SnapshotController {
 
-    @Autowired
-    private SnapshotScheduler snapshotScheduler;
+    
+    private final SnapshotScheduler snapshotScheduler;
 
-    @Autowired
-    private HistoryService historyService;
+    
+    private final HistoryService historyService;
 
-    @Autowired
-    private MonitoringService monitoringService;
+    
+    private final MonitoringService monitoringService;
+
+    public SnapshotController(SnapshotScheduler snapshotScheduler, HistoryService historyService, MonitoringService monitoringService) {
+        this.snapshotScheduler = snapshotScheduler;
+        this.historyService = historyService;
+        this.monitoringService = monitoringService;
+    }
 
     @Operation(summary = "Ham snapshot listesi",
                description = "Belirtilen süre içindeki tüm snapshot kayıtları. "

@@ -1,7 +1,6 @@
 package com.nkolay.ucmd.monitor;
 
 import com.nkolay.ucmd.model.entity.InstanceRef;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -14,7 +13,6 @@ public class MonitorRegistry {
 
     private final Map<String, CacheMonitor> monitors;
 
-    @Autowired
     public MonitorRegistry(List<CacheMonitor> monitorList) {
 
         monitors = monitorList.stream()

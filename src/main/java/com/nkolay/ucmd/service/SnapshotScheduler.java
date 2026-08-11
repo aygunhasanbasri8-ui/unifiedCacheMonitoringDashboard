@@ -23,17 +23,24 @@ import java.util.List;
 @EnableScheduling
 public class SnapshotScheduler {
 
-    @Autowired
-    private ExecutorService virtualThreadExecutor;
+    
+    private final ExecutorService virtualThreadExecutor;
 
-    @Autowired
-    private MonitoringService monitoringService;
+    private final MonitoringService monitoringService;
+    
+    private final AuditService auditService;
+    
+    private final CollectionMetrics collectionMetrics;
 
-    @Autowired
-    private AuditService auditService;
+    private final SnapshotRepository snapshotRepository;
 
-    @Autowired
-    private CollectionMetrics collectionMetrics;
+    public SnapshotScheduler(ExecutorService virtualThreadExecutor, MonitoringService monitoringService, AuditService auditService, CollectionMetrics collectionMetrics, SnapshotRepository snapshotRepository) {
+        this.virtualThreadExecutor = virtualThreadExecutor;
+        this.monitoringService = monitoringService;
+        this.auditService = auditService;
+        this.collectionMetrics = collectionMetrics;
+        this.snapshotRepository = snapshotRepository;
+    }
 
     public List<MetricSnapshot> getSnapshots() {
         return snapshotRepository.findAll();
@@ -42,13 +49,11 @@ public class SnapshotScheduler {
     public List<MetricSnapshot> getSnapshotsForInstance(Long instanceId) {
         return snapshotRepository.findByInstanceId(instanceId);
     }
-
     private static final Logger logger = LoggerFactory.getLogger(SnapshotScheduler.class);
 
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
-    @Autowired
-    private SnapshotRepository snapshotRepository;
+
 
     @PreDestroy
     public void onShutdown() {

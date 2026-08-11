@@ -29,14 +29,20 @@ public class HealthController {
 
     private final long startedAt = System.currentTimeMillis();
 
-    @Autowired
-    private MonitoringService monitoringService;
+    
+    private final MonitoringService monitoringService;
 
-    @Autowired
-    private SnapshotRepository snapshotRepository;
+    
+    private final SnapshotRepository snapshotRepository;
 
-    @Autowired
-    private CollectionMetrics collectionMetrics;
+    
+    private final CollectionMetrics collectionMetrics;
+
+    public HealthController(MonitoringService monitoringService, SnapshotRepository snapshotRepository, CollectionMetrics collectionMetrics) {
+        this.monitoringService = monitoringService;
+        this.snapshotRepository = snapshotRepository;
+        this.collectionMetrics = collectionMetrics;
+    }
 
     @Operation(summary = "Uygulama sağlığı",
                description = "UCMD'nin kendi durumu, versiyonu ve gerçek çalışma süresi.")

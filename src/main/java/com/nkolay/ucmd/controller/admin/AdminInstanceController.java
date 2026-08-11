@@ -20,14 +20,20 @@ import org.springframework.web.bind.annotation.*;
 @RequireRole("ADMIN")
 public class AdminInstanceController {
 
-    @Autowired
-    private MonitoringService monitoringService;
+    
+    private final MonitoringService monitoringService;
 
-    @Autowired
-    private AuditService auditService;
+    
+    private final AuditService auditService;
 
-    @Autowired
-    private AuditContext auditContext;
+    
+    private final AuditContext auditContext;
+
+    public AdminInstanceController(MonitoringService monitoringService, AuditService auditService, AuditContext auditContext) {
+        this.monitoringService = monitoringService;
+        this.auditService = auditService;
+        this.auditContext = auditContext;
+    }
 
     @Operation(summary = "Instance kaydı oluştur",
                description = "Yeni Redis/Hazelcast instance kaydı. Hazelcast için "
