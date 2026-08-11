@@ -15,6 +15,7 @@ const EMPTY_FORM = {
   metricsUrl: "",
   username: "",
   passwordEnvVar: "",
+  tlsEnabled: false,
 };
 
 export default function InstanceManagement() {
@@ -71,6 +72,7 @@ export default function InstanceManagement() {
       metricsUrl: instance.metricsUrl ?? "",
       username: instance.username ?? "",
       passwordEnvVar: instance.passwordEnvVar ?? "",
+      tlsEnabled: instance.tlsEnabled ?? false,
     });
     setFormError(null);
     setSaveSuccess("");
@@ -108,6 +110,7 @@ export default function InstanceManagement() {
       metricsUrl: isHazelcast ? form.metricsUrl.trim() || null : null,
       username: isRedis ? form.username.trim() || null : null,
       passwordEnvVar: isRedis ? form.passwordEnvVar.trim() || null : null,
+      tlsEnabled: isRedis ? form.tlsEnabled : false,
     };
   }
 
@@ -293,6 +296,22 @@ export default function InstanceManagement() {
                 <span className="instance-management-warning">
                   Buraya parolanın kendisini değil, parolanın okunacağı environment
                   değişkeninin adını yazın. Gerçek parola girmek güvenlik ihlalidir.
+                </span>
+              </div>
+
+              <div className="instance-management-checkbox">
+                <label htmlFor="inst-tls-enabled">
+                  <input
+                    id="inst-tls-enabled"
+                    type="checkbox"
+                    checked={form.tlsEnabled}
+                    onChange={(e) => updateField("tlsEnabled", e.target.checked)}
+                  />
+                  TLS ile bağlan
+                </label>
+                <span className="instance-management-help">
+                  Redis sunucusunda tls-port açık olmalı ve sertifikası JVM
+                  truststore&apos;una tanıtılmış olmalıdır.
                 </span>
               </div>
             </>
