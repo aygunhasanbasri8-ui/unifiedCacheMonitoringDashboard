@@ -287,6 +287,28 @@ maskelenmemiş key adı log dosyasına yazılıyor. Bu, ADR-0010'da tanımlanan
 `keyMasker.maskForLog(operation)` kullanmak. Cache anahtarı ham kalmalı — yalnızca
 log maskelenmeli.
 
+## TLS desteği doğrulanmadı
+
+`InstanceRef.tlsEnabled` işaretlendiğinde `RedisConnectionManager` bağlantıyı
+Lettuce'un `withSsl(true)` yolundan kurar. Bu yol **hiç çalıştırılmadı** —
+geliştirme ortamındaki Redis container'ları TLS'siz yapılandırılmıştır.
+
+Rehber §9 TLS'i güvenlik kontrol listesinde sayar; §11'in zorunlu kapsamında yer
+almaz. Kod, TLS'li bir ortam sağlandığında yapılandırmayla açılabilmesi için
+hazır bırakılmıştır.
+
+Şirket ortamında etkinleştirmeden önce:
+
+1. Redis tarafında `tls-port` açık, sertifika ve CA yapılandırılmış olmalı.
+2. Redis'in sertifikası kurum CA'sıyla imzalıysa CA sertifikası JVM truststore'una
+   eklenmelidir (`keytool -importcert`). Aksi halde el sıkışma başarısız olur ve
+   bağlantı `UNAVAILABLE` döner.
+3. Sertifika doğrulaması bilinçli olarak kapatılmamıştır; `verifyPeer(false)` gibi
+   bir geçici çözüm eklenmemelidir.
+
+Hazelcast TLS'i Enterprise lisans gerektirdiğinden kapsam dışıdır; `tlsEnabled`
+Hazelcast instance'larında dikkate alınmaz.
+
 ---
 
 ## Özet

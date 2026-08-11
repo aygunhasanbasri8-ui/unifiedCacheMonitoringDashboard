@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS instances (
     members           varchar(1000),                 -- "host:port,host:port"
     metrics_url       varchar(1000),                 -- jmx_exporter scrape adresleri
     username          varchar(255),                  -- Redis ACL kullanıcısı
-    password_env_var  varchar(255)                   -- parolanın DEĞİL, değişken adının kendisi
+    password_env_var  varchar(255),                   -- parolanın DEĞİL, değişken adının kendisi
+    tls_enabled       boolean NOT NULL DEFAULT false -- Redis TLS bağlantısı
     );
 
 -- ── İzleme kullanıcıları (JWT + BCrypt) ─────────────────────────────────────

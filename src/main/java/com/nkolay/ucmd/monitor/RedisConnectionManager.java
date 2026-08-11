@@ -26,7 +26,7 @@ public class RedisConnectionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisConnectionManager.class);
 
-    // "host:port:username" -> bağlantı
+    // "host:port:username:tls" -> bağlantı
     private final Map<String, StatefulRedisConnection<byte[], byte[]>> connections =
             new ConcurrentHashMap<>();
     private final Map<String, RedisClient> clients = new ConcurrentHashMap<>();
@@ -40,7 +40,8 @@ public class RedisConnectionManager {
         String host = instance.getHost();
         int port = instance.getPort();
         String username = instance.getUsername();
-        String key = host + ":" + port + ":" + (username == null ? "" : username);
+        boolean tls = instance.isTlsEnabled();
+        String key = host + ":" + port + ":" + (username == null ? "" : username) + ":" + (tls ? "tls" : "plain");
 
         return connections.compute(key, (k, existing) -> {
             if (existing != null && existing.isOpen()) {
@@ -50,6 +51,10 @@ public class RedisConnectionManager {
             try {
                 RedisURI.Builder builder = RedisURI.Builder.redis(host, port)
                         .withTimeout(Duration.ofSeconds(5));
+
+                if (tls) {
+                    builder.withSsl(true);
+                }
 
                 String password = resolvePassword(instance);
                 if (password != null && !password.isBlank()) {

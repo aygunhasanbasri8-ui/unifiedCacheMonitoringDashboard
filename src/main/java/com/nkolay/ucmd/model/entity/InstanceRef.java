@@ -16,6 +16,7 @@ public class InstanceRef {
     private String host;
     private int port;
     private boolean enabled;
+    private boolean tlsEnabled;
 
     /** Hazelcast cluster adı. Redis instance'larında null. */
     private String clusterName;
@@ -79,6 +80,9 @@ public class InstanceRef {
 
     public String getPasswordEnvVar() { return passwordEnvVar; }
     public void setPasswordEnvVar(String passwordEnvVar) { this.passwordEnvVar = passwordEnvVar; }
+
+    public boolean isTlsEnabled() {return tlsEnabled;}
+    public void setTlsEnabled(boolean tlsEnabled) {this.tlsEnabled = tlsEnabled;}
 
     public String resolveMembers() {
         if (members != null && !members.isBlank()) return members;
