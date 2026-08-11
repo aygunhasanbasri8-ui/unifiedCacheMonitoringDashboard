@@ -16,11 +16,9 @@ import java.util.List;
 @Tag(name = "Instances", description = "İzlenen instance kayıtlarının okunması")
 @RestController
 @RequireRole("MONITOR")
-@RequestMapping(InstanceController.V1_INSTANCES)
+@RequestMapping("/v1/instances")
 public class InstanceController {
-
-    public static final String V1_INSTANCES = "/v1/instances";
-
+    
     @Autowired
     private MonitoringService monitoringService;
 
