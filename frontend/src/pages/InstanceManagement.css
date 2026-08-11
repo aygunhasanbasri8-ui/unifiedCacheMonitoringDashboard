@@ -76,6 +76,31 @@
   max-width: 260px;
 }
 
+.instance-management-checkbox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.instance-management-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.instance-management-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+
+.instance-management-help {
+  color: var(--text-dim);
+  font-size: 11px;
+  max-width: 260px;
+}
+
 .instance-management-form-actions {
   display: flex;
   gap: 10px;
