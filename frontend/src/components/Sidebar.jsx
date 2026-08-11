@@ -59,6 +59,11 @@ export default function Sidebar({ isOpen, onClose }) {
     onClose();
   }
 
+  function handleInstancesAdminClick() {
+    navigate("/instances-admin");
+    onClose();
+  }
+
   function renderInstanceItem(instance) {
     const status = statuses[instance.id];
     const dotClass =
@@ -134,6 +139,9 @@ export default function Sidebar({ isOpen, onClose }) {
               </button>
               <button type="button" className="sidebar-item" onClick={handleUsersClick}>
                 <span className="sidebar-item-name">Kullanıcı Yönetimi</span>
+              </button>
+              <button type="button" className="sidebar-item" onClick={handleInstancesAdminClick}>
+                <span className="sidebar-item-name">Instance Yönetimi</span>
               </button>
             </div>
           </>

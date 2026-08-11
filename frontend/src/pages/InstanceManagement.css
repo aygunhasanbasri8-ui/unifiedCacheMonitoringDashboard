@@ -1,0 +1,233 @@
+.instance-management-page {
+  padding: 28px 32px;
+}
+
+.instance-management-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.instance-management-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: var(--text-dim);
+}
+
+.instance-management-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.instance-management-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.instance-management-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.instance-management-field label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.instance-management-field input,
+.instance-management-field select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  min-width: 160px;
+}
+
+.instance-management-field input:focus,
+.instance-management-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.instance-management-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.instance-management-field-checkbox input {
+  min-width: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.instance-management-warning {
+  color: var(--red);
+  font-size: 11px;
+  max-width: 260px;
+}
+
+.instance-management-form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.instance-management-create-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.instance-management-create-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.instance-management-create-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.instance-management-cancel-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.instance-management-cancel-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.instance-management-cancel-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.instance-management-success {
+  color: var(--green);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.instance-management-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.instance-management-table th,
+.instance-management-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.instance-management-table th {
+  color: var(--text-dim);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.instance-management-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.instance-management-table tr:last-child td {
+  border-bottom: none;
+}
+
+.instance-management-type {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.instance-management-type-redis {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+}
+
+.instance-management-type-hazelcast {
+  background: var(--bg-hover);
+  color: var(--text-dim);
+}
+
+.instance-management-active {
+  color: var(--green);
+}
+
+.instance-management-inactive {
+  color: var(--text-dim);
+}
+
+.instance-management-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.instance-management-edit-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.instance-management-edit-button:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+}
+
+.instance-management-delete-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--red);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.instance-management-delete-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--red);
+}
+
+.instance-management-empty {
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.instance-management-status {
+  color: var(--text-dim);
+}
+
+.instance-management-error {
+  color: var(--red);
+  font-size: 13px;
+  margin-bottom: 12px;
+}

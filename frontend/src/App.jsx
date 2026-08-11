@@ -10,6 +10,7 @@ import InstanceDetail from "./pages/InstanceDetail";
 import KeyAnalysis from "./pages/KeyAnalysis";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
+import InstanceManagement from "./pages/InstanceManagement";
 
 function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -53,6 +54,14 @@ function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instances-admin"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <InstanceManagement />
                 </ProtectedRoute>
               }
             />
