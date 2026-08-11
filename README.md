@@ -203,6 +203,21 @@ ALTER TABLE instances
   ADD COLUMN IF NOT EXISTS password_env_var  VARCHAR(255);
 ```
 
+### Veritabanı şeması
+
+`ddl-auto: update` bu projede kolon eklemelerini güvenilir biçimde yapmadı.
+Şema kaynağı `docs/migrations/001-initial-schema.sql` dosyasıdır.
+
+Temiz bir ortamda ilk kurulum:
+
+```bash
+psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
+```
+
+Bu dosya yalnızca UCMD'nin kendi tablolarını (`instances`, `users`,
+`metric_snapshots`, `audit_logs`) oluşturur. `sim/` altındaki simülasyon
+scriptlerinin ürettiği tablolar buraya dahil değildir.
+
 ### 4.5 Uygulamayı çalıştır
 
 ```bash
