@@ -23,7 +23,7 @@ public class MonitorRegistry {
     }
 
     public CacheMonitor getMonitor(InstanceRef instance) {
-        CacheMonitor monitor = monitors.get(instance.getType());
+        CacheMonitor monitor = monitors.get(instance.getType().name());
         if (monitor==null) {
             throw new IllegalArgumentException(
                     "Desteklenmeyen instance type: " + instance.getType()

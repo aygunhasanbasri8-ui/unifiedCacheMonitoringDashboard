@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.model.entity;
 
 
+import com.nkolay.ucmd.model.dto.InstanceType;
 import jakarta.persistence.*;
 
 @Entity
@@ -12,11 +13,10 @@ public class InstanceRef {
 
     private Long id;
     private String name;
-    private String type;  // REDIS | HAZELCAST
     private String host;
     private int port;
     private boolean enabled;
-    private boolean tlsEnabled;
+
 
     /** Hazelcast cluster adı. Redis instance'larında null. */
     private String clusterName;
@@ -24,6 +24,11 @@ public class InstanceRef {
     /** Virgülle ayrılmış member listesi. Boşsa host:port kullanılır. */
     @Column(length = 1000)
     private String members;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type" , nullable = false)
+    private InstanceType type;
+
 
     /** jmx_exporter scrape adresi(leri), virgülle ayrılmış.
      *  Boşsa JVM metrikleri UNAVAILABLE döner. */
@@ -37,15 +42,18 @@ public class InstanceRef {
      *  Parola asla veritabanında saklanmaz. */
     private String passwordEnvVar;
 
+    private boolean tlsEnabled;
+
     public InstanceRef() {}
 
-    public InstanceRef(Long id, String name, String type, String host, int port, boolean enabled) {
+    public InstanceRef(Long id, String name, InstanceType type, String host, int port, boolean enabled, boolean tlsEnabled) {
         this.id = id;
         this.name = name;
         this.type = type;
         this.host = host;
         this.port = port;
         this.enabled = enabled;
+        this.tlsEnabled = tlsEnabled;
     }
 
     public Long getId() { return id; }
@@ -54,8 +62,8 @@ public class InstanceRef {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public InstanceType getType() { return type; }
+    public void setType(InstanceType type) { this.type = type; }
 
     public String getHost() { return host; }
     public void setHost(String host) { this.host = host; }

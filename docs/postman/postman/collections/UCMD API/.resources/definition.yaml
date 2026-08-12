@@ -23,7 +23,10 @@ variables:
   - key: json_web_token_0ugb
     secret: true
     disabled: false
+  - key: supabase_service_role_api_key_0325
+    secret: true
+    disabled: false
 auth:
   type: bearer
   credentials:
-    token: "{{json_web_token_0ugb}}"
+    token: "{{supabase_service_role_api_key_0325}}"
