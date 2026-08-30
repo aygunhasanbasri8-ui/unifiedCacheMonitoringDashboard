@@ -64,13 +64,15 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: postgres
+    container_name: ucmd-postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: ucmd_db
       POSTGRES_USER: ucmd_user
       POSTGRES_PASSWORD: ucmd_pass
+    volumes:
+      - ucmd-pgdata:/var/lib/postgresql/data
     networks:
       - ucmd-net
 
@@ -97,6 +99,8 @@ services:
     networks:
       - ucmd-net
 
+volumes:
+  ucmd-pgdata:
 networks:
   ucmd-net:
     driver: bridge

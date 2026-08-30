@@ -1,5 +1,24 @@
 $kind: http-request
 name: New Request
-url: ""
-method: GET
+url: "{{baseUrl}}/api/v1/instances/1/keys/ttl"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"type\": \"https://ucmd.nkolay.local/problems/bad-request\",\r
+
+    \  \"title\": \"Invalid Request\",\r
+
+    \  \"status\": 400,\r
+
+    \  \"detail\": \"...\",\r
+
+    \  \"instance\": \"/api/v1/instances/1/keys/ttl\",\r
+
+    \  \"traceId\": \"3f1c...\",\r
+
+    \  \"timestamp\": 1753\r
+
+    }"
 order: 4060729795818388
