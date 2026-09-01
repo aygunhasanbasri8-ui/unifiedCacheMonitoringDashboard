@@ -1,0 +1,133 @@
+.instance-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.instance-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.instance-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.instance-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.instance-card-type {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.instance-card-type-redis {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+}
+
+.instance-card-type-hazelcast {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+}
+
+.instance-card-address {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.instance-card-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.status-up {
+  background: var(--green);
+}
+
+.status-down {
+  background: var(--red);
+}
+
+.status-unknown {
+  background: var(--yellow);
+}
+
+.instance-card-alert-icon {
+  margin-left: 2px;
+}
+
+.instance-card-deadlock-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.15);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.instance-card-metrics {
+  display: flex;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.instance-card-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.instance-card-metric-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.instance-card-metric-value {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.instance-card-action {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.instance-card-action:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
