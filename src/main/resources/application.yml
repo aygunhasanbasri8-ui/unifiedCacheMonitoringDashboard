@@ -90,6 +90,14 @@ management:
       application: ucmd
 
 ucmd:
+  # İlk açılışta oluşturulan tek yönetici hesabı.
+  # Kimlik bilgileri .env'den gelir; kodda gömülü kullanıcı/parola yoktur.
+  # Diğer kullanıcılar bu hesapla UI'daki kullanıcı yönetiminden açılır.
+  bootstrap-user:
+    username: ${UCMD_BOOTSTRAP_USERNAME:}
+    password: ${UCMD_BOOTSTRAP_PASSWORD:}
+    role: ${UCMD_BOOTSTRAP_ROLE:ADMIN}
+
   # İlk açılışta instances tablosu boşsa oluşturulan varsayılan kayıtlar.
   # Varsayılanlar host üzerinde çalışmaya göredir; Docker Compose bu
   # değişkenleri servis adlarıyla override eder.

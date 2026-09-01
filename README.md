@@ -118,8 +118,9 @@ Kök dizinde `.env` dosyası oluşturun:
 |---|---|---|
 | `JWT_SECRET` | ✅ | En az 32 karakter. Kısa olursa uygulama açılışta durur |
 | `JWT_EXPIRATION_HOURS` | — | Varsayılan 24 |
-| `TEST_USER_MONITOR_PASSWORD` | ✅ (dev) | Varsayılan `monitor` kullanıcısının parolası |
-| `TEST_USER_ADMIN_PASSWORD` | ✅ (dev) | Varsayılan `admin` kullanıcısının parolası |
+| `UCMD_BOOTSTRAP_USERNAME` | ✅ (dev) | İlk açılışta oluşturulan tek yönetici hesabının adı |
+| `UCMD_BOOTSTRAP_PASSWORD` | ✅ (dev) | Aynı hesabın parolası |
+| `UCMD_BOOTSTRAP_ROLE` | — | Varsayılan `ADMIN` |
 | `SPRING_DATASOURCE_URL` | — | Varsayılan `jdbc:postgresql://localhost:5432/ucmd_db` |
 | `SPRING_DATASOURCE_USERNAME` | — | Varsayılan `ucmd_user` |
 | `SPRING_DATASOURCE_PASSWORD` | — | Varsayılan `ucmd_pass` |
@@ -128,6 +129,14 @@ Kök dizinde `.env` dosyası oluşturun:
 
 > Parolalar **veritabanında saklanmaz**. `InstanceRef.passwordEnvVar` yalnızca
 > hangi environment değişkeninden okunacağının **adını** taşır (rehber §9).
+
+> Kodda gömülü varsayılan kullanıcı adı veya parola **yoktur**. Uygulama ilk
+> açılışta yalnızca `UCMD_BOOTSTRAP_*` ile tanımlanan tek yönetici hesabını
+> oluşturur; diğer kullanıcılar bu hesapla UI'daki kullanıcı yönetimi
+> ekranından açılır. Değişkenler tanımsızsa uygulama açılışta durur.
+>
+> Hesap veritabanında zaten varsa bu değerler yok sayılır — parolayı
+> değiştirmek için hesabı silip uygulamayı yeniden başlatın.
 
 ### 4.3 Altyapıyı ayağa kaldır
 
@@ -267,7 +276,7 @@ cd unifiedCacheMonitoringDashboard && cp .env.example .env
 ```
 
 `.env` git'te tutulmaz, her makinede oluşturulmalıdır. İçindeki `JWT_SECRET`
-(en az 32 karakter) ve iki test kullanıcı parolasını doldurun, sonra:
+(en az 32 karakter) ile yönetici hesabının adı ve parolasını doldurun, sonra:
 
 ```bash
 docker compose up -d --build
@@ -291,8 +300,8 @@ build'ler katman cache'inden saniyeler içinde tamamlanır.
 | `http://localhost:9090` | Prometheus |
 | `http://localhost:3001` | Grafana (admin/admin) |
 
-Giriş için `.env`'de tanımladığınız parolalarla `monitor` veya `admin`
-kullanıcısını kullanın.
+Giriş için `.env`'deki `UCMD_BOOTSTRAP_USERNAME` / `UCMD_BOOTSTRAP_PASSWORD`
+değerlerini kullanın.
 
 **Nasıl çalışır**
 
@@ -577,8 +586,8 @@ Run/Debug Configurations → Templates → JUnit → Environment variables kısm
 şunları ekle, yoksa `contextLoads` ve ACL testi kırmızı olur:
 
 JWT_SECRET=ucmd-test-secret-key-min-32-characters-long
-TEST_USER_MONITOR_PASSWORD=test-monitor-pass
-TEST_USER_ADMIN_PASSWORD=test-admin-pass
+UCMD_BOOTSTRAP_USERNAME=test-admin
+UCMD_BOOTSTRAP_PASSWORD=test-admin-pass
 UCMD_TEST_REDIS_PASSWORD=ucmdTestPass
 UCMD_TEST_REDIS_LIMITED_PASSWORD=limitedTestPass
 

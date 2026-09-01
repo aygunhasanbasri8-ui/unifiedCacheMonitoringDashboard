@@ -132,9 +132,10 @@ services:
       HAZELCAST_METRICS_URL: http://hz-analytics:9404/metrics
       # Zorunlu, en az 32 karakter. .env dosyasından okunur (bkz. .env.example)
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET tanimli degil - .env.example dosyasini .env olarak kopyalayin}
-      # Varsayılan monitor/admin kullanıcılarının parolaları (dev profilinde zorunlu)
-      TEST_USER_MONITOR_PASSWORD: ${TEST_USER_MONITOR_PASSWORD:?TEST_USER_MONITOR_PASSWORD tanimli degil}
-      TEST_USER_ADMIN_PASSWORD: ${TEST_USER_ADMIN_PASSWORD:?TEST_USER_ADMIN_PASSWORD tanimli degil}
+      # İlk açılışta oluşturulan yönetici hesabı (dev profilinde zorunlu)
+      UCMD_BOOTSTRAP_USERNAME: ${UCMD_BOOTSTRAP_USERNAME:?UCMD_BOOTSTRAP_USERNAME tanimli degil}
+      UCMD_BOOTSTRAP_PASSWORD: ${UCMD_BOOTSTRAP_PASSWORD:?UCMD_BOOTSTRAP_PASSWORD tanimli degil}
+      UCMD_BOOTSTRAP_ROLE: ${UCMD_BOOTSTRAP_ROLE:-ADMIN}
       # Varsayılan instance kayıtları container ağındaki servis adlarına baksın
       UCMD_SEED_REDIS_HOST: redis
       UCMD_SEED_REDIS_PORT: 6379

@@ -168,15 +168,15 @@
 
     <build>
         <plugins>
-            <!-- JwtTokenProvider ve UserServiceImpl env değişkeni okur; test için sabit değerler -->
+            <!-- JwtTokenProvider ve bootstrap kullanıcısı env değişkeni okur; test için sabit değerler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <environmentVariables>
                         <JWT_SECRET>ucmd-test-secret-key-min-32-characters-long</JWT_SECRET>
-                        <TEST_USER_MONITOR_PASSWORD>test-monitor-pass</TEST_USER_MONITOR_PASSWORD>
-                        <TEST_USER_ADMIN_PASSWORD>test-admin-pass</TEST_USER_ADMIN_PASSWORD>
+                        <UCMD_BOOTSTRAP_USERNAME>test-admin</UCMD_BOOTSTRAP_USERNAME>
+                        <UCMD_BOOTSTRAP_PASSWORD>test-admin-pass</UCMD_BOOTSTRAP_PASSWORD>
                         <UCMD_TEST_REDIS_PASSWORD>ucmdTestPass</UCMD_TEST_REDIS_PASSWORD>
                         <UCMD_TEST_REDIS_LIMITED_PASSWORD>limitedTestPass</UCMD_TEST_REDIS_LIMITED_PASSWORD>
                     </environmentVariables>

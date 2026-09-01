@@ -17,24 +17,25 @@
 # KİMLİK DOĞRULAMA
 # ══════════════════════════════════════════════════════════════
 
-### Giriş — ADMIN. Parola .env dosyasındaki TEST_USER_ADMIN_PASSWORD ile aynı olmalı.
+### Giriş — ADMIN. Kullanıcı adı ve parola .env'deki UCMD_BOOTSTRAP_* ile aynı olmalı.
 # @name login
 POST {{host}}/v1/auth/login
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "password": "DEGISTIR_env_TEST_USER_ADMIN_PASSWORD"
+  "username": "DEGISTIR_env_UCMD_BOOTSTRAP_USERNAME",
+  "password": "DEGISTIR_env_UCMD_BOOTSTRAP_PASSWORD"
 }
 
 ### Giriş — MONITOR. Rol kısıtlarını test etmek için.
+# Bu kullanıcı varsayılan olarak gelmez; önce POST /v1/admin/users ile oluşturun.
 # @name loginMonitor
 POST {{host}}/v1/auth/login
 Content-Type: application/json
 
 {
   "username": "monitor",
-  "password": "DEGISTIR_env_TEST_USER_MONITOR_PASSWORD"
+  "password": "DEGISTIR_olusturdugunuz_parola"
 }
 
 ### Hatalı parola → 401, denetim kaydına LOGIN_FAILED / result: DENIED yazılır

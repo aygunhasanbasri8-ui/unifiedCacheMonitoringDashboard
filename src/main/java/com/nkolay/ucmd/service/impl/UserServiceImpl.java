@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.service.impl;
 
+import com.nkolay.ucmd.config.BootstrapUserConfig;
 import com.nkolay.ucmd.model.entity.User;
 import com.nkolay.ucmd.model.dto.LoginResponse;
 import com.nkolay.ucmd.repository.UserRepository;
@@ -17,39 +18,37 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BootstrapUserConfig bootstrapUser;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                           BootstrapUserConfig bootstrapUser) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.bootstrapUser = bootstrapUser;
     }
 
+    /** İlk açılışta yapılandırmadaki tek yönetici hesabını oluşturur.
+     *  Hesap zaten varsa parolası değiştirilmez. */
     @PostConstruct
-    public void initDefaultUsers() {
-        boolean isProduction = "production".equalsIgnoreCase(System.getenv("APP_ENVIRONMENT"));
-        if (isProduction) {
+    public void initBootstrapUser() {
+        if ("production".equalsIgnoreCase(System.getenv("APP_ENVIRONMENT"))) {
             return;
         }
 
-        String monitorPass = System.getenv("TEST_USER_MONITOR_PASSWORD");
-        String adminPass = System.getenv("TEST_USER_ADMIN_PASSWORD");
-
-        if (monitorPass == null || adminPass == null) {
+        if (!bootstrapUser.isConfigured()) {
             throw new IllegalStateException(
-                    "Test user passwords not configured. Set TEST_USER_MONITOR_PASSWORD " +
-                            "and TEST_USER_ADMIN_PASSWORD in .env");
+                    "Bootstrap kullanıcısı yapılandırılmamış. .env dosyasında " +
+                            "UCMD_BOOTSTRAP_USERNAME ve UCMD_BOOTSTRAP_PASSWORD tanımlayın.");
         }
 
-        // DB boşsa varsayılan kullanıcıları ekle (BCrypt ile)
-        if (!userRepository.existsByUsername("monitor")) {
-            User monitor = new User("monitor",
-                    passwordEncoder.encode(monitorPass), "MONITOR");
-            userRepository.save(monitor);
+        if (userRepository.existsByUsername(bootstrapUser.getUsername())) {
+            return;
         }
-        if (!userRepository.existsByUsername("admin")) {
-            User admin = new User("admin",
-                    passwordEncoder.encode(adminPass), "ADMIN");
-            userRepository.save(admin);
-        }
+
+        userRepository.save(new User(
+                bootstrapUser.getUsername(),
+                passwordEncoder.encode(bootstrapUser.getPassword()),
+                bootstrapUser.getRole()));
     }
 
     @Override
@@ -95,12 +94,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(String username) {
-        // Varsayılan monitor kullanıcısı silinemez
-        if ("monitor".equalsIgnoreCase(username)) {
-            throw new IllegalArgumentException("Varsayılan 'monitor' kullanıcısı silinemez");
-        }
-        if("admin".equalsIgnoreCase(username)) {
-            throw new IllegalArgumentException("Varsayılan 'admin' kullanıcısı silinemez");
+        // Erişimi bootstrap eden hesap silinemez — aksi halde sisteme girilemez hale gelir
+        if (username != null && username.equalsIgnoreCase(bootstrapUser.getUsername())) {
+            throw new IllegalArgumentException(
+                    "Varsayılan '" + bootstrapUser.getUsername() + "' kullanıcısı silinemez");
         }
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) {
