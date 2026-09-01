@@ -107,6 +107,9 @@ Yan dallar:
 - Docker + Docker Compose
 - PostgreSQL 15 (compose ile geliyor)
 
+> Her şeyi Docker'dan çalıştıracaksanız (§4.6) bunlardan **yalnızca Docker**
+> gerekir; JDK, Maven, Node ve PostgreSQL imajların içindedir.
+
 ### 4.2 `.env` değişkenleri
 
 Kök dizinde `.env` dosyası oluşturun:
@@ -251,17 +254,34 @@ Vite `http://localhost:5173` üzerinde açılır ve API'ye doğrudan
 ### 4.6 Her şeyi Docker ile çalıştırma
 
 Backend ve frontend de compose'a dahildir; host'a JDK veya Node kurmadan tüm
-sistem ayağa kalkar.
+sistem ayağa kalkar. **Tek ön koşul Docker'dır.**
+
+Sıfırdan bir makinede:
 
 ```bash
-cp .env.example .env
+git clone https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard.git
 ```
 
-`.env` içindeki `JWT_SECRET` ve test kullanıcı parolalarını doldurun, sonra:
+```bash
+cd unifiedCacheMonitoringDashboard && cp .env.example .env
+```
+
+`.env` git'te tutulmaz, her makinede oluşturulmalıdır. İçindeki `JWT_SECRET`
+(en az 32 karakter) ve iki test kullanıcı parolasını doldurun, sonra:
 
 ```bash
 docker compose up -d --build
 ```
+
+İlk build Maven bağımlılıklarını indirdiği için 5–10 dakika sürer; sonraki
+build'ler katman cache'inden saniyeler içinde tamamlanır.
+
+**Makine gereksinimleri**
+
+- Docker'a en az ~4 GB RAM ayrılmalı — backend ve 3 Hazelcast node'u ayrı
+  JVM'ler olarak çalışır.
+- Şu portlar boş olmalı: 3000, 8080, 5433, 6379, 6380, 5701–5703, 9090,
+  9404–9406, 3001.
 
 | Adres | İçerik |
 |---|---|
