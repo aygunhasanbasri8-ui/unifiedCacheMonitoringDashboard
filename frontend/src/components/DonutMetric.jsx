@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { statusColor } from "../config/thresholds";
-import { interpretStatus } from "../config/metricStatus";
+import { interpretStatus } from "../config/MetricStatus";
 import { formatPercent, formatAgeSeconds } from "../utils/format";
 import "./DonutMetric.css";
 

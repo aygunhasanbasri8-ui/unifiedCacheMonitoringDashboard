@@ -90,6 +90,34 @@ management:
       application: ucmd
 
 ucmd:
+  # İlk açılışta instances tablosu boşsa oluşturulan varsayılan kayıtlar.
+  # Varsayılanlar host üzerinde çalışmaya göredir; Docker Compose bu
+  # değişkenleri servis adlarıyla override eder.
+  seed:
+    instances:
+      - name: "Redis-prod"
+        type: REDIS
+        host: ${UCMD_SEED_REDIS_HOST:localhost}
+        port: ${UCMD_SEED_REDIS_PORT:6379}
+      - name: "Redis-cache"
+        type: REDIS
+        host: ${UCMD_SEED_REDIS2_HOST:localhost}
+        port: ${UCMD_SEED_REDIS2_PORT:6380}
+      - name: "Hazelcast-dev"
+        type: HAZELCAST
+        host: ${UCMD_SEED_HZ_HOST:localhost}
+        port: ${UCMD_SEED_HZ_PORT:5701}
+        cluster-name: dev
+        members: ${UCMD_SEED_HZ_MEMBERS:localhost:5701,localhost:5702}
+        metrics-url: ${UCMD_SEED_HZ_METRICS_URL:}
+      - name: "Hazelcast-analytics"
+        type: HAZELCAST
+        host: ${UCMD_SEED_HZ_ANALYTICS_HOST:localhost}
+        port: ${UCMD_SEED_HZ_ANALYTICS_PORT:5703}
+        cluster-name: analytics
+        members: ${UCMD_SEED_HZ_ANALYTICS_MEMBERS:localhost:5703}
+        metrics-url: ${HAZELCAST_METRICS_URL:}
+
   # Denetim kaydı saklama politikası (kimlik + mutasyon + key erişimi)
   audit:
     retention-days: 90                  # bu süreden eski kayıtlar silinir

@@ -16,7 +16,7 @@ import DonutMetric from "../components/DonutMetric";
 import RefreshIndicator from "../components/RefreshIndicator";
 import ProblemError from "../components/ProblemError";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
-import { isApplicable, isSectionVisible } from "../config/metricStatus";
+import { isApplicable, isSectionVisible } from "../config/MetricStatus";
 import { extractAlertEvents } from "../utils/alertEvents";
 import {
   formatBytes,

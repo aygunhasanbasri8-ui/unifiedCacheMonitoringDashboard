@@ -5,6 +5,11 @@ services:
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks:
       - ucmd-net
 
@@ -14,6 +19,11 @@ services:
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     ports:
       - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks:
       - ucmd-net
 
@@ -73,6 +83,11 @@ services:
       POSTGRES_PASSWORD: ucmd_pass
     volumes:
       - ucmd-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ucmd_user -d ucmd_db"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks:
       - ucmd-net
 
@@ -96,6 +111,69 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     depends_on:
       - prometheus
+    networks:
+      - ucmd-net
+
+  ucmd-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ucmd-backend:latest
+    container_name: ucmd-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ucmd_db
+      SPRING_DATASOURCE_USERNAME: ucmd_user
+      SPRING_DATASOURCE_PASSWORD: ucmd_pass
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      HAZELCAST_CLUSTER_NAME: dev
+      HAZELCAST_METRICS_URL: http://hz-analytics:9404/metrics
+      # Zorunlu, en az 32 karakter. .env dosyasından okunur (bkz. .env.example)
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET tanimli degil - .env.example dosyasini .env olarak kopyalayin}
+      # Varsayılan monitor/admin kullanıcılarının parolaları (dev profilinde zorunlu)
+      TEST_USER_MONITOR_PASSWORD: ${TEST_USER_MONITOR_PASSWORD:?TEST_USER_MONITOR_PASSWORD tanimli degil}
+      TEST_USER_ADMIN_PASSWORD: ${TEST_USER_ADMIN_PASSWORD:?TEST_USER_ADMIN_PASSWORD tanimli degil}
+      # Varsayılan instance kayıtları container ağındaki servis adlarına baksın
+      UCMD_SEED_REDIS_HOST: redis
+      UCMD_SEED_REDIS_PORT: 6379
+      UCMD_SEED_REDIS2_HOST: redis-2
+      UCMD_SEED_REDIS2_PORT: 6379
+      UCMD_SEED_HZ_HOST: hazelcast
+      UCMD_SEED_HZ_PORT: 5701
+      UCMD_SEED_HZ_MEMBERS: hazelcast:5701,hazelcast-2:5701
+      UCMD_SEED_HZ_METRICS_URL: http://hazelcast:9404/metrics,http://hazelcast-2:9404/metrics
+      UCMD_SEED_HZ_ANALYTICS_HOST: hz-analytics
+      UCMD_SEED_HZ_ANALYTICS_PORT: 5701
+      UCMD_SEED_HZ_ANALYTICS_MEMBERS: hz-analytics:5701
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-2:
+        condition: service_healthy
+      hazelcast:
+        condition: service_started
+      hazelcast-2:
+        condition: service_started
+      hz-analytics:
+        condition: service_started
+    networks:
+      - ucmd-net
+
+  ucmd-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ucmd-frontend:latest
+    container_name: ucmd-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      ucmd-backend:
+        condition: service_healthy
     networks:
       - ucmd-net
 

@@ -141,9 +141,18 @@ Gelen servisler:
 | `hazelcast` + `hazelcast-2` | 5701, 5702 | `dev` cluster, 2 node |
 | `hz-analytics` | 5703 | `analytics` cluster, 1 node |
 | jmx_exporter | 9404, 9405, 9406 | Hazelcast node'larının Prometheus scrape'i |
-| `postgres` | 5432 | `ucmd_db` |
+| `postgres` | 5433 | `ucmd_db` (container içi 5432) |
 | `prometheus` | 9090 | — |
 | `grafana` | 3001 | admin/admin |
+| `ucmd-backend` | 8080 | Spring Boot API (opsiyonel — bkz. §4.6) |
+| `ucmd-frontend` | 3000 | React + nginx (opsiyonel — bkz. §4.6) |
+
+> `docker compose up -d` **tüm** servisleri başlatır. Yalnızca altyapıyı isterseniz
+> servis adlarını açıkça verin:
+>
+> ```bash
+> docker compose up -d redis redis-2 hazelcast hazelcast-2 hz-analytics postgres prometheus grafana
+> ```
 
 Doğrulama:
 
@@ -229,6 +238,69 @@ Windows'ta `.env` yükleyip başlatmak için depodaki `run.ps1` kullanılabilir.
 
 - API kökü: `http://localhost:8080/api`
 - Swagger UI: `http://localhost:8080/api/swagger-ui.html`
+
+Frontend'i ayrı çalıştırmak için:
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Vite `http://localhost:5173` üzerinde açılır ve API'ye doğrudan
+`http://localhost:8080/api` adresinden gider (CORS izni `CorsConfig`'te tanımlıdır).
+
+### 4.6 Her şeyi Docker ile çalıştırma
+
+Backend ve frontend de compose'a dahildir; host'a JDK veya Node kurmadan tüm
+sistem ayağa kalkar.
+
+```bash
+cp .env.example .env
+```
+
+`.env` içindeki `JWT_SECRET` ve test kullanıcı parolalarını doldurun, sonra:
+
+```bash
+docker compose up -d --build
+```
+
+| Adres | İçerik |
+|---|---|
+| `http://localhost:3000` | **Dashboard (giriş noktası)** |
+| `http://localhost:8080/api` | API kökü |
+| `http://localhost:8080/api/swagger-ui.html` | Swagger UI |
+| `http://localhost:9090` | Prometheus |
+| `http://localhost:3001` | Grafana (admin/admin) |
+
+Giriş için `.env`'de tanımladığınız parolalarla `monitor` veya `admin`
+kullanıcısını kullanın.
+
+**Nasıl çalışır**
+
+- `ucmd-frontend` nginx, `/api/` isteklerini container ağı üzerinden
+  `ucmd-backend:8080`'e proxy'ler. Tarayıcı açısından API aynı origin'dedir,
+  bu yüzden **CORS yapılandırması gerekmez**.
+- Frontend imajı `VITE_API_BASE_URL=/api` ile derlenir. Host'ta `npm run dev`
+  bu değişkeni tanımlamaz, `client.js` `http://localhost:8080/api`'ye düşer —
+  yani iki çalışma biçimi de bozulmadan yan yana durur.
+- `ucmd-backend`, `postgres` ve `redis` servisleri **healthy** olana kadar
+  bekler; `ucmd-frontend` de backend healthy olana kadar bekler.
+- Varsayılan instance kayıtları (`ucmd.seed.*`) compose'ta servis adlarına
+  (`redis`, `redis-2`, `hazelcast`, `hz-analytics`) göre override edilir.
+  Host üzerinde çalışırken varsayılanlar `localhost` olarak kalır.
+
+> Instance kayıtları yalnızca `instances` tablosu **boşken** oluşturulur.
+> Daha önce `localhost` adresleriyle dolmuş bir veritabanınız varsa adresleri
+> UI'daki instance yönetimi ekranından güncelleyin veya volume'ü sıfırlayın.
+
+Durum ve log:
+
+```bash
+docker compose ps
+```
+
+```bash
+docker compose logs -f ucmd-backend
+```
 
 ---
 

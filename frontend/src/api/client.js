@@ -1,8 +1,10 @@
 import axios from "axios";
 import { parseProblem } from "./problemDetails";
 
+// Docker'da nginx aynı origin'den proxy'lediği için "/api" yeterli.
+// Host'ta `npm run dev` ile çalışırken değişken tanımsızdır, backend'e doğrudan gidilir.
 const client = axios.create({
-  baseURL: "http://localhost:8080/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api",
 });
 
 // Her isteğe otomatik token ekle (varsa) ve backend log'unda izlenebilmesi için trace kimliği ekle

@@ -1,5 +1,5 @@
 import "./MetricCard.css";
-import { interpretStatus } from "../config/metricStatus";
+import { interpretStatus } from "../config/MetricStatus";
 import { formatAgeSeconds } from "../utils/format";
 
 export default function MetricCard({ title, value, unit, subtitle, status = "ok", metricStatus, meta }) {

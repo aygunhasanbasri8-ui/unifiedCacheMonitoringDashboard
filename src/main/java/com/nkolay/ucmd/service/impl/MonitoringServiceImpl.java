@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.service.impl;
 
 import com.nkolay.ucmd.config.KeyPatternConfig;
+import com.nkolay.ucmd.config.SeedInstanceConfig;
 import com.nkolay.ucmd.enums.MetricStatus;
 import com.nkolay.ucmd.exception.InstanceNotFoundException;
 import com.nkolay.ucmd.model.dto.*;
@@ -14,7 +15,6 @@ import com.nkolay.ucmd.service.MonitoringService;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -32,39 +32,25 @@ public class MonitoringServiceImpl implements MonitoringService {
     private final KeyPatternConfig keyPatternConfig;
     private final ProtectedMonitorExecutor executor;
     private final HazelcastConnectionManager hazelcastConnectionManager;
+    private final SeedInstanceConfig seedInstanceConfig;
 
-    @Value("${HAZELCAST_METRICS_URL:}")
-    private String hazelcastMetricsUrl;
-
-    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig, ProtectedMonitorExecutor executor, HazelcastConnectionManager hazelcastConnectionManager) {
+    public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig, ProtectedMonitorExecutor executor, HazelcastConnectionManager hazelcastConnectionManager, SeedInstanceConfig seedInstanceConfig) {
         this.monitorRegistry = monitorRegistry;
         this.instanceRepository = instanceRepository;
         this.keyPatternConfig = keyPatternConfig;
         this.executor = executor;
         this.hazelcastConnectionManager = hazelcastConnectionManager;
+        this.seedInstanceConfig = seedInstanceConfig;
 
     }
 
     @PostConstruct
     public void initDefaultInstance() {
-        if (instanceRepository.count() == 0) {
-            instanceRepository.save(new InstanceRef(null, "Redis-prod", InstanceType.REDIS, "localhost", 6379, true, false));
-            instanceRepository.save(new InstanceRef(null, "Redis-cache", InstanceType.REDIS, "localhost", 6380, true, false));
+        if (instanceRepository.count() > 0) return;
 
-            InstanceRef hzDev = new InstanceRef(null, "Hazelcast-dev", InstanceType.HAZELCAST,
-                    "localhost", 5701, true, false);
-            hzDev.setClusterName("dev");
-            hzDev.setMembers("localhost:5701,localhost:5702");
-            hzDev.setMetricsUrl("");
-            instanceRepository.save(hzDev);
-
-            InstanceRef hzAnalytics = new InstanceRef(null, "Hazelcast-analytics", InstanceType.HAZELCAST,
-                    "localhost", 5703, true, false);
-            hzAnalytics.setClusterName("analytics");
-            hzAnalytics.setMembers("localhost:5703");
-            hzAnalytics.setMetricsUrl(hazelcastMetricsUrl);
-            instanceRepository.save(hzAnalytics);
-        }
+        seedInstanceConfig.getInstances().stream()
+                .map(SeedInstanceConfig.SeedInstance::toInstanceRef)
+                .forEach(instanceRepository::save);
     }
 
     // ===== Instance CRUD =====

@@ -2,10 +2,18 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
+  # Backend host'ta (IDE/mvn) çalışırken bu hedef UP olur
   - job_name: 'ucmd'
     metrics_path: '/api/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8080']
+
+  # Backend compose ile çalışırken bu hedef UP olur.
+  # İkisinden yalnızca biri aynı anda ayakta olacaktır; diğeri DOWN görünür.
+  - job_name: 'ucmd-docker'
+    metrics_path: '/api/actuator/prometheus'
+    static_configs:
+      - targets: ['ucmd-backend:8080']
 
   - job_name: 'hazelcast'
     static_configs:

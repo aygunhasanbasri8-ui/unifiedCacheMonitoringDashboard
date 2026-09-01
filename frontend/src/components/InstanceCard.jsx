@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { healthStatus } from "../config/thresholds";
-import { isApplicable } from "../config/metricStatus";
+import { isApplicable } from "../config/MetricStatus";
 import { formatPercent } from "../utils/format";
 import "./InstanceCard.css";
 
