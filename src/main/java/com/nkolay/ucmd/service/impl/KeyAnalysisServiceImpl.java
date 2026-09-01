@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.service.impl;
 
 import com.nkolay.ucmd.config.KeySecurityConfig;
+import com.nkolay.ucmd.enums.MatchMode;
 import com.nkolay.ucmd.exception.MapNotAllowedException;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;

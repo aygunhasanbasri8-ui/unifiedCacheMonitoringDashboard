@@ -1,5 +1,8 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MetricStatus;
+import com.nkolay.ucmd.enums.TtlStatus;
+
 public class KeyInfo {
     private String keyName;
     private String keyType;        // string, hash, list, set, zset

@@ -1,5 +1,6 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MetricStatus;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;

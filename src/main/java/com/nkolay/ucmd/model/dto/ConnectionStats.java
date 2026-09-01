@@ -1,5 +1,7 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MetricStatus;
+
 public class ConnectionStats {
     private int activeClients;
     private long totalConnectionErrors;   // Redis'te doğrudan karşılığı yok

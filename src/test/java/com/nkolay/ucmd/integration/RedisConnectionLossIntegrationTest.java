@@ -1,6 +1,8 @@
 package com.nkolay.ucmd.integration;
 
 import com.nkolay.ucmd.config.KeySecurityConfig;
+import com.nkolay.ucmd.enums.MatchMode;
+import com.nkolay.ucmd.enums.MetricStatus;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.RedisConnectionManager;

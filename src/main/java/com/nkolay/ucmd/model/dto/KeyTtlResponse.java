@@ -1,5 +1,7 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.TtlStatus;
+
 public class KeyTtlResponse {
     private String key;
     private long ttlMillis;

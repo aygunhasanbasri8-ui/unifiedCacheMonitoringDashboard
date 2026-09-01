@@ -7,7 +7,7 @@ import com.hazelcast.partition.Partition;
 import com.hazelcast.partition.PartitionService;
 import com.nkolay.ucmd.config.KeySecurityConfig;
 import com.nkolay.ucmd.model.dto.ClusterInfo;
-import com.nkolay.ucmd.model.dto.MetricStatus;
+import com.nkolay.ucmd.enums.MetricStatus;
 import com.nkolay.ucmd.security.KeyMasker;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

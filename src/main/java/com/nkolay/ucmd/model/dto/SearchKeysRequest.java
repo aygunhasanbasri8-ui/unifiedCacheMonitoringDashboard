@@ -1,5 +1,7 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MatchMode;
+
 public class SearchKeysRequest {
     private String prefix = "";
     private String cursor = "0";

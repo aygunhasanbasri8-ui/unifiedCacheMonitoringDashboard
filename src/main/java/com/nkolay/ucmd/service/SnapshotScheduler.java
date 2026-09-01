@@ -1,12 +1,12 @@
 package com.nkolay.ucmd.service;
 
+import com.nkolay.ucmd.enums.MetricStatus;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.MetricSnapshot;
 import com.nkolay.ucmd.monitor.CollectionMetrics;
 import com.nkolay.ucmd.repository.SnapshotRepository;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;

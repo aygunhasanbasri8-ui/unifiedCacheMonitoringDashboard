@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.monitor;
 
 import com.nkolay.ucmd.config.KeyPatternConfig;
+import com.nkolay.ucmd.enums.MatchMode;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 

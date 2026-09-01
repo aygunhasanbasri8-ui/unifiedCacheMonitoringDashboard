@@ -1,6 +1,7 @@
 package com.nkolay.ucmd.service.impl;
 
 import com.nkolay.ucmd.config.KeyPatternConfig;
+import com.nkolay.ucmd.enums.MetricStatus;
 import com.nkolay.ucmd.exception.InstanceNotFoundException;
 import com.nkolay.ucmd.model.dto.*;
 import com.nkolay.ucmd.model.entity.InstanceRef;
@@ -10,11 +11,8 @@ import com.nkolay.ucmd.monitor.MonitorRegistry;
 import com.nkolay.ucmd.monitor.ProtectedMonitorExecutor;
 import com.nkolay.ucmd.repository.InstanceRepository;
 import com.nkolay.ucmd.service.MonitoringService;
-import org.hibernate.Cache;
-import org.hibernate.grammars.hql.HqlParser;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
-import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -40,28 +38,6 @@ public class MonitoringServiceImpl implements MonitoringService {
         this.executor = executor;
         this.hazelcastConnectionManager = hazelcastConnectionManager;
 
-    }
-
-    @PostConstruct
-    public void initDefaultInstance() {
-        if (instanceRepository.count() == 0) {
-            instanceRepository.save(new InstanceRef(null, "Redis-prod", "REDIS", "localhost", 6379, true));
-            instanceRepository.save(new InstanceRef(null, "Redis-cache", "REDIS", "localhost", 6380, true));
-
-            InstanceRef hzDev = new InstanceRef(null, "Hazelcast-dev", "HAZELCAST",
-                    "localhost", 5701, true);
-            hzDev.setClusterName("dev");
-            hzDev.setMembers("localhost:5701,localhost:5702");
-            hzDev.setMetricsUrl("http://localhost:9404/metrics,http://localhost:9405/metrics");
-            instanceRepository.save(hzDev);
-
-            InstanceRef hzAnalytics = new InstanceRef(null, "Hazelcast-analytics", "HAZELCAST",
-                    "localhost", 5703, true);
-            hzAnalytics.setClusterName("analytics");
-            hzAnalytics.setMembers("localhost:5703");
-            hzAnalytics.setMetricsUrl("http://localhost:9406/metrics");
-            instanceRepository.save(hzAnalytics);
-        }
     }
 
     // ===== Instance CRUD =====

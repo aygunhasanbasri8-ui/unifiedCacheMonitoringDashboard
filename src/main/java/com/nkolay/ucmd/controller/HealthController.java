@@ -10,10 +10,10 @@ import com.nkolay.ucmd.service.MonitoringService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.nkolay.ucmd.enums.InstanceStatus;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -114,12 +114,15 @@ public class HealthController {
                     Math.max(0, System.currentTimeMillis() - latest.toEpochMilli()));
         }
 
-        if (instances.isEmpty() || healthy == 0) {
-            info.setStatus("FAILED");
-        } else if (!unavailable.isEmpty()) {
-            info.setStatus("PARTIAL");
+        if (instances.isEmpty()) {
+            info.setStatus(InstanceStatus.NOT_CONFIGURED);
+        } else if ( healthy == 0) {
+            info.setStatus(InstanceStatus.FAILED);
+        }
+        else if (!unavailable.isEmpty()) {
+            info.setStatus(InstanceStatus.PARTIAL);
         } else {
-            info.setStatus("OK");
+            info.setStatus(InstanceStatus.OK);
         }
 
         return info;

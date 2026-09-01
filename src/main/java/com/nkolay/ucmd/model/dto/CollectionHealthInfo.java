@@ -1,5 +1,7 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.InstanceStatus;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +11,7 @@ public class CollectionHealthInfo {
 
     private Instant collectedAt;
     private long collectionDurationMs;
-    private String status;              // OK | PARTIAL | FAILED
+    private InstanceStatus status;              // OK | PARTIAL | FAILED
     private boolean stale;
     private long staleAgeSeconds;
     private List<String> unavailableInstances = new ArrayList<>();
@@ -26,8 +28,8 @@ public class CollectionHealthInfo {
         this.collectionDurationMs = collectionDurationMs;
     }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public InstanceStatus getStatus() { return status; }
+    public void setStatus(InstanceStatus status) { this.status = status; }
 
     public boolean isStale() { return stale; }
     public void setStale(boolean stale) { this.stale = stale; }

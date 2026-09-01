@@ -2,7 +2,7 @@ package com.nkolay.ucmd.model.entity;
 
 import java.time.LocalDateTime;
 
-import com.nkolay.ucmd.model.dto.MetricStatus;
+import com.nkolay.ucmd.enums.MetricStatus;
 import jakarta.persistence.*;
 
 @Entity
@@ -36,7 +36,7 @@ public class MetricSnapshot {
     private int connectedReplicas;
 
     @Enumerated(EnumType.STRING)
-    private com.nkolay.ucmd.model.dto.MetricStatus overallStatus;
+    private MetricStatus overallStatus;
 
     public MetricSnapshot() {
         this.collectedAt = LocalDateTime.now();
@@ -88,8 +88,8 @@ public class MetricSnapshot {
     public String getPartitionJson() { return partitionJson; }
     public void setPartitionJson(String partitionJson) { this.partitionJson = partitionJson; }
 
-    public com.nkolay.ucmd.model.dto.MetricStatus getOverallStatus() { return overallStatus;}
-    public void setOverallStatus (com.nkolay.ucmd.model.dto.MetricStatus overallStatus) {this.overallStatus = overallStatus;}
+    public MetricStatus getOverallStatus() { return overallStatus;}
+    public void setOverallStatus (MetricStatus overallStatus) {this.overallStatus = overallStatus;}
 
     public Double getHitRatio() {
         return hitRatio;

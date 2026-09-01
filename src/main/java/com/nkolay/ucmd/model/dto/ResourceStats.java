@@ -1,6 +1,8 @@
 
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MetricStatus;
+
 public class ResourceStats {
 
     private long memoryRssBytes;   // İşletim sisteminin gördüğü gerçek bellek

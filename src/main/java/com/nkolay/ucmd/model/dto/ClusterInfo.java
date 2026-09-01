@@ -1,6 +1,8 @@
 
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MetricStatus;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

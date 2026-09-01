@@ -1,5 +1,7 @@
 package com.nkolay.ucmd.model.dto;
 
+import com.nkolay.ucmd.enums.MetricStatus;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

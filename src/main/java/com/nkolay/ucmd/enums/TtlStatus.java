@@ -1,4 +1,4 @@
-package com.nkolay.ucmd.model.dto;
+package com.nkolay.ucmd.enums;
 
 public enum TtlStatus {
 

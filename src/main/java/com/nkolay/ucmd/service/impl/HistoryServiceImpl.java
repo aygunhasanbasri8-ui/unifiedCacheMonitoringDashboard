@@ -2,7 +2,7 @@ package com.nkolay.ucmd.service.impl;
 
 import com.nkolay.ucmd.model.dto.HistoryPoint;
 import com.nkolay.ucmd.model.dto.HistoryResponse;
-import com.nkolay.ucmd.model.dto.MetricStatus;
+import com.nkolay.ucmd.enums.MetricStatus;
 import com.nkolay.ucmd.model.entity.MetricSnapshot;
 import com.nkolay.ucmd.repository.SnapshotRepository;
 import com.nkolay.ucmd.service.HistoryService;
