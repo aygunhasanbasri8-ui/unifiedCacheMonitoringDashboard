@@ -13,6 +13,8 @@ import com.nkolay.ucmd.repository.InstanceRepository;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,6 +22,7 @@ import java.util.List;
 
 @Service
 public class MonitoringServiceImpl implements MonitoringService {
+
 
 
     private final Logger logger = LoggerFactory.getLogger(MonitoringServiceImpl.class);
@@ -30,6 +33,8 @@ public class MonitoringServiceImpl implements MonitoringService {
     private final ProtectedMonitorExecutor executor;
     private final HazelcastConnectionManager hazelcastConnectionManager;
 
+    @Value("${HAZELCAST_METRICS_URL:}")
+    private String hazelcastMetricsUrl;
 
     public MonitoringServiceImpl(MonitorRegistry monitorRegistry, InstanceRepository instanceRepository, KeyPatternConfig keyPatternConfig, ProtectedMonitorExecutor executor, HazelcastConnectionManager hazelcastConnectionManager) {
         this.monitorRegistry = monitorRegistry;
@@ -38,6 +43,28 @@ public class MonitoringServiceImpl implements MonitoringService {
         this.executor = executor;
         this.hazelcastConnectionManager = hazelcastConnectionManager;
 
+    }
+
+    @PostConstruct
+    public void initDefaultInstance() {
+        if (instanceRepository.count() == 0) {
+            instanceRepository.save(new InstanceRef(null, "Redis-prod", InstanceType.REDIS, "localhost", 6379, true, false));
+            instanceRepository.save(new InstanceRef(null, "Redis-cache", InstanceType.REDIS, "localhost", 6380, true, false));
+
+            InstanceRef hzDev = new InstanceRef(null, "Hazelcast-dev", InstanceType.HAZELCAST,
+                    "localhost", 5701, true, false);
+            hzDev.setClusterName("dev");
+            hzDev.setMembers("localhost:5701,localhost:5702");
+            hzDev.setMetricsUrl("");
+            instanceRepository.save(hzDev);
+
+            InstanceRef hzAnalytics = new InstanceRef(null, "Hazelcast-analytics", InstanceType.HAZELCAST,
+                    "localhost", 5703, true, false);
+            hzAnalytics.setClusterName("analytics");
+            hzAnalytics.setMembers("localhost:5703");
+            hzAnalytics.setMetricsUrl(hazelcastMetricsUrl);
+            instanceRepository.save(hzAnalytics);
+        }
     }
 
     // ===== Instance CRUD =====
