@@ -66,11 +66,11 @@ class RedisAclIntegrationTest {
         String host = REDIS.getHost();
         int port = REDIS.getMappedPort(6379);
 
-        readInstance = new InstanceRef(10L, "redis-acl", "REDIS", host, port, true);
+        readInstance = new InstanceRef(10L, "redis-acl", InstanceType.REDIS, host, port, true, false);
         readInstance.setUsername(READ_USER);
         readInstance.setPasswordEnvVar(READ_PASS_ENV);
 
-        limitedInstance = new InstanceRef(11L, "redis-acl-limited", "REDIS", host, port, true);
+        limitedInstance = new InstanceRef(11L, "redis-acl-limited", InstanceType.REDIS, host, port, true, false);
         limitedInstance.setUsername(LIMITED_USER);
         limitedInstance.setPasswordEnvVar(LIMITED_PASS_ENV);
     }

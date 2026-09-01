@@ -41,8 +41,8 @@ class RedisConnectionLossIntegrationTest {
                 connectionManager, new KeySecurityConfig(), new KeyMasker(true));
         ReflectionTestUtils.setField(monitor, "minPrefixLength", 3);
 
-        InstanceRef instance = new InstanceRef(20L, "redis-flaky", "REDIS",
-                REDIS.getHost(), REDIS.getMappedPort(6379), true);
+        InstanceRef instance = new InstanceRef(20L, "redis-flaky", InstanceType.REDIS,
+                REDIS.getHost(), REDIS.getMappedPort(6379), true, false);
 
         // Faz 1 — ayakta
         assertThat(monitor.isReachable(instance)).isTrue();

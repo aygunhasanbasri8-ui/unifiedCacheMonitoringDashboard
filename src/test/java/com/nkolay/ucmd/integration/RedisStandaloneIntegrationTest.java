@@ -39,7 +39,7 @@ public class RedisStandaloneIntegrationTest {
         monitor = new RedisMonitor(connectionManager, new KeySecurityConfig(), new KeyMasker(true));
         ReflectionTestUtils.setField(monitor, "minPrefixLength", 3);
 
-        instance = new InstanceRef(1L, "redis-test", "REDIS", REDIS.getHost(), REDIS.getMappedPort(6379), true);
+        instance = new InstanceRef(1L, "redis-test", InstanceType.REDIS, REDIS.getHost(), REDIS.getMappedPort(6379), true, false);
 
         // Test fixture'ı — UCMD kodu salt-okunur kalır, veriyi container'a redis-cli yazar.
         redisCli("redis-cli", "MSET",

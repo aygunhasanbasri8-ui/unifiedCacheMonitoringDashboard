@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.nkolay.ucmd.config.ProtectionConfig;
 import com.nkolay.ucmd.exception.InstanceBusyException;
 import com.nkolay.ucmd.exception.RateLimitExceededException;
+import com.nkolay.ucmd.model.dto.InstanceType;
 import com.nkolay.ucmd.model.entity.InstanceRef;
 import com.nkolay.ucmd.monitor.CollectionMetrics;
 import com.nkolay.ucmd.monitor.ProtectedMonitorExecutor;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ProtectionLayerIntegrationTest {
 
     private final InstanceRef instance =
-            new InstanceRef(99L, "koruma-test", "REDIS", "localhost", 6379, true);
+            new InstanceRef(99L, "koruma-test", InstanceType.REDIS, "localhost", 6379, true, false);
 
     private ProtectionConfig baseConfig() {
         ProtectionConfig c = new ProtectionConfig();

@@ -68,7 +68,7 @@ class HazelcastMultiMemberIntegrationTest {
                 new KeyMasker(true), new KeySecurityConfig());
         ReflectionTestUtils.setField(monitor, "hazelcastMaxScanEntries", 5000);
 
-        instance = new InstanceRef(30L, "hz-test", "HAZELCAST", "127.0.0.1", PORT_1, true);
+        instance = new InstanceRef(30L, "hz-test", InstanceType.HAZELCAST, "127.0.0.1", PORT_1, true, false);
         instance.setClusterName(clusterName);
         instance.setMembers("127.0.0.1:" + PORT_1 + ",127.0.0.1:" + PORT_2);
         // metricsUrl bilinçli olarak null — jmx_exporter yok
@@ -170,7 +170,7 @@ class HazelcastMultiMemberIntegrationTest {
 
     @Test
     void tanimsizClusterName_illegalArgument() {
-        InstanceRef bozuk = new InstanceRef(31L, "hz-bozuk", "HAZELCAST", "127.0.0.1", PORT_1, true);
+        InstanceRef bozuk = new InstanceRef(31L, "hz-bozuk", InstanceType.HAZELCAST, "127.0.0.1", PORT_1, true, false);
 
         org.assertj.core.api.Assertions
                 .assertThatThrownBy(() -> connectionManager.getClient(bozuk))
