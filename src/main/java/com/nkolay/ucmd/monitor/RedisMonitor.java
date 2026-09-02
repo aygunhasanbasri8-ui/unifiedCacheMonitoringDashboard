@@ -55,17 +55,12 @@ public class RedisMonitor implements CacheMonitor {
 
 
 
-    // ═══════════════ Yardımcılar ═══════════════
-
     private RedisCommands<byte[], byte[]> commandsFor(InstanceRef instance) {
         var conn = connectionManager.getConnection(instance);
         return conn != null ? conn.sync() : null;
     }
 
-    /**
-     * Rehber §9 — ACL kullanıcısı bir komuta yetkisizse Redis NOPERM döner.
-     * Bu durum erişilemezlikten ayrılmalı: PERMISSION_DENIED.
-     */
+    // NOPERM / WRONGPASS / NOAUTH → PERMISSION_DENIED, erişilemezlikten ayırt edilmeli
     private MetricStatus failureStatus(Exception e) {
         String msg = e.getMessage();
         if (msg != null && (msg.contains("NOPERM") || msg.contains("WRONGPASS")
@@ -110,8 +105,6 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    // ═══════════════ Sağlık ═══════════════
-
     @Override
     public boolean isReachable(InstanceRef instance) {
         try {
@@ -143,8 +136,6 @@ public class RedisMonitor implements CacheMonitor {
             return new HealthInfo("DOWN", "unknown", 0);
         }
     }
-
-    // ═══════════════ Kaynaklar ═══════════════
 
     @Override
     public ResourceStats getResourceStats(InstanceRef instance) {
@@ -200,7 +191,7 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    /** Rehber §5.6 JVM metrikleri Redis'te yoktur — alanlar null, statüler N/A. */
+    // JVM metrikleri Redis'te yoktur
     private void applyJvmNotApplicable(ResourceStats stats) {
         stats.setJvmStatus(MetricStatus.NOT_APPLICABLE);
         stats.setGcStatus(MetricStatus.NOT_APPLICABLE);
@@ -238,8 +229,6 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    // ═══════════════ Bağlantılar ═══════════════
-
     @Override
     public ConnectionStats getConnectionStats(InstanceRef instance) {
         try {
@@ -273,9 +262,7 @@ public class RedisMonitor implements CacheMonitor {
             cs.setMaxClientsStatus(maxClients > 0
                     ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
 
-            // Redis'te "connection error" sayacı yoktur — rejected_connections
-            // ayrı bir metrik olarak sunuluyor, bu alan N/A.
-            cs.setErrorStatus(MetricStatus.NOT_APPLICABLE);
+            cs.setErrorStatus(MetricStatus.NOT_APPLICABLE); // Redis'te connection error sayacı yok
             return cs;
 
         } catch (Exception e) {
@@ -291,8 +278,6 @@ public class RedisMonitor implements CacheMonitor {
             return down;
         }
     }
-
-    // ═══════════════ Veri istatistikleri ═══════════════
 
     @Override
     public DataStats getDataStats(InstanceRef instance) {
@@ -324,7 +309,6 @@ public class RedisMonitor implements CacheMonitor {
             stats.setKeysWithExpiry(ks.totalExpires());
             stats.setAvgTtlMillis(ks.avgTtlMillis());
 
-            // Rehber §4.3 — eviction / expiration
             stats.setEvictedKeys(infoLong(statsInfo, "evicted_keys", 0));
             stats.setExpiredKeys(infoLong(statsInfo, "expired_keys", 0));
 
@@ -348,8 +332,6 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    // ═══════════════ Cluster (Redis'te yok) ═══════════════
-
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
 
@@ -361,7 +343,6 @@ public class RedisMonitor implements CacheMonitor {
                 return down;
             }
 
-            // Rehber §4.7 — cluster_enabled kontrolü
             String clusterInfo = cmd.info("cluster");
             boolean clusterEnabled = infoLong(clusterInfo, "cluster_enabled", 0) == 1;
 
@@ -386,19 +367,15 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    /** Redis'te "map" kavramı yoktur — keyspace istatistikleri getDataStats'ta. */
     @Override
     public MapStatsInfo getMapStats(InstanceRef instance) {
         return MapStatsInfo.notApplicable();
     }
 
-    /** Redis tek thread'li çalışır — operation/event kuyruğu kavramı yoktur. */
     @Override
     public OperationStatsInfo getOperationStats(InstanceRef instance) {
         return OperationStatsInfo.notApplicable();
     }
-
-    // ═══════════════ Cache verimliliği ═══════════════
 
     @Override
     public CacheEfficiencyStats getCacheEfficiency(InstanceRef instance) {
@@ -415,7 +392,6 @@ public class RedisMonitor implements CacheMonitor {
 
             CacheEfficiencyStats ce = new CacheEfficiencyStats(hits, misses);
 
-            // Rehber §4.4 — throughput ve network
             ce.setInstantaneousOpsPerSec(infoLong(statsInfo, "instantaneous_ops_per_sec", 0));
             ce.setTotalCommandsProcessed(infoLong(statsInfo, "total_commands_processed", 0));
             ce.setInputKbps(infoDouble(statsInfo, "instantaneous_input_kbps", 0));
@@ -439,8 +415,6 @@ public class RedisMonitor implements CacheMonitor {
             return down;
         }
     }
-
-    // ═══════════════ Key tarama (sayfalamalı) ═══════════════
 
     @Override
     public PageInfo<KeyInfo> scanKeys(InstanceRef instance,
@@ -500,8 +474,7 @@ public class RedisMonitor implements CacheMonitor {
                 keys.add(ki);
             }
 
-            // Arama terimiyle BAŞLAYANLAR öne (sayfa içi sıralama).
-            // Sıralama ham ad üzerinden yapılır, maskeleme sonradan uygulanır.
+            // Sıralama ham ad üzerinden yapılır, maskeleme sonradan uygulanır
             if (!search.isEmpty()) {
                 keys.sort((a, b) -> {
                     boolean aStarts = a.getKeyName().startsWith(search);
@@ -511,7 +484,6 @@ public class RedisMonitor implements CacheMonitor {
                 });
             }
 
-            // Rehber §9 — key adları maskelenerek döner
             keys.forEach(ki -> ki.setKeyName(keyMasker.mask(ki.getKeyName())));
 
             String nextCursor = result.getCursor();
@@ -530,8 +502,6 @@ public class RedisMonitor implements CacheMonitor {
             return new PageInfo<>(new ArrayList<>(), "0", false, count, failureStatus(e));
         }
     }
-
-    // ═══════════════ En büyük N key ═══════════════
 
     @Override
     public TopKeysResponse getTopNKeys(InstanceRef instance, int n, Integer scanLimit) {
@@ -581,8 +551,6 @@ public class RedisMonitor implements CacheMonitor {
         return new TopKeysResponse(top, scanned, maxScan, completed);
     }
 
-    // ═══════════════ Key TTL ═══════════════
-
     @Override
     public KeyTtlResponse getKeyTTL(InstanceRef instance, String key, String mapName) {
         // mapName Hazelcast'e özgüdür, Redis'te yok sayılır.
@@ -631,7 +599,6 @@ public class RedisMonitor implements CacheMonitor {
             r.setConnectedReplicas(connected);
             r.setReplicas(parseReplicas(info, connected));
 
-            // Standalone master (replica yok) → replication kullanılmıyor
             r.setOverallStatus(connected > 0
                     ? MetricStatus.AVAILABLE : MetricStatus.NOT_APPLICABLE);
             return r;
@@ -645,7 +612,7 @@ public class RedisMonitor implements CacheMonitor {
         }
     }
 
-    /** "slave0:ip=127.0.0.1,port=6380,state=online,offset=1234,lag=0" */
+    // INFO replication slave satırı: "slave0:ip=...,port=...,state=...,offset=...,lag=..."
     private List<ReplicationInfo.ReplicaInfo> parseReplicas(String info, int count) {
         List<ReplicationInfo.ReplicaInfo> list = new ArrayList<>();
         for (int i = 0; i < count; i++) {
@@ -778,14 +745,10 @@ public class RedisMonitor implements CacheMonitor {
     }
 
 
-    /** INFO keyspace satırlarının ayrıştırılmış özeti. */
     private record KeyspaceSummary(long totalKeys, long totalExpires,
                                    Long avgTtlMillis, Map<String, Long> perDatabase) {}
 
-    /**
-     * "db0:keys=1234,expires=100,avg_ttl=350000" satırlarını ayrıştırır.
-     * Rehber §4.3 — DBSIZE yerine tüm database değerleri toplanır.
-     */
+    // "db0:keys=1234,expires=100,avg_ttl=350000" satırlarını toplar
     private KeyspaceSummary parseKeyspace(String keyspaceInfo) {
         long totalKeys = 0;
         long totalExpires = 0;
@@ -875,7 +838,6 @@ public class RedisMonitor implements CacheMonitor {
         return pattern.length();
     }
 
-    /** Redis glob desenini (yalnızca *) regex'e çevirip eşleştirir. */
     private boolean matchesPattern(String keyName, String pattern) {
         if (pattern == null || pattern.equals("*")) return true;
         StringBuilder regex = new StringBuilder("^");

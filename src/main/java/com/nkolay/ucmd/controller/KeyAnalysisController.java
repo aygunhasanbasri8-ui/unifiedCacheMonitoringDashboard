@@ -45,7 +45,7 @@ public class KeyAnalysisController {
                description = "Redis: cursor tabanlı SCAN, prefix zorunlu (en az 3 karakter), "
                        + "KEYS * kullanılmaz. Hazelcast: mapName boşsa IMap adları listelenir, "
                        + "doluysa o map içindeki entry key'leri örneklenerek aranır "
-                       + "(sınırlı tarama, sonuç ESTIMATED). Dönen adlar maskelenir (rehber §9).")
+                       + "(sınırlı tarama, sonuç ESTIMATED). Dönen adlar maskelenir.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "400", description = "Prefix eksik, çok kısa veya izin listesinde değil")
     @ApiResponse(responseCode = "403", description = "Map izin verilen listede değil")

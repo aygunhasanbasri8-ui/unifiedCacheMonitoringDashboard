@@ -80,7 +80,6 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (handler instanceof org.springframework.web.method.HandlerMethod handlerMethod) {
             RequireRole requireRole = handlerMethod.getMethodAnnotation(RequireRole.class);
             if (requireRole == null) {
-                // Metotta yoksa sınıf seviyesinde ara
                 requireRole = handlerMethod.getBeanType().getAnnotation(RequireRole.class);
             }
             if (requireRole != null) {

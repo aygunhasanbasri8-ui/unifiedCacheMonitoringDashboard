@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Rehber §6 — UCMD'nin kendi toplama kalitesi özeti. */
+
 public class CollectionHealthInfo {
 
     private Instant collectedAt;

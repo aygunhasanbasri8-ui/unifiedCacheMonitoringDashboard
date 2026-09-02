@@ -39,7 +39,6 @@ public class HazelcastMonitor implements CacheMonitor {
     private final KeyMasker keyMasker;
     private final KeySecurityConfig keySecurityConfig;
 
-    /** Rehber §5.7 — map içi entry taramasında üst sınır (tam tarama yasak). */
     @Value("${ucmd.key-search.hazelcast-max-scan-entries:5000}")
     private int hazelcastMaxScanEntries;
 
@@ -84,8 +83,7 @@ public class HazelcastMonitor implements CacheMonitor {
 
             Cluster cluster = client.getCluster();
 
-            // Rehber §5.6 — gerçek member uptime Prometheus'ta (runtime.uptime, ms).
-            // Prometheus yoksa cluster time farkına düşülür.
+            // Prometheus yoksa cluster time farkına düş
             List<NodeMetrics> nodes = metricsClient.fetchAllNodes(instance);
             Double uptimeMs = HazelcastMetricsClient.max(nodes, n -> n.hz("uptime", "runtime"));
             long uptimeSeconds = (uptimeMs != null)
@@ -114,14 +112,12 @@ public class HazelcastMonitor implements CacheMonitor {
                 return unavailableResourceStats(MetricStatus.NOT_APPLICABLE);
             }
 
-            // Cluster toplam heap kullanımı (tüm node'lar toplanır)
             Double usedHeap = HazelcastMetricsClient.sum(nodes,
                     n -> n.value("jvm_memory_bytes_used", "area", "heap"));
             Double maxHeap = HazelcastMetricsClient.sum(nodes,
                     n -> n.value("jvm_memory_bytes_max", "area", "heap"));
 
-            // CPU: node ortalaması (oransal değer, toplanmaz).
-            // processcpuload iki yerde var — prefix="os" olanı doğrusu.
+            // processcpuload iki yerde var — prefix="os" olanı doğrusu
             Double cpuLoad = HazelcastMetricsClient.avg(nodes,
                     n -> n.hz("processcpuload", "os"));
             if (cpuLoad != null && (cpuLoad < 0 || cpuLoad > 1)) {
@@ -143,7 +139,6 @@ public class HazelcastMonitor implements CacheMonitor {
                     ? MetricStatus.AVAILABLE : MetricStatus.UNAVAILABLE);
             stats.setFragmentationStatus(MetricStatus.NOT_APPLICABLE);
 
-            // ── §5.6 JVM metrikleri ──
             Double systemCpu = HazelcastMetricsClient.avg(nodes, n -> n.value("java_lang_operatingsystem_systemcpuload"));
 
             if (systemCpu != null && (systemCpu < 0 || systemCpu > 1 )) {
@@ -159,7 +154,6 @@ public class HazelcastMonitor implements CacheMonitor {
             stats.setNonHeapMaxBytes(toLong(HazelcastMetricsClient.sum(nodes,
                     n -> n.value("jvm_memory_bytes_max", "area", "nonheap"))));
 
-            // GC: tüm collector'lar (G1 Young + G1 Old) toplanır
             stats.setGcCollectionCount(toLong(HazelcastMetricsClient.sum(nodes,
                     n -> n.sumByLabel("jvm_gc_collection_seconds_count", "gc"))));
             stats.setGcCollectionSeconds(HazelcastMetricsClient.sum(nodes,
@@ -182,8 +176,7 @@ public class HazelcastMonitor implements CacheMonitor {
             stats.setLoadedClassCount(toLong(HazelcastMetricsClient.sum(nodes,
                     n -> n.value("jvm_classes_currently_loaded"))));
 
-            // Member uptime — millisaniye cinsinden gelir
-            Double uptimeMs = HazelcastMetricsClient.max(nodes, n -> n.hz("uptime", "runtime"));
+            Double uptimeMs = HazelcastMetricsClient.max(nodes, n -> n.hz("uptime", "runtime")); // ms cinsinden
             stats.setMemberUptimeSeconds(uptimeMs != null ? (long) (uptimeMs / 1000) : null);
 
             stats.setJvmStatus(stats.getNonHeapUsedBytes() != null
@@ -203,7 +196,6 @@ public class HazelcastMonitor implements CacheMonitor {
         }
     }
 
-    /** Kaynak metrikleri alınamadığında dönen boş yanıt. */
     private ResourceStats unavailableResourceStats(MetricStatus fragmentationStatus) {
         ResourceStats down = new ResourceStats(0, 0, 0);
         down.setOverallStatus(MetricStatus.UNAVAILABLE);
@@ -217,7 +209,6 @@ public class HazelcastMonitor implements CacheMonitor {
         return down;
     }
 
-    // ── null-safe dönüştürücüler ──
     private Double mul100(Double v) { return v == null ? null : Math.round(v * 10000.0) / 100.0; }
     private Long toLong(Double v) { return v == null ? null : v.longValue(); }
     private Integer toInt(Double v) { return v == null ? null : v.intValue(); }
@@ -230,7 +221,6 @@ public class HazelcastMonitor implements CacheMonitor {
 
             OperationStatsInfo o = new OperationStatsInfo();
 
-            // ── operation ──
             o.setQueueSize(sumHz(nodes, "queuesize", "operation"));
             o.setPriorityQueueSize(sumHz(nodes, "priorityqueuesize", "operation"));
             o.setRunningCount(sumHz(nodes, "runningcount", "operation"));
@@ -242,23 +232,20 @@ public class HazelcastMonitor implements CacheMonitor {
             o.setGenericThreadCount(toInt(HazelcastMetricsClient.sum(nodes,
                     n -> n.hz("genericthreadcount", "operation"))));
 
-            // ── operation.invocations ──
             o.setPendingInvocations(sumHz(nodes, "pending", "operation.invocations"));
             o.setBackupTimeouts(sumHz(nodes, "backuptimeouts", "operation.invocations"));
             o.setNormalTimeouts(sumHz(nodes, "normaltimeouts", "operation.invocations"));
 
-            // ── operation.responses (scrape'te prefix="operation", ad responses_ ön ekli) ──
+            // scrape'te prefix="operation", ad responses_ ön ekli
             o.setResponseErrorCount(sumHz(nodes, "responses_errorcount", "operation"));
             o.setResponseTimeoutCount(sumHz(nodes, "responses_timeoutcount", "operation"));
             o.setResponseMissingCount(sumHz(nodes, "responses_missingcount", "operation"));
 
-            // ── event ──
             o.setEventQueueSize(sumHz(nodes, "eventqueuesize", "event"));
             o.setEventsProcessed(sumHz(nodes, "eventsprocessed", "event"));
             o.setEventRejectedCount(sumHz(nodes, "rejectedcount", "event"));
             o.setSyncDeliveryFailureCount(sumHz(nodes, "syncdeliveryfailurecount", "event"));
 
-            // ── executor.internal ──
             Set<String> executorNames = new LinkedHashSet<>();
             for (NodeMetrics n : nodes) executorNames.addAll(n.objectNames("executor.internal"));
 
@@ -292,8 +279,6 @@ public class HazelcastMonitor implements CacheMonitor {
         }
     }
 
-    // ── operation/event metrik yardımcıları (rehber §5.5) ──
-
     private Long sumHz(List<NodeMetrics> nodes, String metric, String prefix) {
         Double v = HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, prefix));
         return v == null ? null : v.longValue();
@@ -303,8 +288,6 @@ public class HazelcastMonitor implements CacheMonitor {
         Double v = HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, prefix, obj));
         return v == null ? null : v.longValue();
     }
-
-    // ── map metrik yardımcıları (rehber §5.3) ──
 
     private Long sumMapMetric(List<NodeMetrics> nodes, String metric, String mapName) {
         Double v = HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, "map", mapName));
@@ -316,7 +299,7 @@ public class HazelcastMonitor implements CacheMonitor {
         return v == null ? null : v.longValue();
     }
 
-    /** Hazelcast latency toplamları mikrosaniye cinsindendir. */
+    // latency toplamları mikrosaniye cinsinden gelir
     private Double avgLatency(Long totalMicros, Long opCount) {
         if (totalMicros == null || opCount == null || opCount == 0) return null;
         return Math.round(((double) totalMicros / opCount / 1000.0) * 1000.0) / 1000.0;
@@ -330,8 +313,6 @@ public class HazelcastMonitor implements CacheMonitor {
                 return unavailableConnectionStats();
             }
 
-            // Rehber §5.2 — gerçek client sayısı tcp.connection prefix'inde.
-            // Member sayısı ClusterInfo.nodeCount'ta zaten var, burada tekrarlanmaz.
             List<NodeMetrics> nodes = metricsClient.fetchAllNodes(instance);
             ConnectionStats stats = new ConnectionStats(0, 0, 0);
 
@@ -350,8 +331,7 @@ public class HazelcastMonitor implements CacheMonitor {
                 stats.setTotalConnectionsReceived(activeConn.longValue());
             }
 
-            // Hazelcast'te maxclients kavramı yok
-            stats.setMaxClientsStatus(MetricStatus.NOT_APPLICABLE);
+            stats.setMaxClientsStatus(MetricStatus.NOT_APPLICABLE); // Hazelcast'te maxclients yok
             stats.setBlockedClientsStatus(MetricStatus.NOT_APPLICABLE);
             stats.setErrorStatus(MetricStatus.NOT_APPLICABLE);
             stats.setOverallStatus(nodes.isEmpty()
@@ -482,7 +462,6 @@ public class HazelcastMonitor implements CacheMonitor {
         }
     }
 
-    /** Rehber §5.4 — gerçek partition sayısı, member başına dağılım ve skew. */
     private void applyPartitionMetrics(HazelcastInstance client, ClusterInfo info) {
         try {
             PartitionService ps = client.getPartitionService();
@@ -559,7 +538,7 @@ public class HazelcastMonitor implements CacheMonitor {
                 long size = client.getMap(mapName).size();
                 totalEntries += size;
 
-                // Yanıttaki ad maskeli, Prometheus sorgusu HAM mapName ile yapılır
+                // yanıtta maskeli isim, Prometheus sorgusunda ham mapName
                 MapStatsInfo.MapDetail d =
                         new MapStatsInfo.MapDetail(keyMasker.mask(mapName), size);
 
@@ -585,7 +564,6 @@ public class HazelcastMonitor implements CacheMonitor {
                     d.setLastAccessTime(sumMapMetricMax(nodes, "lastaccesstime", mapName));
                     d.setLastUpdateTime(sumMapMetricMax(nodes, "lastupdatetime", mapName));
 
-                    // Ortalama gecikme: toplam latency / operasyon sayısı (mikrosaniye → ms)
                     d.setAvgGetLatencyMillis(avgLatency(
                             sumMapMetric(nodes, "totalgetlatency", mapName), d.getGetCount()));
                     d.setAvgPutLatencyMillis(avgLatency(
@@ -631,11 +609,10 @@ public class HazelcastMonitor implements CacheMonitor {
         if (mapName == null || mapName.isBlank()) {
             return scanMapNames(client, instance, search, mode, count);
         }
-        // mapName doluysa: o map içindeki entry key'lerini ara (rehber §5.7)
+        // mapName doluysa: o map içindeki entry key'lerini ara
         return scanMapEntries(client, instance, mapName, search, mode, cursor, count);
     }
 
-    /** IMap adlarını listeler — eski davranış, map seçimi için korunur. */
     private PageInfo<KeyInfo> scanMapNames(HazelcastInstance client, InstanceRef instance,
                                            String search, MatchMode mode, int count) {
         List<KeyInfo> keys = new ArrayList<>();
@@ -663,10 +640,7 @@ public class HazelcastMonitor implements CacheMonitor {
         return new PageInfo<>(keys, "0", false, count);
     }
 
-    /**
-     * Rehber §5.7 — map içi entry araması. Kontrollü sampling, tam tarama yok:
-     * en çok {@code hazelcastMaxScanEntries} entry taranır, sonuç ESTIMATED işaretlenir.
-     */
+    // Tam tarama yok — sonuç ESTIMATED işaretlenir
     private PageInfo<KeyInfo> scanMapEntries(HazelcastInstance client, InstanceRef instance,
                                              String mapName, String search, MatchMode mode,
                                              String cursor, int count) {
@@ -804,7 +778,7 @@ public class HazelcastMonitor implements CacheMonitor {
                              : new KeyTtlResponse(key, -2, TtlStatus.NOT_FOUND);
             }
 
-            // mapName varsa: o map içindeki entry'nin TTL'i (rehber §5.7)
+            // mapName varsa: o map içindeki entry'nin TTL'i
             if (!keySecurityConfig.isMapAllowed(mapName)) {
                 throw new MapNotAllowedException("map izin verilen listede değil");
             }
@@ -844,7 +818,6 @@ public class HazelcastMonitor implements CacheMonitor {
         return ReplicationInfo.notApplicable();
     }
 
-    /** Hazelcast persistence (Hot Restart) enterprise özelliğidir. */
     @Override
     public PersistenceInfo getPersistenceInfo(InstanceRef instance) {
         return PersistenceInfo.notApplicable();
@@ -853,7 +826,6 @@ public class HazelcastMonitor implements CacheMonitor {
     @Override
     public List<KeyPatternStats> getKeyPatternStats(InstanceRef instance,
                                                     List<KeyPatternConfig.PatternDef> patterns) {
-        // Hazelcast'te "key" = IMap adı. Map'leri desenlere göre grupla.
         List<KeyPatternStats> result = new ArrayList<>();
         for (KeyPatternConfig.PatternDef def : patterns) {
             result.add(new KeyPatternStats(def.getPattern(), def.getLabel()));

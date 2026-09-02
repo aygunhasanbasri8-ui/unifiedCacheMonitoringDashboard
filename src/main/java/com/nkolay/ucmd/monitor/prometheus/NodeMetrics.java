@@ -5,7 +5,7 @@ import java.util.*;
 /**
  * Tek bir node'un tüm metrikleri + sorgulama API'si.
  *
- * Bulunamayan metrik için {@code null} döner — sahte sıfır rehber §12'nin ihlalidir.
+
  * Çağıran taraf null kontrolüyle UNAVAILABLE statüsü set eder.
  */
 public class NodeMetrics {

@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import java.util.regex.Pattern;
 
 /**
- * Rehber §9 — key isimlerindeki tanımlayıcıları maskeler.
+
  * Fintech ortamında key adı hassas veri taşır: "ucmd:merchant:88123:commission"
  * üye işyeri numarasını açığa çıkarır.
  *

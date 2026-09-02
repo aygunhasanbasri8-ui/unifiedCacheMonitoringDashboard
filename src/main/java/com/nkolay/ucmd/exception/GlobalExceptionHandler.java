@@ -29,7 +29,6 @@ public class GlobalExceptionHandler {
 
     private static final String TRACE_HEADER = "X-Request-Id";
 
-    // ═══════════════ Handler'lar ═══════════════
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(
@@ -63,7 +62,7 @@ public class GlobalExceptionHandler {
                 e.getMessage(), request);
     }
 
-    /** Rehber §5.7 — yetki kısıtı (girdi hatası değil) → 403. */
+    
     @ExceptionHandler(MapNotAllowedException.class)
     public ResponseEntity<ErrorResponse> handleMapNotAllowed(
             MapNotAllowedException e, HttpServletRequest request) {
@@ -80,7 +79,6 @@ public class GlobalExceptionHandler {
                 "Null value encountered", request);
     }
 
-    // ═══════════════ Koruma katmanı ═══════════════
 
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ErrorResponse> handleRateLimit(
@@ -114,7 +112,6 @@ public class GlobalExceptionHandler {
                 "Sorgu zaman aşımına uğradı", request);
     }
 
-    // ═══════════════ Spring framework hataları ═══════════════
 
     /** Gövde okunamadı: bozuk JSON, eksik body, tip hatası. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -188,7 +185,6 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred", request);
     }
 
-    // ═══════════════ Yardımcılar ═══════════════
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status,
                                                 String typeSuffix,

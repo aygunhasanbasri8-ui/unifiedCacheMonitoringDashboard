@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 /**
- * Rehber §7/§8 — prod profilinde TLS ve secret zorunluluğu.
+
  * Eksik yapılandırmayla ayağa kalkmak yerine açılışta patlar.
  */
 @Configuration

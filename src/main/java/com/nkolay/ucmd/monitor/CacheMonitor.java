@@ -31,10 +31,10 @@ public interface CacheMonitor {
 
     ClusterInfo getClusterInfo(InstanceRef instance);
 
-    /** Rehber §5.3 — map/data structure istatistikleri. Redis'te NOT_APPLICABLE. */
+
     MapStatsInfo getMapStats(InstanceRef instance);
 
-    /** Rehber §5.5 — operation/event metrikleri. Redis'te NOT_APPLICABLE. */
+
     OperationStatsInfo getOperationStats(InstanceRef instance);
 
     /** @param mapName Hazelcast'te aranacak IMap; null ise map adları listelenir. Redis'te yok sayılır. */

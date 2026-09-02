@@ -23,8 +23,6 @@ import java.util.List;
 @Service
 public class MonitoringServiceImpl implements MonitoringService {
 
-
-
     private final Logger logger = LoggerFactory.getLogger(MonitoringServiceImpl.class);
 
     private final MonitorRegistry monitorRegistry;
@@ -53,7 +51,6 @@ public class MonitoringServiceImpl implements MonitoringService {
                 .forEach(instanceRepository::save);
     }
 
-    // ===== Instance CRUD =====
     @Override
     public List<InstanceRef> getAllInstances() {
         return instanceRepository.findAll();
@@ -94,8 +91,6 @@ public class MonitoringServiceImpl implements MonitoringService {
     }
 
 
-    /// ===== Metrics =====
-
     @Override
     public HealthInfo getInstanceHealth(Long id) {
         InstanceRef instance = getInstanceById(id);
@@ -109,7 +104,7 @@ public class MonitoringServiceImpl implements MonitoringService {
         }
         if (result.isStale()) {
             HealthInfo stale = result.value();
-            // Bayat sağlık bilgisi UP gösterilmemeli
+            // Bayat veri varken UP göstermemeye dikkat et
             HealthInfo down = new HealthInfo("DOWN", stale.getVersion(), stale.getUptimeSeconds());
             down.setMeta(result.toMeta());
             return down;
@@ -331,7 +326,6 @@ public class MonitoringServiceImpl implements MonitoringService {
         return info;
     }
 
-    /** SCAN tabanlı — pahalı işlem, tüm korumalar aktif, cache yok. */
     @Override
     public List<KeyPatternStats> getKeyPatternStats(Long id) {
         InstanceRef instance = getInstanceById(id);
@@ -342,8 +336,6 @@ public class MonitoringServiceImpl implements MonitoringService {
 
         return stats != null ? stats : new ArrayList<>();
     }
-
-    ///=== Unavailable DTO ===
 
     private ResourceStats unavailableResourceStats() {
         ResourceStats s = new ResourceStats(0,0,0);

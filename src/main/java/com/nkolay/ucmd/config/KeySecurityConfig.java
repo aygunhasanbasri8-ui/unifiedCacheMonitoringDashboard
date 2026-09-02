@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Rehber §9 — key erişim güvenliği: prefix allowlist ve maskeleme. */
 @Configuration
 @ConfigurationProperties(prefix = "ucmd.security")
 public class KeySecurityConfig {

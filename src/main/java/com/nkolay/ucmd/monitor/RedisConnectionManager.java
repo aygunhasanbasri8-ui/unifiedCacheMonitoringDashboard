@@ -14,13 +14,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Her Redis instance'ı için ayrı bağlantı tutar (host:port:username bazlı).
- * Bağlantılar önbelleğe alınır — her istekte yeni bağlantı açılmaz.
- *
- * Parola veritabanında saklanmaz; instance yalnızca hangi environment
- * değişkeninden okunacağının ADINI taşır (rehber §9).
- */
+// Parola DB'de saklanmaz; instance hangi env değişkeninden okunacağının adını taşır
 @Component
 public class RedisConnectionManager {
 
@@ -31,11 +25,6 @@ public class RedisConnectionManager {
             new ConcurrentHashMap<>();
     private final Map<String, RedisClient> clients = new ConcurrentHashMap<>();
 
-    /**
-     * Verilen instance için bağlantı döner (yoksa kurar).
-     * Aynı sunucuya farklı kullanıcıyla bağlanma senaryosu için cache anahtarı
-     * kullanıcı adını da içerir.
-     */
     public StatefulRedisConnection<byte[], byte[]> getConnection(InstanceRef instance) {
         String host = instance.getHost();
         int port = instance.getPort();
@@ -78,16 +67,25 @@ public class RedisConnectionManager {
         });
     }
 
-    /** Parolayı environment değişkeninden okur. Tanımlı değilse null. */
     private String resolvePassword(InstanceRef instance) {
         String envVar = instance.getPasswordEnvVar();
-        if (envVar == null || envVar.isBlank()) return null;
-
-        String value = System.getenv(envVar);
-        if (value == null || value.isBlank()) {
-            logger.warn("Instance '{}' için parola env değişkeni '{}' tanımlı değil",
-                    instance.getName(), envVar);
+        if (envVar == null || envVar.isBlank()) {
+            return null;
         }
+
+        String sanitizedEnvVar = envVar.trim();
+        String value = System.getenv(sanitizedEnvVar);
+
+        if (value == null || value.isBlank()) {
+            value = System.getProperty(sanitizedEnvVar);
+        }
+
+        if (value == null || value.isBlank()) {
+            logger.warn("Instance '{}' için parola env değişkeni '{}' tanımlı değil veya boş",
+                    instance.getName(), sanitizedEnvVar);
+            return null;
+        }
+
         return value;
     }
 

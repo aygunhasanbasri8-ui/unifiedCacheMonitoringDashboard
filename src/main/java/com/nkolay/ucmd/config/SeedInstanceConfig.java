@@ -8,9 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import java.util.ArrayList;
 import java.util.List;
 
-/** İlk açılışta instances tablosu boşsa oluşturulan varsayılan instance kayıtları.
- *  Adresler application.yml'de ortam değişkeniyle override edilebilir; host üzerinde
- *  localhost, Docker Compose'ta servis adları kullanılır. */
 @Configuration
 @ConfigurationProperties(prefix = "ucmd.seed")
 public class SeedInstanceConfig {

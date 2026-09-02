@@ -16,7 +16,7 @@ services:
   redis-2:
     image: redis:7
     container_name: redis-2
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_CACHE_PASSWORD}
     ports:
       - "6380:6379"
     healthcheck:
@@ -79,12 +79,12 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_DB: ucmd_db
-      POSTGRES_USER: ucmd_user
-      POSTGRES_PASSWORD: ucmd_pass
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER tanimli degil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD tanimli degil}
     volumes:
       - ucmd-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ucmd_user -d ucmd_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ucmd_user} -d ucmd_db"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -107,8 +107,8 @@ services:
     ports:
       - "3001:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER tanimli degil}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD tanimli degil}
     depends_on:
       - prometheus
     networks:
@@ -124,12 +124,13 @@ services:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ucmd_db
-      SPRING_DATASOURCE_USERNAME: ucmd_user
-      SPRING_DATASOURCE_PASSWORD: ucmd_pass
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       HAZELCAST_CLUSTER_NAME: dev
       HAZELCAST_METRICS_URL: http://hz-analytics:9404/metrics
+
       # Zorunlu, en az 32 karakter. .env dosyasından okunur (bkz. .env.example)
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET tanimli degil - .env.example dosyasini .env olarak kopyalayin}
       # İlk açılışta oluşturulan yönetici hesabı (dev profilinde zorunlu)
@@ -148,6 +149,7 @@ services:
       UCMD_SEED_HZ_ANALYTICS_HOST: hz-analytics
       UCMD_SEED_HZ_ANALYTICS_PORT: 5701
       UCMD_SEED_HZ_ANALYTICS_MEMBERS: hz-analytics:5701
+      REDIS_CACHE_PASSWORD: ${REDIS_CACHE_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy

@@ -16,8 +16,8 @@ spring:
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ucmd_db}
-    username: ${SPRING_DATASOURCE_USERNAME:ucmd_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:ucmd_pass}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:

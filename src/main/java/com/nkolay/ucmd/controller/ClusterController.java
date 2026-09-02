@@ -21,9 +21,7 @@ public class ClusterController {
     public ClusterController(MonitoringService monitoringService) {this.monitoringService = monitoringService;}
 
     @Operation(summary = "Cluster bilgisi",
-               description = "Rehber §5.4 — üye listesi, gerçek partition sayısı, "
-                       + "member başına partition dağılımı, skew yüzdesi ve cluster-safe "
-                       + "durumu. Redis standalone'da NOT_APPLICABLE döner.")
+               description = "Üye listesi, partition sayısı, member başına dağılım, skew yüzdesi ve cluster-safe durumu. Redis standalone'da NOT_APPLICABLE döner.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")

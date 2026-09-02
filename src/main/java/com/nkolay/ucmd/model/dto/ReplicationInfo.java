@@ -5,7 +5,7 @@ import com.nkolay.ucmd.enums.MetricStatus;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Rehber §4.5 — INFO replication. Standalone'da NOT_APPLICABLE. */
+
 public class ReplicationInfo {
 
     private String role;                    // master | slave

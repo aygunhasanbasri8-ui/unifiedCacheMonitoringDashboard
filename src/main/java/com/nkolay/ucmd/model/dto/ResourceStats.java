@@ -16,7 +16,6 @@ public class ResourceStats {
 
     private long fragmentationBytes;
 
-    // ── Rehber §5.6 — JVM metrikleri (Hazelcast; Redis'te null) ──
     private Double systemCpuPercent;
     private Double systemLoadAverage;
     private Long nonHeapUsedBytes;
@@ -87,7 +86,6 @@ public class ResourceStats {
     public MetricMeta getMeta() {return meta;}
     public void setMeta(MetricMeta meta) {this.meta = meta;}
 
-    // ── Rehber §5.6 — JVM metrikleri ──
 
     public Double getSystemCpuPercent() { return systemCpuPercent; }
     public void setSystemCpuPercent(Double v) { this.systemCpuPercent = v; }

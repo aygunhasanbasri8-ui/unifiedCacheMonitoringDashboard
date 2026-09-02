@@ -10,12 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Rehber §6 — UCMD'nin kendi toplama sağlığını Micrometer'a yazar.
- *
- * Gauge'lar için AtomicLong referansı tutulur; her çağrıda yeniden kayıt
- * yapılmaz (meter duplication hatası verir).
- */
+// Gauge'lar için AtomicLong referansı tutulur; her çağrıda yeniden kayıt yapılmaz
 @Component
 public class CollectionMetrics {
 
@@ -39,7 +34,6 @@ public class CollectionMetrics {
         this.registry = registry;
     }
 
-    // ═══════════════ Toplama ═══════════════
 
     public void recordCollectionSuccess(String instanceName, long durationMillis) {
         durationTimers.computeIfAbsent(instanceName, n -> Timer.builder("ucmd.collection.duration")
@@ -68,7 +62,6 @@ public class CollectionMetrics {
         lastSuccessGauge(instanceName);
     }
 
-    // ═══════════════ Koruma katmanı reddetmeleri ═══════════════
 
     public void recordTimeout(String instanceName, String operation) {
         timeoutCounters.computeIfAbsent(instanceName, n -> Counter.builder("ucmd.protection.timeout")
@@ -102,7 +95,6 @@ public class CollectionMetrics {
                 .increment();
     }
 
-    // ═══════════════ Tarama ═══════════════
 
     public void recordKeysScanned(String instanceName, long count) {
         keysScannedCounters.computeIfAbsent(instanceName, n -> Counter.builder("ucmd.scan.keys.scanned")
@@ -123,22 +115,18 @@ public class CollectionMetrics {
         }
     }
 
-    // ═══════════════ Okuma (CollectionHealthInfo için) ═══════════════
 
-    /** Son başarılı toplamanın epoch saniyesi; hiç yoksa 0. */
     public long lastSuccessEpochSeconds(String instanceName) {
         AtomicLong value = lastSuccessEpoch.get(instanceName);
         return value != null ? value.get() : 0;
     }
 
-    /** Son başarılı toplamadan bu yana geçen saniye; hiç yoksa -1. */
     public long staleAgeSeconds(String instanceName) {
         long last = lastSuccessEpochSeconds(instanceName);
         if (last <= 0) return -1;
         return Math.max(0, (System.currentTimeMillis() / 1000) - last);
     }
 
-    // ═══════════════ Gauge kaydı (yalnızca ilk çağrıda) ═══════════════
 
     private AtomicLong lastSuccessGauge(String instanceName) {
         return lastSuccessEpoch.computeIfAbsent(instanceName, n -> {

@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/** Rehber §7 — yazma uçları monitoring API yüzeyinden ayrılmıştır. */
 @Tag(name = "Admin — Instances", description = "Instance kaydı oluşturma/güncelleme/silme (yalnızca ADMIN)")
 @RestController
 @RequestMapping("/v1/admin/instances")

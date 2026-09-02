@@ -16,11 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-/**
- * Hazelcast cluster üyelerinin jmx_exporter endpoint'lerinden metrik okur.
- * Her node ayrı bir {@link NodeMetrics} olarak döner; cluster geneli değerler
- * {@link #sum}, {@link #avg}, {@link #max} ile toplanır.
- */
 @Component
 public class HazelcastMetricsClient {
 
@@ -30,7 +25,7 @@ public class HazelcastMetricsClient {
             .connectTimeout(Duration.ofSeconds(3))
             .build();
 
-    /** Instance'ın metricsUrl'indeki tüm node'lardan metrik çeker. */
+
     public List<NodeMetrics> fetchAllNodes(InstanceRef instance) {
         List<NodeMetrics> result = new ArrayList<>();
 
@@ -53,7 +48,7 @@ public class HazelcastMetricsClient {
         return result;
     }
 
-    /** Tek bir node'dan metrikleri çeker. Başarısızlıkta null. */
+
     private NodeMetrics fetchFromUrl(String url) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -77,9 +72,6 @@ public class HazelcastMetricsClient {
         }
     }
 
-    // ═══════════════ Cluster geneli toplayıcılar ═══════════════
-
-    /** Tüm node'lardan toplar. Hiçbir node'da yoksa null. */
     public static Double sum(List<NodeMetrics> nodes, Function<NodeMetrics, Double> extractor) {
         double total = 0;
         boolean found = false;
@@ -92,7 +84,6 @@ public class HazelcastMetricsClient {
         return found ? total : null;
     }
 
-    /** Node ortalaması (oransal değerler için). Hiçbir node'da yoksa null. */
     public static Double avg(List<NodeMetrics> nodes, Function<NodeMetrics, Double> extractor) {
         double total = 0;
         int count = 0;
@@ -105,7 +96,6 @@ public class HazelcastMetricsClient {
         return count > 0 ? total / count : null;
     }
 
-    /** En büyük değer (peak metrikleri için). Hiçbir node'da yoksa null. */
     public static Double max(List<NodeMetrics> nodes, Function<NodeMetrics, Double> extractor) {
         Double best = null;
         for (NodeMetrics node : nodes) {

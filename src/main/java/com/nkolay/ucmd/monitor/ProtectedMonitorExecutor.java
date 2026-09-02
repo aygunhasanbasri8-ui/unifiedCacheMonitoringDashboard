@@ -28,12 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
-/**
- * Monitor çağrılarını koruma katmanından geçirir (rehber §2.2, §2.3).
- *
- * Sıra: cache → rate limiter → bulkhead → circuit breaker → timeout → çağrı
- * Cache en dışta: hit durumunda hiçbir limit tüketilmez.
- */
+// Sıra: cache → rate limiter → bulkhead → circuit breaker → timeout → çağrı
+// Cache en dışta: hit olduğunda hiçbir limit tüketilmez
 @Component
 public class ProtectedMonitorExecutor {
 
@@ -66,12 +62,6 @@ public class ProtectedMonitorExecutor {
         this.collectionMetrics = collectionMetrics;
     }
 
-    // ═══════════════ Genel API ═══════════════
-
-    /**
-     * UCUZ + CACHE'Lİ okuma (metrik uçları).
-     */
-
     public <T> CachedResult<T> executeCachedMetric(InstanceRef instance, String operation, Supplier<T> call) {
         return executeCachedMetric(instance, operation, operation, call);
     }
@@ -98,8 +88,6 @@ public class ProtectedMonitorExecutor {
 
         } catch (MonitorTimeoutException e) {
             logger.warn("Metric call '{}' timed out for {}", logLabel, instance.getName());
-
-            // Son bilinen değer varsa STALE olarak dön, yoksa TIMEOUT
             Timestamped<T> lastKnown = (Timestamped<T>) lastKnownCache.getIfPresent(key);
             if (lastKnown != null) {
                 logger.debug("Serving STALE value for {} / {}", instance.getName(), logLabel);
@@ -120,11 +108,7 @@ public class ProtectedMonitorExecutor {
         }
     }
 
-    /**
-     * PAHALI okuma (SCAN tabanlı: key tarama, top-N, pattern istatistikleri).
-     * Tüm korumalar aktif; reddedilirse exception fırlar → 429 / 503 / 504.
-     * Cache YOK (karar 3.3 — parametre uzayı çok geniş).
-     */
+    // Cache yok — SCAN tabanlı; parametre uzayı her çağrıda farklı olabilir
     public <T> T executeExpensive(InstanceRef instance, String operation, Supplier<T> call) {
         collectionMetrics.scanStarted(instance.getName());
         try {
@@ -134,8 +118,6 @@ public class ProtectedMonitorExecutor {
             collectionMetrics.scanFinished(instance.getName());
         }
     }
-
-    // ═══════════════ Çekirdek ═══════════════
 
     private <T> T runProtected(InstanceRef instance,
                                String operation,
@@ -156,7 +138,7 @@ public class ProtectedMonitorExecutor {
             }
         }
 
-        // 2) Bulkhead — instance bazlı eş zamanlılık limiti
+        // 2) Bulkhead
         Bulkhead bulkhead = bulkheadRegistry.bulkhead(
                 bulkheadConfigName + "-" + id, bulkheadConfigName);
 
@@ -166,7 +148,6 @@ public class ProtectedMonitorExecutor {
                 throw new InstanceBusyException(
                         "instance '" + instance.getName() + "' eş zamanlılık limitinde");
             }
-            // Ucuz işlemlerde bulkhead dolu → korumasız devam etme, hata say
             throw new InstanceBusyException("instance '" + instance.getName() + "' meşgul");
         }
 
@@ -198,7 +179,6 @@ public class ProtectedMonitorExecutor {
         }
     }
 
-    /** Çağrıyı virtual thread'e verip timeout uygular. */
     private <T> T withTimeout(Supplier<T> call, long timeoutMs,
                               InstanceRef instance, String operation) {
         Future<T> future = virtualThreadExecutor.submit(call::get);
@@ -225,8 +205,6 @@ public class ProtectedMonitorExecutor {
         }
     }
 
-    // ═══════════════ Yardımcılar ═══════════════
-
     private String instanceKey(InstanceRef instance) {
         return String.valueOf(instance.getId());
     }
@@ -235,19 +213,14 @@ public class ProtectedMonitorExecutor {
         return instance.getId() + ":" + operation;
     }
 
-    /** Belirli bir instance'ın cache'ini temizler (yapılandırma değişince). */
     public void invalidate(InstanceRef instance) {
         String prefix = instance.getId() + ":";
         metricsCache.asMap().keySet().removeIf(k -> k.startsWith(prefix));
         lastKnownCache.asMap().keySet().removeIf(k -> k.startsWith(prefix));
     }
 
-    // ═══════════════ Sonuç sarmalayıcı ═══════════════
-
-    /** Değerin taze mi, bayat mı, yok mu olduğunu taşır. */
     public record Timestamped<T>(T value, Instant collectedAt) {}
 
-    /** Değerin taze mi, bayat mı, yok mu olduğunu taşır. */
     public record CachedResult<T>(T value, Freshness freshness, Instant collectedAt) {
         public enum Freshness { FRESH, STALE, UNAVAILABLE, TIMEOUT }
 
@@ -267,7 +240,6 @@ public class ProtectedMonitorExecutor {
         public boolean isUnavailable() { return freshness == Freshness.UNAVAILABLE; }
         public boolean isTimeout() { return freshness == Freshness.TIMEOUT; }
 
-        /** DTO'ya gömülecek meta bilgisi. */
         public MetricMeta toMeta() {
             return new MetricMeta(collectedAt, isStale());
         }
