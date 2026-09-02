@@ -306,8 +306,12 @@ değerlerini kullanın.
 **Nasıl çalışır**
 
 - `ucmd-frontend` nginx, `/api/` isteklerini container ağı üzerinden
-  `ucmd-backend:8080`'e proxy'ler. Tarayıcı açısından API aynı origin'dedir,
-  bu yüzden **CORS yapılandırması gerekmez**.
+  `ucmd-backend:8080`'e proxy'ler. Tarayıcı açısından API aynı origin'dedir.
+  Buna rağmen tarayıcı POST isteklerinde `Origin` başlığı gönderdiği için
+  `http://localhost:3000` backend'in izin listesinde olmak zorundadır
+  (`ucmd.cors.allowed-origins`, gerekirse `UCMD_CORS_ALLOWED_ORIGINS` ile
+  override edilir). Listede değilse Spring isteği `403 Invalid CORS request`
+  ile reddeder ve giriş ekranı "Kullanıcı adı veya şifre hatalı" gösterir.
 - Frontend imajı `VITE_API_BASE_URL=/api` ile derlenir. Host'ta `npm run dev`
   bu değişkeni tanımlamaz, `client.js` `http://localhost:8080/api`'ye düşer —
   yani iki çalışma biçimi de bozulmadan yan yana durur.

@@ -90,6 +90,11 @@ management:
       application: ucmd
 
 ucmd:
+  # Tarayıcının Origin başlığı gönderdiği her adres burada olmalı.
+  # 5173/5174 = vite dev sunucusu, 3000 = compose'daki nginx frontend.
+  cors:
+    allowed-origins: ${UCMD_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:3000}
+
   # İlk açılışta oluşturulan tek yönetici hesabı.
   # Kimlik bilgileri .env'den gelir; kodda gömülü kullanıcı/parola yoktur.
   # Diğer kullanıcılar bu hesapla UI'daki kullanıcı yönetiminden açılır.
