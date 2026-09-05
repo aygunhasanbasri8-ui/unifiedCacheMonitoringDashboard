@@ -173,7 +173,14 @@ public class RedisMonitor implements CacheMonitor {
             stats.setMemoryStatus(MetricStatus.AVAILABLE);
             stats.setFragmentationStatus(MetricStatus.AVAILABLE);
 
-            stats.setCpuStats(cpuReady ? MetricStatus.AVAILABLE : MetricStatus.UNAVAILABLE);
+            // CPU, iki INFO cpu örneği arasındaki delta ile hesaplanır. İlk çağrıda
+            // (henüz önceki örneklem yok) hesaplanamaz — 0% göstermek "CPU boşta" anlamına
+            // gelir ki yanlış. INFO cpu geldiği hâlde delta hazır değilse NOT_READY;
+            // INFO cpu hiç alınamadıysa UNAVAILABLE (ADR-0003).
+            MetricStatus cpuStatus = cpuReady
+                    ? MetricStatus.AVAILABLE
+                    : (cpuInfo != null ? MetricStatus.NOT_READY : MetricStatus.UNAVAILABLE);
+            stats.setCpuStats(cpuStatus);
             applyJvmNotApplicable(stats);
             return stats;
 

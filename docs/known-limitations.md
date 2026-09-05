@@ -237,6 +237,11 @@ süreçte tutulan tutarlı sayaçlardır.
 olan node'ları dikkate almak; veya `hits > getcount` durumunda oranı `null` bırakıp
 statüyü `UNAVAILABLE` yapmak. İkincisi rehber §12'ye daha uygun.
 
+**Çözüldü (branch `claude`):** `HazelcastMonitor.getMapStats` artık `MapDetail.hitRatio`
+alanını yalnızca veri kendi içinde tutarlıysa (`getcount > 0` ve `hits <= getcount`)
+dolduruyor; aksi hâlde `null` bırakıyor. `getCacheEfficiency` zaten `NOT_APPLICABLE`
+dönüyordu, dokunulmadı.
+
 ---
 
 ## 12. `systemCpuPercent` yüzde değil ⚠️
@@ -256,6 +261,11 @@ anlamsız değer çıkar. `nonHeapMaxBytes` alanında da benzer bir sorun var: h
 **Çözüm yolu (onay bekliyor):** `systemcpuload` için `min(1.0, v)` kırpması veya
 `v > 1` durumunda `null` + `UNAVAILABLE`. `nonHeapMaxBytes` için negatif değer
 görülürse `null` dönmek.
+
+**Çözüldü (branch `claude`):** `systemCpuPercent` için `v < 0 || v > 1` kontrolü
+zaten vardı (metrik `null` oluyor). Eksik olan `nonHeapMaxBytes`/`nonHeapUsedBytes`
+ve heap `max` alanlarına negatif-sentinel koruması eklendi (`nonNegLong` yardımcısı:
+negatif toplam → `null`).
 
 **İlgili:** `threadCount` node'lar arası **toplam** (124), `peakThreadCount` ise
 node'lar arası **maksimum** (98). Karışık semantik nedeniyle `peak < current`
@@ -286,6 +296,13 @@ maskelenmemiş key adı log dosyasına yazılıyor. Bu, ADR-0010'da tanımlanan
 **Çözüm yolu (onay bekliyor):** İlgili iki log satırında
 `keyMasker.maskForLog(operation)` kullanmak. Cache anahtarı ham kalmalı — yalnızca
 log maskelenmeli.
+
+**Zaten çözülmüş (kod incelemesi, branch `claude`):** `executeCachedMetric`
+imzası `(instance, cacheSuffix, logLabel, call)` biçiminde ayrılmış durumda.
+`KeyAnalysisServiceImpl.getKeyTTL` ham key'i yalnızca `cacheSuffix` olarak veriyor
+(cache anahtarı için), `logLabel` olarak sabit `"key-ttl"` geçiyor. `ProtectedMonitorExecutor`
+tüm log satırlarında `logLabel`'ı kullanıyor — ham key log'a düşmüyor. Bu madde
+güncel değil.
 
 ## TLS desteği doğrulanmadı
 
@@ -324,7 +341,7 @@ Hazelcast instance'larında dikkate alınmaz.
 | 7 | Basit downsampling | Tasarım ödünü | `resolution` ile bildiriliyor |
 | 8 | `/health/collection` açık | Bilinçli karar | Hassas veri yok |
 | 9 | Export / value yok | Kapsam dışı | Rehber §11 |
-| 10 | Test yok | Teknik borç | Sonraki faz |
-| 11 | `hitRatio` > 1 | **Hata** | ⚠️ Düzeltme onayı bekliyor |
-| 12 | `systemCpuPercent` yüzde değil | **Hata** | ⚠️ Düzeltme onayı bekliyor |
-| 13 | Log'da ham key | **Güvenlik** | ⚠️ Düzeltme onayı bekliyor |
+| 10 | Test yok | Teknik borç | Güncel değil — 109 test var (ADR-0013) |
+| 11 | `hitRatio` > 1 | **Hata** | ✅ Çözüldü (branch `claude`) — tutarlıysa oran, değilse `null` |
+| 12 | `systemCpuPercent` yüzde değil / `nonHeapMax` = -2 | **Hata** | ✅ Çözüldü (branch `claude`) — negatif-sentinel koruması |
+| 13 | Log'da ham key | **Güvenlik** | ✅ Kodda zaten çözülmüş — `cacheSuffix`/`logLabel` ayrımı; madde güncel değil |

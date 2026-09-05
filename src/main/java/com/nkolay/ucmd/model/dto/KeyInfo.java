@@ -47,12 +47,12 @@ public class KeyInfo {
     public void setTtlStatus(TtlStatus ttlStatus) {this.ttlStatus = ttlStatus;}
 
     public String getTtlDisplay() {
-        if (ttlStatus == null) return "Unknwon";
+        if (ttlStatus == null) return "Unknown";
         return switch (ttlStatus) {
             case PERSISTENT -> "No expiration";
             case NOT_FOUND -> "Key doesn't exist";
             case UNAVAILABLE -> "Unavailable";
-            case EXPIRING -> ttlMillis / 1000 + "seconds";
+            case EXPIRING -> ttlMillis / 1000 + " seconds";
         };
     }
 

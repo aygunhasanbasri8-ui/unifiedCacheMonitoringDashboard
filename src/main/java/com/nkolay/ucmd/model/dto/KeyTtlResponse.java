@@ -37,7 +37,7 @@ public class KeyTtlResponse {
             case PERSISTENT -> "No expiration";
             case NOT_FOUND -> "Key doesn't exist";
             case UNAVAILABLE -> "Unavailable";
-            case EXPIRING -> ttl / 1000 + "seconds";
+            case EXPIRING -> ttl / 1000 + " seconds";
         };
     }
 
