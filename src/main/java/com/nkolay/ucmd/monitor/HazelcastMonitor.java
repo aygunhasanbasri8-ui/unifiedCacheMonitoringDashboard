@@ -129,8 +129,8 @@ public class HazelcastMonitor implements CacheMonitor {
 
             ResourceStats stats = new ResourceStats(
                     cpuLoad != null ? mul100(cpuLoad) : 0.0,
-                    usedHeap != null ? usedHeap.longValue() : 0,
-                    maxHeap != null ? maxHeap.longValue() : 0);
+                    (usedHeap != null && usedHeap >= 0) ? usedHeap.longValue() : 0,
+                    (maxHeap != null && maxHeap >= 0) ? maxHeap.longValue() : 0);
 
             stats.setOverallStatus(MetricStatus.AVAILABLE);
             stats.setCpuStats(cpuLoad != null
@@ -149,9 +149,10 @@ public class HazelcastMonitor implements CacheMonitor {
             stats.setSystemLoadAverage(HazelcastMetricsClient.avg(nodes,
                     n -> n.hz("systemloadaverage", "os")));
 
-            stats.setNonHeapUsedBytes(toLong(HazelcastMetricsClient.sum(nodes,
+            stats.setNonHeapUsedBytes(nonNegLong(HazelcastMetricsClient.sum(nodes,
                     n -> n.value("jvm_memory_bytes_used", "area", "nonheap"))));
-            stats.setNonHeapMaxBytes(toLong(HazelcastMetricsClient.sum(nodes,
+            // nonheap max sınırsızsa her node -1 döner; toplamları -2 gibi sentinel olur → null
+            stats.setNonHeapMaxBytes(nonNegLong(HazelcastMetricsClient.sum(nodes,
                     n -> n.value("jvm_memory_bytes_max", "area", "nonheap"))));
 
             stats.setGcCollectionCount(toLong(HazelcastMetricsClient.sum(nodes,
@@ -212,6 +213,10 @@ public class HazelcastMonitor implements CacheMonitor {
     private Double mul100(Double v) { return v == null ? null : Math.round(v * 10000.0) / 100.0; }
     private Long toLong(Double v) { return v == null ? null : v.longValue(); }
     private Integer toInt(Double v) { return v == null ? null : v.intValue(); }
+
+    // jmx_exporter, sınırsız bir metrik için node başına -1 döndürür; node'lar arası
+    // toplam -2 gibi anlamsız bir "sentinel" olur. Negatif toplamı "bilinmiyor" (null) say.
+    private Long nonNegLong(Double v) { return (v == null || v < 0) ? null : v.longValue(); }
 
     @Override
     public OperationStatsInfo getOperationStats(InstanceRef instance) {
@@ -569,8 +574,16 @@ public class HazelcastMonitor implements CacheMonitor {
                     d.setAvgPutLatencyMillis(avgLatency(
                             sumMapMetric(nodes, "totalputlatency", mapName), d.getPutCount()));
 
-
-                    d.setHitRatio(null);
+                    // hits sayacı entry sahibinde, getcount isteği alan member'da tutulur;
+                    // unisocket modda (ADR-0009) node'lar arası toplamları bölmek geçersiz olabilir
+                    // (hitRatio > 1). Yalnızca veri kendi içinde tutarlıysa oran ver (bilinen sınır #11).
+                    Long hits = d.getHits();
+                    Long gets = d.getGetCount();
+                    if (gets != null && gets > 0 && hits != null && hits >= 0 && hits <= gets) {
+                        d.setHitRatio(Math.round(((double) hits / gets) * 10000.0) / 10000.0);
+                    } else {
+                        d.setHitRatio(null);
+                    }
                 }
 
                 details.add(d);
