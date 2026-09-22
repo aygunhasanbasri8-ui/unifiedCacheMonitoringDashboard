@@ -27,8 +27,6 @@ public class UserServiceImpl implements UserService {
         this.bootstrapUser = bootstrapUser;
     }
 
-    /** İlk açılışta yapılandırmadaki tek yönetici hesabını oluşturur.
-     *  Hesap zaten varsa parolası değiştirilmez. */
     @PostConstruct
     public void initBootstrapUser() {
         if ("production".equalsIgnoreCase(System.getenv("APP_ENVIRONMENT"))) {

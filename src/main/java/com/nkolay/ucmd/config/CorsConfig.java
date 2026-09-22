@@ -5,10 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** İzin verilen origin listesi yapılandırmadan gelir (ucmd.cors.allowed-origins).
- *  Tarayıcı same-origin POST isteklerinde de Origin başlığı gönderdiği için,
- *  nginx arkasından servis edilen frontend'in origin'i de listede olmalıdır —
- *  aksi halde Spring isteği "Invalid CORS request" ile 403 döner. */
+// Tarayıcı aynı origin'e POST yaparken de Origin başlığı gönderir.
+// nginx üzerinden gelen isteklerin origin'i listede olmazsa Spring 403 döner.
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 

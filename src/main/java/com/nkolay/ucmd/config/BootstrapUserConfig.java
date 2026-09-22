@@ -3,9 +3,6 @@ package com.nkolay.ucmd.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-/** İlk açılışta oluşturulan tek yönetici hesabı.
- *  Kullanıcı adı ve parola yapılandırmadan (.env) gelir; kodda gömülü
- *  kimlik bilgisi yoktur. Diğer kullanıcılar bu hesapla UI üzerinden açılır. */
 @Configuration
 @ConfigurationProperties(prefix = "ucmd.bootstrap-user")
 public class BootstrapUserConfig {

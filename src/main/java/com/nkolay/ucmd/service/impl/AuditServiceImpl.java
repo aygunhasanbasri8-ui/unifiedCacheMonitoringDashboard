@@ -13,10 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-/**
- * Rehber §9 — denetim kaydı DB'de tutulur.
- * Kapsam: kimlik doğrulama, mutasyon ve key erişimi. Metrik uçları loglanmaz.
- */
 @Service
 public class AuditServiceImpl implements AuditService {
 

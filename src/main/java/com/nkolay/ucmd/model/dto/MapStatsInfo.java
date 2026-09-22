@@ -5,7 +5,7 @@ import com.nkolay.ucmd.enums.MetricStatus;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Rehber §5.3 — Hazelcast map metrikleri. */
+
 public class MapStatsInfo {
 
     private int mapCount;
@@ -64,7 +64,6 @@ public class MapStatsInfo {
         private Long hits;
         private MetricStatus entryCountStatus;
 
-        // ── Rehber §5.3 — Prometheus scrape'ten gelen detaylar ──
         private Long ownedEntryCount;
         private Long backupEntryMemoryCost;
         private Long heapCost;
@@ -114,7 +113,6 @@ public class MapStatsInfo {
             this.entryCountStatus = entryCountStatus;
         }
 
-        // ── Rehber §5.3 detayları ──
 
         public Long getOwnedEntryCount() { return ownedEntryCount; }
         public void setOwnedEntryCount(Long v) { this.ownedEntryCount = v; }

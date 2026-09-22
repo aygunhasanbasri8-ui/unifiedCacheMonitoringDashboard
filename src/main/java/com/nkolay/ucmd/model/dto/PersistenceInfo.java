@@ -2,7 +2,7 @@ package com.nkolay.ucmd.model.dto;
 
 import com.nkolay.ucmd.enums.MetricStatus;
 
-/** Rehber §4.6 — INFO persistence. Kullanılmıyorsa NOT_APPLICABLE. */
+
 public class PersistenceInfo {
 
     // RDB

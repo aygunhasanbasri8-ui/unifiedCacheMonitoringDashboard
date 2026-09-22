@@ -7,7 +7,6 @@ public class ConnectionStats {
     private long totalConnectionErrors;   // Redis'te doğrudan karşılığı yok
     private long rejectedConnections;
 
-    // ── Rehber §4.2 eklemeleri ──
     private long maxClients;
     private int blockedClients;
     private long totalConnectionsReceived;

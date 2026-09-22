@@ -15,7 +15,6 @@ public class ClusterInfo {
     private String clusterName;
     private Boolean balanced;
 
-    // ── Rehber §5.4 — partition dağılımı ──
     private Map<String, Integer> partitionDistribution = new LinkedHashMap<>();
     private Double distributionSkewPercent;   // null = hesaplanamadı
     private Boolean clusterSafe;              // null = client-only'de alınamadı

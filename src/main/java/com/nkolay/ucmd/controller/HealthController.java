@@ -65,10 +65,8 @@ public class HealthController {
         return response;
     }
 
-    /** Rehber §6 — son toplama turunun kalite özeti. */
     @Operation(summary = "Toplama sağlığı",
-               description = "Rehber §6 — son toplama turunun kalite özeti: OK/PARTIAL/FAILED, "
-                       + "bayatlık süresi ve erişilemeyen instance listesi.")
+               description = "Son toplama turunun kalite özeti: OK/PARTIAL/FAILED, bayatlık süresi ve erişilemeyen instance listesi.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @GetMapping("/collection")
     public CollectionHealthInfo getCollectionHealth() {

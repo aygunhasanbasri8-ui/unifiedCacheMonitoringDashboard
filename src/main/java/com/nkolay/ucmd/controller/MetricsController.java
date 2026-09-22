@@ -31,8 +31,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "CPU ve bellek kullanımı",
-               description = "Rehber §4.1/§4.2 — CPU yüzdesi, kullanılan/azami bellek, "
-                       + "fragmentation. Redis'te CPU ilk turda NOT_READY döner.")
+               description = "CPU yüzdesi, kullanılan/azami bellek, fragmentation. Redis'te CPU ilk turda NOT_READY döner.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -53,8 +52,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "Veri istatistikleri",
-               description = "Rehber §4.3 — toplam key sayısı, database bazlı dağılım, "
-                       + "TTL özeti, eviction/expiration sayaçları.")
+               description = "Toplam key sayısı, database bazlı dağılım, TTL özeti, eviction/expiration sayaçları.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -64,8 +62,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "Cache verimliliği",
-               description = "Rehber §4.4 — hit/miss oranı, ops/sec, ağ I/O. "
-                       + "Hiç istek yoksa hitRatio null döner.")
+               description = "Hit/miss oranı, ops/sec, ağ I/O. Hiç istek yoksa hitRatio null döner.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -75,8 +72,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "Replikasyon durumu",
-               description = "Rehber §4.5 — master/replica rolü, bağlı replica'lar, "
-                       + "replikasyon gecikmesi. Hazelcast'te NOT_APPLICABLE.")
+               description = "Master/replica rolü, bağlı replica'lar, replikasyon gecikmesi. Hazelcast'te NOT_APPLICABLE.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -86,8 +82,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "Kalıcılık durumu",
-               description = "Rehber §4.6 — RDB/AOF durumu, son bgsave sonucu. "
-                       + "Hazelcast'te NOT_APPLICABLE (Hot Restart enterprise özelliğidir).")
+               description = "RDB/AOF durumu ve son bgsave sonucu. Hazelcast'te NOT_APPLICABLE.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -97,8 +92,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "Hazelcast map istatistikleri",
-               description = "Rehber §5.3 — IMap sayısı ve entry dağılımı. "
-                       + "Redis'te NOT_APPLICABLE. Bellek maliyeti client-only modda alınamaz.")
+               description = "IMap sayısı ve entry dağılımı. Redis'te NOT_APPLICABLE.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")
@@ -108,9 +102,7 @@ public class MetricsController {
     }
 
     @Operation(summary = "Operation ve event metrikleri",
-               description = "Rehber §5.5 — Hazelcast operation queue, invocation, "
-                       + "event queue ve internal executor durumu. Cluster'ın yoğunluk "
-                       + "altında olup olmadığını gösterir. Redis'te N/A.")
+               description = "Hazelcast operation queue, invocation, event queue ve executor durumu. Redis'te N/A.")
     @ApiResponse(responseCode = "200", description = "Başarılı")
     @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
     @ApiResponse(responseCode = "503", description = "Instance erişilemez veya meşgul")

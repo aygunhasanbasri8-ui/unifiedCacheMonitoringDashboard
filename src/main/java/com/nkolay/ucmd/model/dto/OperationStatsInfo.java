@@ -5,7 +5,7 @@ import com.nkolay.ucmd.enums.MetricStatus;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Rehber §5.5 — Hazelcast operation ve event metrikleri. */
+
 public class OperationStatsInfo {
 
     // operation

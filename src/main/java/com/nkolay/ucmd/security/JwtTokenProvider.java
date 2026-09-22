@@ -75,9 +75,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Token'ın son geçerlilik zamanı (epoch millis).
-     */
     public static long getExpiryFromToken(String token) {
         try {
             Date exp = parseClaims(token).getExpiration();
@@ -87,10 +84,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Token'ı doğrular ve claim'leri döner.
-     * İmza geçersizse veya süresi dolmuşsa JwtException fırlatır.
-     */
     private static Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(SECRET_KEY)

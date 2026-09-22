@@ -12,15 +12,10 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
-/**
- * İzlenen cache sistemlerini koruma katmanı (rehber §2.2, §2.3).
- * Limitler instance bazlıdır — registry'den dinamik isimle alınır.
- */
 @Configuration
 @ConfigurationProperties(prefix = "ucmd.protection")
 public class ProtectionConfig {
 
-    // ── Yapılandırılabilir alanlar ──
     private int cheapConcurrency = 5;
     private int expensiveConcurrency = 2;
     private long cheapTimeoutMs = 5000;
@@ -31,8 +26,6 @@ public class ProtectionConfig {
     private long circuitOpenDurationSeconds = 30;
     private long bulkheadMaxWaitMs = 0;
 
-    // ── Registry bean'leri ──
-
     @Bean
     public BulkheadRegistry bulkheadRegistry() {
         // Varsayılan: pahalı işlemler. Ucuz olanlar ayrı config ile eklenir.
@@ -42,7 +35,6 @@ public class ProtectionConfig {
                 .build();
 
         BulkheadRegistry registry = BulkheadRegistry.of(expensive);
-
         registry.addConfiguration("cheap", BulkheadConfig.custom()
                 .maxConcurrentCalls(cheapConcurrency)
                 .maxWaitDuration(Duration.ofMillis(bulkheadMaxWaitMs))
@@ -56,7 +48,7 @@ public class ProtectionConfig {
         RateLimiterConfig expensive = RateLimiterConfig.custom()
                 .limitForPeriod(expensiveRateLimitPerMinute)
                 .limitRefreshPeriod(Duration.ofMinutes(1))
-                .timeoutDuration(Duration.ZERO)   // beklemeden reddet
+                .timeoutDuration(Duration.ZERO)
                 .build();
         return RateLimiterRegistry.of(expensive);
     }
@@ -74,8 +66,6 @@ public class ProtectionConfig {
                 .build();
         return CircuitBreakerRegistry.of(config);
     }
-
-    // ── Getter / Setter ──
 
     public int getCheapConcurrency() { return cheapConcurrency; }
     public void setCheapConcurrency(int v) { this.cheapConcurrency = v; }

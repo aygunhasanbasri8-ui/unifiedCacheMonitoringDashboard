@@ -13,11 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Her Hazelcast instance'ı için ayrı client tutar (cluster adı + member listesi bazlı).
- * RedisConnectionManager ile aynı kalıp — client'lar önbelleğe alınır, her istekte
- * yeni client açılmaz.
- */
 @Component
 public class HazelcastConnectionManager {
 
@@ -27,10 +22,6 @@ public class HazelcastConnectionManager {
     // "clusterName|members" -> client
     private final Map<String, HazelcastInstance> clients = new ConcurrentHashMap<>();
 
-    /**
-     * Verilen instance için client döner (yoksa kurar, ölmüşse yeniden kurar).
-     * Bağlantı kurulamazsa null döner — exception fırlatmaz.
-     */
     public HazelcastInstance getClient(InstanceRef instance) {
         String clusterName = instance.getClusterName();
         if (clusterName == null || clusterName.isBlank()) {
@@ -93,7 +84,6 @@ public class HazelcastConnectionManager {
         });
     }
 
-    /** Belirli bir instance'ın client'ını kapatır (yapılandırma değişince). */
     public void evict(InstanceRef instance) {
         String key = instance.connectionKey();
         HazelcastInstance removed = clients.remove(key);
