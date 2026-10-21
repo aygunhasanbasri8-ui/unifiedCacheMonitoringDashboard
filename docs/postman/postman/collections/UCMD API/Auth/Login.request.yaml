@@ -8,7 +8,7 @@ body:
   content: |-
     {
       "username": "monitor",
-      "password": "dev_password_123_change_me"
+      "password": "{{password}}"
     }
 auth:
   type: noauth

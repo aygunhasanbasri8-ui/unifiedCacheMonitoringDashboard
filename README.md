@@ -620,12 +620,12 @@ Hazelcast'in map, operation, event, JVM ve partition metriklerinin **tamamı**
 jmx_exporter scrape'inden gelir; Hazelcast Java client bunları sunmaz. Bir instance'ın
 `metrics_url` kolonu boşsa ilgili metrikler `UNAVAILABLE` döner — sahte sıfır üretilmez.
 
-Parser `com.nkolay.ucmd.monitor.prometheus` paketindedir ve etiket duyarlıdır:
+Parser `com.ucmd.monitor.prometheus` paketindedir ve etiket duyarlıdır:
 `prefix` etiketiyle alan ayrımı yapar (`queuesize` hem `operation` hem
 `executor.internal` altında vardır), `tag0` içindeki escape'li nesne adını çözer.
 
 ### Log seviyeleri
 
-`dev`: `com.nkolay` DEBUG. `prod`: root WARN, `com.nkolay` INFO.
+`dev`: `com.ucmd` DEBUG. `prod`: root WARN, `com.ucmd` INFO.
 Key adı, prefix veya pattern içeren log satırı bırakılmamalıdır — maskeleme kuralı
 loglar için de geçerlidir.

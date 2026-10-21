@@ -1,7 +1,7 @@
 # ============================================================================
 #  CacheLoader modülü - Tablo tanımları
 #  Bu dosya SADECE cacheloader modülü tarafından okunur (YamlPropertySourceFactory).
-#  Modülü sistemden çıkarmak için: com.nkolay.ucmd.cacheloader paketini ve bu
+#  Modülü sistemden çıkarmak için: com.ucmd.cacheloader paketini ve bu
 #  dosyayı silmek yeterlidir. application.yml'e hiçbir bağımlılık yoktur.
 #
 #  Yeni tablo eklemek için:
