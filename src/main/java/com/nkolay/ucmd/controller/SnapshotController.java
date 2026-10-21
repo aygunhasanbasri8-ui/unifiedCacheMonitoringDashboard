@@ -5,7 +5,6 @@ import com.nkolay.ucmd.model.entity.MetricSnapshot;
 import com.nkolay.ucmd.security.RequireRole;
 import com.nkolay.ucmd.service.HistoryService;
 import com.nkolay.ucmd.service.MonitoringService;
-import com.nkolay.ucmd.service.SnapshotScheduler;
 import com.nkolay.ucmd.model.dto.SnapshotQueryRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,14 +20,11 @@ import java.util.List;
 @RequestMapping("/v1/instances")
 public class SnapshotController {
 
-    private final SnapshotScheduler snapshotScheduler;
-
     private final HistoryService historyService;
 
     private final MonitoringService monitoringService;
 
-    public SnapshotController(SnapshotScheduler snapshotScheduler, HistoryService historyService, MonitoringService monitoringService) {
-        this.snapshotScheduler = snapshotScheduler;
+    public SnapshotController(HistoryService historyService, MonitoringService monitoringService) {
         this.historyService = historyService;
         this.monitoringService = monitoringService;
     }
@@ -48,7 +44,7 @@ public class SnapshotController {
 
         Integer lastMinutes = (request != null) ? request.getLastMinutes() : null;
         return ResponseEntity.ok(
-                snapshotScheduler.getSnapshotsForInstance(id, lastMinutes));
+                historyService.getSnapshots(id, lastMinutes));
     }
 
     @Operation(summary = "Örneklenmiş metrik geçmişi",
