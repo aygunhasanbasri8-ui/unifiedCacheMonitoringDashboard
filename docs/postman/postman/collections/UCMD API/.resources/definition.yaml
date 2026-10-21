@@ -5,28 +5,7 @@ variables:
   - key: baseUrl
     value: http://localhost:8080
     disabled: false
-  - key: supabase_service_role_api_key_05uw
-    secret: true
-    disabled: false
-  - key: json_web_token_15u7
-    secret: true
-    disabled: false
-  - key: json_web_token_02jt
-    secret: true
-    disabled: false
-  - key: supabase_service_role_api_key_0p36
-    secret: true
-    disabled: false
-  - key: json_web_token_0mte
-    secret: true
-    disabled: false
-  - key: json_web_token_0ugb
-    secret: true
-    disabled: false
-  - key: supabase_service_role_api_key_0325
-    secret: true
-    disabled: false
 auth:
   type: bearer
   credentials:
-    token: "{{supabase_service_role_api_key_0325}}"
+    token: "{{token}}"

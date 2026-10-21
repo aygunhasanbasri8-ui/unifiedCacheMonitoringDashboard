@@ -67,7 +67,7 @@ değildir — yazılamazsa yalnızca uygulama loguna hata düşer.
 **Elenen alternatif — hem bellek hem DB (4b):** İki kaynak arasında tutarsızlık
 riski, ek karmaşıklık. DB zaten sayfalı sorguyu daha iyi yapıyor.
 
-**Elenen alternatif — ayrı log dosyası / SIEM:** Şirket altyapısı gerektirir; bu
+**Elenen alternatif — ayrı log dosyası / SIEM:** Ayrı bir altyapı gerektirir; bu
 fazda kapsam dışı. DB tablosu SIEM'e beslenebilir.
 
 ## Sonuçlar

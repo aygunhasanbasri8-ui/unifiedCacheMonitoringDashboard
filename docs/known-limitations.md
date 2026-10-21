@@ -118,7 +118,7 @@ sessiz başarısızlıktan iyidir.
 **Ne:** Redis ACL parolaları HashiCorp Vault veya benzeri bir secret manager'dan
 değil, environment değişkeninden okunuyor.
 
-**Neden:** Vault kurulumu şirket altyapısı gerektirir; staj projesi kapsamı dışında.
+**Neden:** Vault kurulumu ayrı bir altyapı gerektirir; bu projenin kapsamı dışında.
 
 **Etkisi:** Parolalar süreç ortamında düz metin olarak bulunur; `/proc/<pid>/environ`
 okuyabilen bir kullanıcı erişebilir. Parola rotasyonu uygulama yeniden başlatması
@@ -314,7 +314,7 @@ Rehber §9 TLS'i güvenlik kontrol listesinde sayar; §11'in zorunlu kapsamında
 almaz. Kod, TLS'li bir ortam sağlandığında yapılandırmayla açılabilmesi için
 hazır bırakılmıştır.
 
-Şirket ortamında etkinleştirmeden önce:
+Prod ortamında etkinleştirmeden önce:
 
 1. Redis tarafında `tls-port` açık, sertifika ve CA yapılandırılmış olmalı.
 2. Redis'in sertifikası kurum CA'sıyla imzalıysa CA sertifikası JVM truststore'una
