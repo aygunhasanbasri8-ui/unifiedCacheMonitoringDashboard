@@ -2,6 +2,7 @@ package com.nkolay.ucmd.monitor;
 
 import com.hazelcast.cluster.Cluster;
 import com.hazelcast.cluster.Member;
+import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.EntryView;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
@@ -29,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
 @Component
 public class HazelcastMonitor implements CacheMonitor {
 
@@ -41,7 +41,6 @@ public class HazelcastMonitor implements CacheMonitor {
 
     @Value("${ucmd.key-search.hazelcast-max-scan-entries:5000}")
     private int hazelcastMaxScanEntries;
-
 
     public HazelcastMonitor(HazelcastConnectionManager connectionManager,
                             HazelcastMetricsClient metricsClient,
@@ -74,7 +73,6 @@ public class HazelcastMonitor implements CacheMonitor {
 
     @Override
     public HealthInfo getHealth(InstanceRef instance) {
-
         try {
             HazelcastInstance client = connectionManager.getClient(instance);
             if (client == null || !isReachable(instance)) {
@@ -285,23 +283,19 @@ public class HazelcastMonitor implements CacheMonitor {
     }
 
     private Long sumHz(List<NodeMetrics> nodes, String metric, String prefix) {
-        Double v = HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, prefix));
-        return v == null ? null : v.longValue();
+        return toLong(HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, prefix)));
     }
 
     private Long sumHzObj(List<NodeMetrics> nodes, String metric, String prefix, String obj) {
-        Double v = HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, prefix, obj));
-        return v == null ? null : v.longValue();
+        return toLong(HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, prefix, obj)));
     }
 
     private Long sumMapMetric(List<NodeMetrics> nodes, String metric, String mapName) {
-        Double v = HazelcastMetricsClient.sum(nodes, n -> n.hz(metric, "map", mapName));
-        return v == null ? null : v.longValue();
+        return sumHzObj(nodes, metric, "map", mapName);
     }
 
-    private Long sumMapMetricMax(List<NodeMetrics> nodes, String metric, String mapName) {
-        Double v = HazelcastMetricsClient.max(nodes, n -> n.hz(metric, "map", mapName));
-        return v == null ? null : v.longValue();
+    private Long maxMapMetric(List<NodeMetrics> nodes, String metric, String mapName) {
+        return toLong(HazelcastMetricsClient.max(nodes, n -> n.hz(metric, "map", mapName)));
     }
 
     // latency toplamları mikrosaniye cinsinden gelir
@@ -315,7 +309,7 @@ public class HazelcastMonitor implements CacheMonitor {
         try {
             HazelcastInstance client = connectionManager.getClient(instance);
             if (client == null) {
-                return unavailableConnectionStats();
+                return ConnectionStats.unavailable(MetricStatus.UNAVAILABLE);
             }
 
             List<NodeMetrics> nodes = metricsClient.fetchAllNodes(instance);
@@ -346,43 +340,21 @@ public class HazelcastMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching connection stats for {}: {}",
                     instance.getName(), e.getMessage());
-            return unavailableConnectionStats();
+            return ConnectionStats.unavailable(MetricStatus.UNAVAILABLE);
         }
     }
-
-    private ConnectionStats unavailableConnectionStats() {
-        ConnectionStats down = new ConnectionStats(0, 0, 0);
-        down.setOverallStatus(MetricStatus.UNAVAILABLE);
-        down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
-        down.setErrorStatus(MetricStatus.UNAVAILABLE);
-        down.setMaxClientsStatus(MetricStatus.UNAVAILABLE);
-        down.setBlockedClientsStatus(MetricStatus.UNAVAILABLE);
-        return down;
-    }
-
 
     @Override
     public DataStats getDataStats(InstanceRef instance) {
         try {
             HazelcastInstance client = connectionManager.getClient(instance);
             if (client == null) {
-                DataStats down = new DataStats(0, 0, 0);
-                down.setOverallStatus(MetricStatus.UNAVAILABLE);
-                down.setMemoryStatus(MetricStatus.UNAVAILABLE);
-                down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
-                down.setEvictionStatus(MetricStatus.UNAVAILABLE);
-                down.setTtlStatus(MetricStatus.UNAVAILABLE);
-                return down;
+                return DataStats.unavailable(MetricStatus.UNAVAILABLE);
             }
 
             long totalEntries = 0;
-            for (String mapName : client.getDistributedObjects()
-                    .stream()
-                    .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                    .map(obj -> obj.getName())
-                    .toList()) {
+            for (String mapName : mapNames(client)) {
                 totalEntries += client.getMap(mapName).size();
-
             }
             DataStats stats = new DataStats(totalEntries, 0, 0);
             stats.setOverallStatus(MetricStatus.AVAILABLE);
@@ -392,31 +364,17 @@ public class HazelcastMonitor implements CacheMonitor {
             stats.setTtlStatus(MetricStatus.NOT_APPLICABLE);
             return stats;
 
-
         } catch (Exception e) {
-            DataStats down = new DataStats(0,0,0);
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setMemoryStatus(MetricStatus.UNAVAILABLE);
-            down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
-            down.setEvictionStatus(MetricStatus.UNAVAILABLE);
-            down.setTtlStatus(MetricStatus.UNAVAILABLE);
-            return down;
+            return DataStats.unavailable(MetricStatus.UNAVAILABLE);
         }
-
     }
-
 
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
         try {
             HazelcastInstance client = connectionManager.getClient(instance);
             if (client == null || !isReachable(instance)) {
-                ClusterInfo down = new ClusterInfo();
-                down.setOverallStatus(MetricStatus.UNAVAILABLE);
-                down.setPartitionCountStatus(MetricStatus.UNAVAILABLE);
-                down.setDistributionStatus(MetricStatus.UNAVAILABLE);
-                down.setSafetyStatus(MetricStatus.UNAVAILABLE);
-                return down;
+                return unavailableClusterInfo();
             }
 
             Cluster cluster = client.getCluster();
@@ -458,13 +416,17 @@ public class HazelcastMonitor implements CacheMonitor {
 
         } catch (Exception e) {
             logger.error("Error fetching cluster info: {}", e.getMessage());
-            ClusterInfo down = new ClusterInfo();
-            down.setOverallStatus(MetricStatus.UNAVAILABLE);
-            down.setPartitionCountStatus(MetricStatus.UNAVAILABLE);
-            down.setDistributionStatus(MetricStatus.UNAVAILABLE);
-            down.setSafetyStatus(MetricStatus.UNAVAILABLE);
-            return down;
+            return unavailableClusterInfo();
         }
+    }
+
+    private ClusterInfo unavailableClusterInfo() {
+        ClusterInfo down = new ClusterInfo();
+        down.setOverallStatus(MetricStatus.UNAVAILABLE);
+        down.setPartitionCountStatus(MetricStatus.UNAVAILABLE);
+        down.setDistributionStatus(MetricStatus.UNAVAILABLE);
+        down.setSafetyStatus(MetricStatus.UNAVAILABLE);
+        return down;
     }
 
     private void applyPartitionMetrics(HazelcastInstance client, ClusterInfo info) {
@@ -537,9 +499,7 @@ public class HazelcastMonitor implements CacheMonitor {
             long totalEntries = 0;
 
             // Map adlarını client'tan al (kaynak doğrusu), metrikleri Prometheus'tan
-            for (var obj : client.getDistributedObjects()) {
-                if (!(obj instanceof com.hazelcast.map.IMap)) continue;
-                String mapName = obj.getName();
+            for (String mapName : mapNames(client)) {
                 long size = client.getMap(mapName).size();
                 totalEntries += size;
 
@@ -562,12 +522,11 @@ public class HazelcastMonitor implements CacheMonitor {
                     d.setEvictionCount(sumMapMetric(nodes, "evictioncount", mapName));
                     d.setExpirationCount(sumMapMetric(nodes, "expirationcount", mapName));
 
-                    Double bc = HazelcastMetricsClient.max(nodes,
-                            n -> n.hz("backupcount", "map", mapName));
-                    d.setBackupCount(bc != null ? bc.intValue() : null);
+                    d.setBackupCount(toInt(HazelcastMetricsClient.max(nodes,
+                            n -> n.hz("backupcount", "map", mapName))));
 
-                    d.setLastAccessTime(sumMapMetricMax(nodes, "lastaccesstime", mapName));
-                    d.setLastUpdateTime(sumMapMetricMax(nodes, "lastupdatetime", mapName));
+                    d.setLastAccessTime(maxMapMetric(nodes, "lastaccesstime", mapName));
+                    d.setLastUpdateTime(maxMapMetric(nodes, "lastupdatetime", mapName));
 
                     d.setAvgGetLatencyMillis(avgLatency(
                             sumMapMetric(nodes, "totalgetlatency", mapName), d.getGetCount()));
@@ -628,23 +587,15 @@ public class HazelcastMonitor implements CacheMonitor {
 
     private PageInfo<KeyInfo> scanMapNames(HazelcastInstance client, InstanceRef instance,
                                            String search, MatchMode mode, int count) {
-        List<KeyInfo> keys = new ArrayList<>();
+        List<KeyInfo> keys;
         try {
-            client.getDistributedObjects().stream()
-                    .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                    .filter(obj -> search.isEmpty() || (mode == MatchMode.CONTAINS)
-                            ? obj.getName().contains(search)
-                            : obj.getName().startsWith(search) )
+            keys = mapNames(client).stream()
+                    .filter(name -> mode == MatchMode.CONTAINS
+                            ? name.contains(search)
+                            : name.startsWith(search))
                     .limit(count)
-                    .forEach(obj -> {
-                        com.hazelcast.map.IMap<?, ?> map =
-                                client.getMap(obj.getName());
-                        KeyInfo ki = new KeyInfo(keyMasker.mask(obj.getName()), "map", 0, -1);
-                        ki.setEntryCount((long) map.size());
-                        ki.setSizeStatus(MetricStatus.NOT_APPLICABLE);   // byte boyutu alınamaz
-                        keys.add(ki);
-
-                    });
+                    .map(name -> mapKeyInfo(client, name))
+                    .toList();
         } catch (Exception e) {
             logger.error("Error scanning maps for instance {}: {}", instance.getName(), e.getMessage());
             return PageInfo.unavailable(count);
@@ -751,13 +702,8 @@ public class HazelcastMonitor implements CacheMonitor {
         }
 
         try {
-            for (var obj : client.getDistributedObjects()) {
-                if (!(obj instanceof com.hazelcast.map.IMap)) continue;
-                com.hazelcast.map.IMap<?, ?> map = client.getMap(obj.getName());
-                KeyInfo ki = new KeyInfo(keyMasker.mask(obj.getName()), "map", 0, -1);
-                ki.setEntryCount((long) map.size());
-                ki.setSizeStatus(MetricStatus.NOT_APPLICABLE);   // byte boyutu alınamaz
-                keys.add(ki);
+            for (String mapName : mapNames(client)) {
+                keys.add(mapKeyInfo(client, mapName));
                 scanned++;
             }
         } catch (Exception e) {
@@ -769,9 +715,21 @@ public class HazelcastMonitor implements CacheMonitor {
                 b.getEntryCount() != null ? b.getEntryCount() : 0,
                 a.getEntryCount() != null ? a.getEntryCount() : 0));
         List<KeyInfo> top = new ArrayList<>(keys.stream().limit(n).toList());
-        TopKeysResponse response = new TopKeysResponse(top, scanned, scanned, true);
+        return new TopKeysResponse(top, scanned, scanned, true);
+    }
 
-        return response;
+    private KeyInfo mapKeyInfo(HazelcastInstance client, String mapName) {
+        KeyInfo ki = new KeyInfo(keyMasker.mask(mapName), "map", 0, -1);
+        ki.setEntryCount((long) client.getMap(mapName).size());
+        ki.setSizeStatus(MetricStatus.NOT_APPLICABLE);   // byte boyutu alınamaz
+        return ki;
+    }
+
+    private List<String> mapNames(HazelcastInstance client) {
+        return client.getDistributedObjects().stream()
+                .filter(obj -> obj instanceof IMap)
+                .map(DistributedObject::getName)
+                .toList();
     }
 
     @Override
@@ -784,9 +742,7 @@ public class HazelcastMonitor implements CacheMonitor {
 
             // mapName yoksa eski davranış: key bir map adı mı?
             if (mapName == null || mapName.isBlank()) {
-                boolean isMap = client.getDistributedObjects().stream()
-                        .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                        .anyMatch(obj -> obj.getName().equals(key));
+                boolean isMap = mapNames(client).contains(key);
                 return isMap ? new KeyTtlResponse(key, -1, TtlStatus.PERSISTENT)
                              : new KeyTtlResponse(key, -2, TtlStatus.NOT_FOUND);
             }
@@ -852,24 +808,21 @@ public class HazelcastMonitor implements CacheMonitor {
                 return result;
             }
 
-            client.getDistributedObjects().stream()
-                    .filter(obj -> obj instanceof com.hazelcast.map.IMap)
-                    .forEach(obj -> {
-                        String mapName = obj.getName();
-                        long entryCount = client.getMap(mapName).size();
+            for (String mapName : mapNames(client)) {
+                long entryCount = client.getMap(mapName).size();
 
-                        boolean matched = false;
-                        for (KeyPatternStats stats : result) {
-                            if (KeyPatternMatcher.matches(mapName, stats.getPattern())) {
-                                stats.increment(entryCount);   // boyut yerine entry sayısı
-                                matched = true;
-                                break;
-                            }
-                        }
-                        if (!matched) {
-                            other.increment(entryCount);
-                        }
-                    });
+                boolean matched = false;
+                for (KeyPatternStats stats : result) {
+                    if (KeyPatternMatcher.matches(mapName, stats.getPattern())) {
+                        stats.increment(entryCount);   // boyut yerine entry sayısı
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    other.increment(entryCount);
+                }
+            }
         } catch (Exception e) {
             logger.error("Error scanning key patterns for {}: {}",
                     instance.getName(), e.getMessage(), e);
@@ -881,5 +834,4 @@ public class HazelcastMonitor implements CacheMonitor {
         result.removeIf(s -> s.getKeyCount() == 0);
         return result;
     }
-
 }

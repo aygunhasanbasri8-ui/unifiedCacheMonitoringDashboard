@@ -42,6 +42,16 @@ public class DataStats {
         }
     }
 
+    public static DataStats unavailable(MetricStatus status) {
+        DataStats s = new DataStats(0, 0, 0);
+        s.setOverallStatus(status);
+        s.setMemoryStatus(status);
+        s.setFragmentationStatus(status);
+        s.setEvictionStatus(status);
+        s.setTtlStatus(status);
+        return s;
+    }
+
     public long getTotalKeyCount() { return totalKeyCount; }
     public void setTotalKeyCount(long totalKeyCount) { this.totalKeyCount = totalKeyCount; }
 

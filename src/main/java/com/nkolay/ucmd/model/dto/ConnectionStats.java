@@ -27,6 +27,16 @@ public class ConnectionStats {
         this.rejectedConnections = rejectedConnections;
     }
 
+    public static ConnectionStats unavailable(MetricStatus status) {
+        ConnectionStats s = new ConnectionStats(0, 0, 0);
+        s.setOverallStatus(status);
+        s.setActiveClientStatus(status);
+        s.setErrorStatus(status);
+        s.setMaxClientsStatus(status);
+        s.setBlockedClientsStatus(status);
+        return s;
+    }
+
     /** Client limitine ne kadar yaklaşıldı — kapasite alarmı için. */
     public Double getClientUsagePercent() {
         if (maxClients <= 0) return null;   // N/A
