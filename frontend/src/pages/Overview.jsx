@@ -4,12 +4,12 @@ import { toProblem } from "../api/problemDetails";
 import InstanceCard from "../components/InstanceCard";
 import RefreshIndicator from "../components/RefreshIndicator";
 import ProblemError from "../components/ProblemError";
+import { useTransientErrors, MAX_CONSECUTIVE_TRANSIENT_ERRORS } from "../hooks/useTransientErrors";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
 import { formatBytes, formatPercent } from "../utils/format";
 import "./Overview.css";
 
 const REFRESH_INTERVAL_MS = 15000;
-const MAX_CONSECUTIVE_TRANSIENT_ERRORS = 3;
 
 const ALERT_LABELS = {
   health: "Sağlık",
@@ -130,11 +130,14 @@ export default function Overview() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Fleet listesi 429/503/504 ile geçici olarak başarısız olursa polling durdurulmaz,
-  // uyarı rozeti gösterilir. Ardışık 3 hatadan sonra polling durur ve "Yeniden bağlan" gösterilir.
-  const [transientWarning, setTransientWarning] = useState(null);
-  const [consecutiveTransientErrors, setConsecutiveTransientErrors] = useState(0);
-  const [pollingStopped, setPollingStopped] = useState(false);
+  const {
+    transientWarning,
+    consecutiveTransientErrors,
+    pollingStopped,
+    recordTransientError,
+    clearTransientErrors,
+    reconnect: handleReconnect,
+  } = useTransientErrors();
 
   const [collectionHealth, setCollectionHealth] = useState(null);
 
@@ -176,31 +179,17 @@ export default function Overview() {
       setMetricsById(Object.fromEntries(entries));
       setLastUpdated(new Date());
       setError(null);
-      setTransientWarning(null);
-      setConsecutiveTransientErrors(0);
+      clearTransientErrors();
     } catch (err) {
       if (err.problem?.retryable) {
-        setTransientWarning(toProblem(err, "Geçici bir sorun oluştu, tekrar deneniyor."));
-        setConsecutiveTransientErrors((prev) => {
-          const next = prev + 1;
-          if (next >= MAX_CONSECUTIVE_TRANSIENT_ERRORS) {
-            setPollingStopped(true);
-          }
-          return next;
-        });
+        recordTransientError(err);
       } else {
         setError(toProblem(err, "Instance listesi alınamadı."));
       }
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  function handleReconnect() {
-    setConsecutiveTransientErrors(0);
-    setPollingStopped(false);
-    setTransientWarning(null);
-  }
+  }, [clearTransientErrors, recordTransientError]);
 
   useEffect(() => {
     if (pollingStopped) return;
