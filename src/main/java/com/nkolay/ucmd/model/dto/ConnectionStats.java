@@ -2,7 +2,7 @@ package com.nkolay.ucmd.model.dto;
 
 import com.nkolay.ucmd.enums.MetricStatus;
 
-public class ConnectionStats {
+public class ConnectionStats implements MonitoredMetric {
     private int activeClients;
     private long totalConnectionErrors;   // Redis'te doğrudan karşılığı yok
     private long rejectedConnections;
@@ -25,6 +25,16 @@ public class ConnectionStats {
         this.activeClients = activeClients;
         this.totalConnectionErrors = totalConnectionErrors;
         this.rejectedConnections = rejectedConnections;
+    }
+
+    public static ConnectionStats unavailable(MetricStatus status) {
+        ConnectionStats s = new ConnectionStats(0, 0, 0);
+        s.setOverallStatus(status);
+        s.setActiveClientStatus(status);
+        s.setErrorStatus(status);
+        s.setMaxClientsStatus(status);
+        s.setBlockedClientsStatus(status);
+        return s;
     }
 
     /** Client limitine ne kadar yaklaşıldı — kapasite alarmı için. */

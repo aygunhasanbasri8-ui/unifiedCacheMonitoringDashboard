@@ -3,7 +3,7 @@ package com.nkolay.ucmd.model.dto;
 
 import com.nkolay.ucmd.enums.MetricStatus;
 
-public class ResourceStats {
+public class ResourceStats implements MonitoredMetric {
 
     private long memoryRssBytes;   // İşletim sisteminin gördüğü gerçek bellek
     public long getMemoryRssBytes() { return memoryRssBytes; }

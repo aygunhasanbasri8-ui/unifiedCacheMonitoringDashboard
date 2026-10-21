@@ -15,6 +15,7 @@ import MetricCard from "../components/MetricCard";
 import DonutMetric from "../components/DonutMetric";
 import RefreshIndicator from "../components/RefreshIndicator";
 import ProblemError from "../components/ProblemError";
+import { useTransientErrors, MAX_CONSECUTIVE_TRANSIENT_ERRORS } from "../hooks/useTransientErrors";
 import { evaluateStatus, healthStatus } from "../config/thresholds";
 import { isApplicable, isSectionVisible } from "../config/MetricStatus";
 import { extractAlertEvents } from "../utils/alertEvents";
@@ -32,7 +33,6 @@ import {
 import "./InstanceDetail.css";
 
 const REFRESH_INTERVAL_MS = 15000;
-const MAX_CONSECUTIVE_TRANSIENT_ERRORS = 3;
 const HISTORY_MAX_POINTS = 500;
 const HISTORY_RANGES = [
   { label: "1 saat", minutes: 60 },
@@ -136,11 +136,14 @@ export default function InstanceDetail() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // 429 / 503 / 504 gibi geçici hatalar için: polling durdurulmaz, uyarı rozeti gösterilir.
-  // Ardışık 3 geçici hatadan sonra polling durur ve "Yeniden bağlan" butonu gösterilir.
-  const [transientWarning, setTransientWarning] = useState(null);
-  const [consecutiveTransientErrors, setConsecutiveTransientErrors] = useState(0);
-  const [pollingStopped, setPollingStopped] = useState(false);
+  const {
+    transientWarning,
+    consecutiveTransientErrors,
+    pollingStopped,
+    recordTransientError,
+    clearTransientErrors,
+    reconnect: handleReconnect,
+  } = useTransientErrors();
 
   useEffect(() => {
     let cancelled = false;
@@ -212,27 +215,19 @@ export default function InstanceDetail() {
 
     if (rejected.length === 0) {
       setError(null);
-      setTransientWarning(null);
-      setConsecutiveTransientErrors(0);
+      clearTransientErrors();
     } else {
       const allRetryable = rejected.every((r) => r.reason?.problem?.retryable);
 
       if (allRetryable) {
-        setTransientWarning(toProblem(rejected[0].reason, "Geçici bir sorun oluştu, tekrar deneniyor."));
-        setConsecutiveTransientErrors((prev) => {
-          const next = prev + 1;
-          if (next >= MAX_CONSECUTIVE_TRANSIENT_ERRORS) {
-            setPollingStopped(true);
-          }
-          return next;
-        });
+        recordTransientError(rejected[0].reason);
       } else {
         setError(toProblem(rejected[0].reason, "Metrikler alınamadı."));
       }
     }
 
     setLoading(false);
-  }, [id, historyRangeMinutes]);
+  }, [id, historyRangeMinutes, clearTransientErrors, recordTransientError]);
 
   useEffect(() => {
     if (!instance || pollingStopped) return;
@@ -274,12 +269,6 @@ export default function InstanceDetail() {
   );
   const activeAlertEvents = alertEvents.filter((ev) => !ev.resolved);
   const pastAlertEvents = alertEvents.filter((ev) => ev.resolved);
-
-  function handleReconnect() {
-    setConsecutiveTransientErrors(0);
-    setPollingStopped(false);
-    setTransientWarning(null);
-  }
 
   function toggleMapExpanded(name) {
     setExpandedMaps((prev) => {

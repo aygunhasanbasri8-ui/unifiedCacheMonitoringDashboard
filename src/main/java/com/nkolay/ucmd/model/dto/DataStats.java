@@ -6,7 +6,7 @@ import com.nkolay.ucmd.enums.MetricStatus;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class DataStats {
+public class DataStats implements MonitoredMetric {
     private long totalKeyCount;
     private long usedMemoryBytes;
     private long maxMemoryBytes;
@@ -40,6 +40,16 @@ public class DataStats {
             this.memoryUsagePercent = null;
             this.memoryStatus = MetricStatus.NOT_APPLICABLE;
         }
+    }
+
+    public static DataStats unavailable(MetricStatus status) {
+        DataStats s = new DataStats(0, 0, 0);
+        s.setOverallStatus(status);
+        s.setMemoryStatus(status);
+        s.setFragmentationStatus(status);
+        s.setEvictionStatus(status);
+        s.setTtlStatus(status);
+        return s;
     }
 
     public long getTotalKeyCount() { return totalKeyCount; }

@@ -9,16 +9,9 @@ import java.util.List;
 
 public interface CacheMonitor {
 
-    /**
-     * REDIS HAZELCAST
-     *
-     */
+    /** InstanceRef.type ile eşleşen değer: "REDIS" veya "HAZELCAST". */
     String getSupportedType();
 
-    /**
-     * Instance reachable
-     *
-     */
     boolean isReachable(InstanceRef instance);
 
     HealthInfo getHealth(InstanceRef instance);
@@ -31,9 +24,7 @@ public interface CacheMonitor {
 
     ClusterInfo getClusterInfo(InstanceRef instance);
 
-
     MapStatsInfo getMapStats(InstanceRef instance);
-
 
     OperationStatsInfo getOperationStats(InstanceRef instance);
 
@@ -49,7 +40,7 @@ public interface CacheMonitor {
     CacheEfficiencyStats getCacheEfficiency(InstanceRef instance);
 
     ReplicationInfo getReplicationInfo(InstanceRef instance);
-    
+
     PersistenceInfo getPersistenceInfo(InstanceRef instance);
 
     List<KeyPatternStats> getKeyPatternStats(InstanceRef instance, List<KeyPatternConfig.PatternDef> patterns);

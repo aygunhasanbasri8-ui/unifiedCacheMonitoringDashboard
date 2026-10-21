@@ -77,7 +77,7 @@ def invalidate_user_list():
     deleted = r.delete(USER_LIST_KEY)
     if deleted:
         stats["invalidations"] += 1
-        log("  ⚠ INVALIDATION → ucmd:userlist silindi (veri değişti)")
+        log("  INVALIDATION → ucmd:userlist silindi (veri değişti)")
 
 
 def add_user():
@@ -129,7 +129,7 @@ def miss_traffic():
 def print_stats():
     total = stats["hits"] + stats["misses"]
     ratio = (stats["hits"] / total * 100) if total else 0
-    log(f"📊 Hit: {stats['hits']} | Miss: {stats['misses']} | "
+    log(f"Hit: {stats['hits']} | Miss: {stats['misses']} | "
         f"Hit Ratio: {ratio:.1f}% | Yazma: {stats['writes']} | "
         f"Invalidation: {stats['invalidations']} | "
         f"Toplam Key: {r.dbsize()}")

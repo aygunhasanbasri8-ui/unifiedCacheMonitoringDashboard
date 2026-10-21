@@ -42,14 +42,7 @@ public class HistoryServiceImpl implements HistoryService {
         int limit = (maxPoints != null && maxPoints > 0) ? maxPoints : defaultMaxPoints;
         limit = Math.min(limit, maxPointsLimit);
 
-        List<MetricSnapshot> snapshots;
-        if (lastMinutes != null && lastMinutes > 0) {
-            LocalDateTime after = LocalDateTime.now().minusMinutes(lastMinutes);
-            snapshots = snapshotRepository
-                    .findByInstanceIdAndCollectedAtAfterOrderByCollectedAtAsc(instanceId, after);
-        } else {
-            snapshots = snapshotRepository.findByInstanceIdOrderByCollectedAtAsc(instanceId);
-        }
+        List<MetricSnapshot> snapshots = getSnapshots(instanceId, lastMinutes);
 
         HistoryResponse response = new HistoryResponse();
 
@@ -85,6 +78,16 @@ public class HistoryServiceImpl implements HistoryService {
         response.setTo(toInstant(snapshots.get(snapshots.size() - 1).getCollectedAt()));
         response.setStatus(MetricStatus.AVAILABLE);
         return response;
+    }
+
+    @Override
+    public List<MetricSnapshot> getSnapshots(Long instanceId, Integer lastMinutes) {
+        if (lastMinutes != null && lastMinutes > 0) {
+            LocalDateTime after = LocalDateTime.now().minusMinutes(lastMinutes);
+            return snapshotRepository
+                    .findByInstanceIdAndCollectedAtAfterOrderByCollectedAtAsc(instanceId, after);
+        }
+        return snapshotRepository.findByInstanceIdOrderByCollectedAtAsc(instanceId);
     }
 
     private HistoryPoint toPoint(MetricSnapshot s) {

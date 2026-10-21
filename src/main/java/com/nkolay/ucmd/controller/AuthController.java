@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,19 +18,14 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Auth", description = "Kimlik doğrulama (JWT)")
 @RestController
 @RequestMapping("/v1/auth")
-
 public class AuthController {
 
-    
     private final UserService userService;
 
-    
     private final TokenBlacklist tokenBlacklist;
 
-    
     private final AuditService auditService;
 
-    
     private final AuditContext auditContext;
 
     public AuthController(UserService userService, TokenBlacklist tokenBlacklist, AuditService auditService, AuditContext auditContext) {
@@ -93,7 +87,6 @@ public class AuthController {
         return ResponseEntity.ok().body("Logged out successfully");
     }
 
-    //Inner class
     public static class ErrorDetail {
         public String error;
         public String message;
