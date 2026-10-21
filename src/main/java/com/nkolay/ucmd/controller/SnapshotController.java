@@ -10,7 +10,6 @@ import com.nkolay.ucmd.model.dto.SnapshotQueryRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -22,13 +21,10 @@ import java.util.List;
 @RequestMapping("/v1/instances")
 public class SnapshotController {
 
-    
     private final SnapshotScheduler snapshotScheduler;
 
-    
     private final HistoryService historyService;
 
-    
     private final MonitoringService monitoringService;
 
     public SnapshotController(SnapshotScheduler snapshotScheduler, HistoryService historyService, MonitoringService monitoringService) {

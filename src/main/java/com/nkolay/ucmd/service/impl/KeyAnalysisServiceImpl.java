@@ -12,7 +12,6 @@ import com.nkolay.ucmd.service.KeyAnalysisService;
 import com.nkolay.ucmd.service.MonitoringService;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 public class KeyAnalysisServiceImpl implements KeyAnalysisService {

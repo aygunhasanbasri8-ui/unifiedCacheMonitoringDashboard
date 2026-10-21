@@ -23,13 +23,10 @@ import java.util.List;
 @EnableScheduling
 public class SnapshotScheduler {
 
-    
     private final ExecutorService virtualThreadExecutor;
 
     private final MonitoringService monitoringService;
-    
     private final AuditService auditService;
-    
     private final CollectionMetrics collectionMetrics;
 
     private final SnapshotRepository snapshotRepository;

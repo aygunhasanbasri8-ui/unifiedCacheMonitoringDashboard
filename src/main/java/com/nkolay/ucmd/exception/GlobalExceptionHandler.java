@@ -62,7 +62,6 @@ public class GlobalExceptionHandler {
                 e.getMessage(), request);
     }
 
-    
     @ExceptionHandler(MapNotAllowedException.class)
     public ResponseEntity<ErrorResponse> handleMapNotAllowed(
             MapNotAllowedException e, HttpServletRequest request) {
