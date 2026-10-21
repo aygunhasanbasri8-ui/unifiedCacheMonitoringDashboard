@@ -39,6 +39,7 @@ public class RedisMonitor implements CacheMonitor {
     private int minPrefixLength;
 
     private static final int ABSOLUTE_SCAN_LIMIT = 50_000;
+    private static final int PATTERN_SCAN_LIMIT = 50_000;
 
     public RedisMonitor(RedisConnectionManager connectionManager,
                         KeySecurityConfig keySecurityConfig,
@@ -52,8 +53,6 @@ public class RedisMonitor implements CacheMonitor {
     public String getSupportedType() {
         return "REDIS";
     }
-
-
 
     private RedisCommands<byte[], byte[]> commandsFor(InstanceRef instance) {
         var conn = connectionManager.getConnection(instance);
@@ -142,13 +141,7 @@ public class RedisMonitor implements CacheMonitor {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
             if (cmd == null) {
-                    ResourceStats down = new ResourceStats(0,0,0);
-                    down.setOverallStatus(MetricStatus.UNAVAILABLE);
-                    down.setCpuStats(MetricStatus.UNAVAILABLE);
-                    down.setMemoryStatus(MetricStatus.UNAVAILABLE);
-                    down.setFragmentationStatus(MetricStatus.UNAVAILABLE);
-                    applyJvmNotApplicable(down);
-                    return down;
+                return unavailableResourceStats(MetricStatus.UNAVAILABLE);
             }
 
             String memInfo = cmd.info("memory");
@@ -187,15 +180,18 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching resource stats for {}: {}",
                     instance.getName(), e.getMessage());
-            MetricStatus status = failureStatus(e);
-            ResourceStats down = new ResourceStats(0,0,0);
-            down.setOverallStatus(status);
-            down.setCpuStats(status);
-            down.setFragmentationStatus(status);
-            down.setMemoryStatus(status);
-            applyJvmNotApplicable(down);
-            return down;
+            return unavailableResourceStats(failureStatus(e));
         }
+    }
+
+    private ResourceStats unavailableResourceStats(MetricStatus status) {
+        ResourceStats down = new ResourceStats(0, 0, 0);
+        down.setOverallStatus(status);
+        down.setCpuStats(status);
+        down.setMemoryStatus(status);
+        down.setFragmentationStatus(status);
+        applyJvmNotApplicable(down);
+        return down;
     }
 
     // JVM metrikleri Redis'te yoktur
@@ -205,7 +201,6 @@ public class RedisMonitor implements CacheMonitor {
         stats.setThreadStatus(MetricStatus.NOT_APPLICABLE);
         stats.setFileDescriptorStatus(MetricStatus.NOT_APPLICABLE);
     }
-
 
     private double calculateCpuPercent(Long instanceId, String cpuInfo) {
         if (cpuInfo == null || instanceId == null) return CPU_NOT_READY;
@@ -241,13 +236,7 @@ public class RedisMonitor implements CacheMonitor {
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
             if (cmd == null) {
-                ConnectionStats down = new ConnectionStats(0, 0, 0);
-                down.setOverallStatus(MetricStatus.UNAVAILABLE);
-                down.setActiveClientStatus(MetricStatus.UNAVAILABLE);
-                down.setErrorStatus(MetricStatus.UNAVAILABLE);
-                down.setMaxClientsStatus(MetricStatus.UNAVAILABLE);
-                down.setBlockedClientsStatus(MetricStatus.UNAVAILABLE);
-                return down;
+                return ConnectionStats.unavailable(MetricStatus.UNAVAILABLE);
             }
             String clientInfo = cmd.info("clients");
             String statsInfo = cmd.info("stats");
@@ -275,14 +264,7 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching connection stats for {}: {}",
                     instance.getName(), e.getMessage());
-            MetricStatus status = failureStatus(e);
-            ConnectionStats down = new ConnectionStats(0, 0, 0);
-            down.setOverallStatus(status);
-            down.setActiveClientStatus(status);
-            down.setErrorStatus(status);
-            down.setMaxClientsStatus(status);
-            down.setBlockedClientsStatus(status);
-            return down;
+            return ConnectionStats.unavailable(failureStatus(e));
         }
     }
 
@@ -299,12 +281,11 @@ public class RedisMonitor implements CacheMonitor {
             }
             String memInfo = cmd.info("memory");
             String keyspaceInfo = cmd.info("keyspace");
+            String statsInfo = cmd.info("stats");
 
             long usedMemory = infoLong(memInfo, "used_memory", 0);
             long maxMemory = infoLong(memInfo, "maxmemory", 0);
             double fragRatio = infoDouble(memInfo, "mem_fragmentation_ratio", 1.0);
-
-            String statsInfo = cmd.info("stats");
             long fragBytes = infoLong(memInfo, "mem_fragmentation_bytes", 0);
 
             KeyspaceSummary ks = parseKeyspace(keyspaceInfo);
@@ -328,20 +309,12 @@ public class RedisMonitor implements CacheMonitor {
         } catch (Exception e) {
             logger.error("Error fetching data stats for {}: {}",
                     instance.getName(), e.getMessage());
-            MetricStatus status = failureStatus(e);
-            DataStats down = new DataStats(0,0,0);
-            down.setOverallStatus(status);
-            down.setMemoryStatus(status);
-            down.setFragmentationStatus(status);
-            down.setEvictionStatus(status);
-            down.setTtlStatus(status);
-            return down;
+            return DataStats.unavailable(failureStatus(e));
         }
     }
 
     @Override
     public ClusterInfo getClusterInfo(InstanceRef instance) {
-
         try {
             RedisCommands<byte[], byte[]> cmd = commandsFor(instance);
             if (cmd == null) {
@@ -436,7 +409,7 @@ public class RedisMonitor implements CacheMonitor {
             throw new InvalidPrefixException("prefix zorunludur");
         }
         int literalLen = literalPrefixLength(search);
-        if( literalLen < minPrefixLength) {
+        if (literalLen < minPrefixLength) {
             throw new InvalidPrefixException("İlk joker karakterden (*-?) önce en az " + minPrefixLength + " karakter olmalıdır.");
         }
         if (!keySecurityConfig.isPrefixAllowed(search)) {
@@ -502,8 +475,7 @@ public class RedisMonitor implements CacheMonitor {
 
         } catch (InvalidPrefixException e) {
             throw e;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Error scanning keys for {}: {}",
                     instance.getName(), e.getMessage());
             return new PageInfo<>(new ArrayList<>(), "0", false, count, failureStatus(e));
@@ -575,7 +547,6 @@ public class RedisMonitor implements CacheMonitor {
             return KeyTtlResponse.unavailable(key);
         }
     }
-
 
     @Override
     public ReplicationInfo getReplicationInfo(InstanceRef instance) {
@@ -712,7 +683,6 @@ public class RedisMonitor implements CacheMonitor {
             ScanCursor cursor = ScanCursor.INITIAL;
             ScanArgs args = ScanArgs.Builder.limit(500);
             int scanned = 0;
-            final int MAX_KEYS = 50_000;
 
             do {
                 KeyScanCursor<byte[]> page = cmd.scan(cursor, args);
@@ -736,7 +706,7 @@ public class RedisMonitor implements CacheMonitor {
                 cursor = ScanCursor.of(page.getCursor());
                 if (page.isFinished()) break;
 
-            } while (scanned < MAX_KEYS);
+            } while (scanned < PATTERN_SCAN_LIMIT);
 
             logger.debug("Pattern scan completed: {} keys on {}",
                     scanned, instance.getName());
@@ -750,7 +720,6 @@ public class RedisMonitor implements CacheMonitor {
         result.removeIf(s -> s.getKeyCount() == 0);
         return result;
     }
-
 
     private record KeyspaceSummary(long totalKeys, long totalExpires,
                                    Long avgTtlMillis, Map<String, Long> perDatabase) {}
@@ -815,7 +784,7 @@ public class RedisMonitor implements CacheMonitor {
         String type = cmd.type(keyBytes);
 
         Long pttl = cmd.pttl(keyBytes);
-        long ttl = ( pttl != null) ? pttl : -2;
+        long ttl = (pttl != null) ? pttl : -2;
 
         long sizeBytes = safeMemoryUsage(cmd, keyBytes);
 
@@ -824,7 +793,6 @@ public class RedisMonitor implements CacheMonitor {
         ki.setSizeStatus(MetricStatus.AVAILABLE);
         return ki;
     }
-
 
     private String sanitizeGlob(String input) {
         StringBuilder sb = new StringBuilder(input.length() + 8);
