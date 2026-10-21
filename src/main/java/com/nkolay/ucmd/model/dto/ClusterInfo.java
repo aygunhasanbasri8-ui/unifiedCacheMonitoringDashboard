@@ -88,7 +88,6 @@ public class ClusterInfo implements MonitoredMetric {
     public MetricMeta getMeta() {return meta;}
     public void setMeta(MetricMeta meta) {this.meta = meta;}
 
-    // Inner class for member info
     public static class MemberInfo {
         private String memberId;
         private String host;

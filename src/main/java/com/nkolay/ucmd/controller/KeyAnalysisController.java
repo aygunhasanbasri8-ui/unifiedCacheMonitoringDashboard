@@ -21,7 +21,6 @@ import java.util.List;
 @RequestMapping("/v1/instances")
 public class KeyAnalysisController {
 
-
     private final KeyAnalysisService keyAnalysisService;
 
     private final MonitoringService monitoringService;
@@ -95,7 +94,6 @@ public class KeyAnalysisController {
             @RequestBody(required = false) TopKeysRequest request,
             HttpServletRequest httpRequest) {
 
-
         TopKeysRequest req = (request != null) ? request : new TopKeysRequest();
         TopKeysResponse response =
                 keyAnalysisService.getTopNKeys(id, req.getN(), req.getScanLimit());
@@ -123,16 +121,15 @@ public class KeyAnalysisController {
     public ResponseEntity<KeyTtlResponse> getKeyTTL(
             @PathVariable Long id,
             @RequestBody KeyTtlRequest request,
-            HttpServletRequest httpRequest){
+            HttpServletRequest httpRequest) {
 
-        String key = (request!=null) ? request.getKey() : null;
+        String key = (request != null) ? request.getKey() : null;
         if (key == null || key.isEmpty()) {
             throw new IllegalArgumentException("Key boş olamaz.");
         }
 
-        if (key.length()>512) {
+        if (key.length() > 512) {
             throw new IllegalArgumentException("Key uzunluğu 512'den büyük olamaz.");
-
         }
 
         KeyTtlResponse response = keyAnalysisService.getKeyTTL(id, key, request.getMapName());
@@ -146,7 +143,6 @@ public class KeyAnalysisController {
                 auditContext.clientIp(httpRequest));
 
         return ResponseEntity.ok(response);
-
     }
 
     /** Denetim detayına map adını yalnızca verilmişse ekler (Redis'te "map=null" yazılmasın). */
@@ -168,5 +164,4 @@ public class KeyAnalysisController {
     public ResponseEntity<List<KeyPatternStats>> getKeyPatternStats(@PathVariable Long id) {
         return ResponseEntity.ok(monitoringService.getKeyPatternStats(id));
     }
-
 }

@@ -31,8 +31,6 @@ public class PageInfo<T> {
         this.status = status;
     }
 
-    /// Sorgu başarısız
-
     public static <T> PageInfo<T> unavailable(int pageSize) {
         return new PageInfo<>(new ArrayList<>(), "0", false, pageSize,
                 MetricStatus.UNAVAILABLE);
