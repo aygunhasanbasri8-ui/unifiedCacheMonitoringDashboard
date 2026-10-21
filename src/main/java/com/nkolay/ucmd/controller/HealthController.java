@@ -29,13 +29,10 @@ public class HealthController {
 
     private final long startedAt = System.currentTimeMillis();
 
-    
     private final MonitoringService monitoringService;
 
-    
     private final SnapshotRepository snapshotRepository;
 
-    
     private final CollectionMetrics collectionMetrics;
 
     public HealthController(MonitoringService monitoringService, SnapshotRepository snapshotRepository, CollectionMetrics collectionMetrics) {

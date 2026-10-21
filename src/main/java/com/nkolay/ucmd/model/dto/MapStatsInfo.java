@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class MapStatsInfo {
+public class MapStatsInfo implements MonitoredMetric {
 
     private int mapCount;
     private long totalEntryCount;

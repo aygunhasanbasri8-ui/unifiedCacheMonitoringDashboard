@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class OperationStatsInfo {
+public class OperationStatsInfo implements MonitoredMetric {
 
     // operation
     private Long queueSize;

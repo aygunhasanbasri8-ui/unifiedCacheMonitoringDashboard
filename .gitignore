@@ -49,3 +49,5 @@ truststore.jks
 # JVM crash artefaktlari
 hs_err_pid*.log
 replay_pid*.log
+
+.claude/

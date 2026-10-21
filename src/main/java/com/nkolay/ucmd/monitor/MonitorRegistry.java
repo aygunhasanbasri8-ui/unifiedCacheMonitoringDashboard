@@ -14,7 +14,6 @@ public class MonitorRegistry {
     private final Map<String, CacheMonitor> monitors;
 
     public MonitorRegistry(List<CacheMonitor> monitorList) {
-
         monitors = monitorList.stream()
                 .collect(Collectors.toMap(
                         CacheMonitor::getSupportedType,
@@ -24,15 +23,11 @@ public class MonitorRegistry {
 
     public CacheMonitor getMonitor(InstanceRef instance) {
         CacheMonitor monitor = monitors.get(instance.getType().name());
-        if (monitor==null) {
+        if (monitor == null) {
             throw new IllegalArgumentException(
                     "Desteklenmeyen instance type: " + instance.getType()
             );
         }
         return monitor;
-    }
-
-    public java.util.Set<String> getSupportedTypes() {
-        return monitors.keySet();
     }
 }

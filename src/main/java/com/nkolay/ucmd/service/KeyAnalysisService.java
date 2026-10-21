@@ -3,7 +3,6 @@ package com.nkolay.ucmd.service;
 import com.nkolay.ucmd.enums.MatchMode;
 import com.nkolay.ucmd.model.dto.*;
 
-import java.util.List;
 
 public interface KeyAnalysisService {
 
