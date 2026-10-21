@@ -131,7 +131,7 @@ public class KeyAnalysisController {
         }
 
         if (key.length()>512) {
-            throw new IllegalArgumentException("Key uzunluğu 512'swn büyük olamaz.");
+            throw new IllegalArgumentException("Key uzunluğu 512'den büyük olamaz.");
 
         }
 

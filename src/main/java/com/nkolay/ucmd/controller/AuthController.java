@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Auth", description = "Kimlik doğrulama (JWT)")
 @RestController
 @RequestMapping("/v1/auth")
-
 public class AuthController {
 
     private final UserService userService;
@@ -88,7 +87,6 @@ public class AuthController {
         return ResponseEntity.ok().body("Logged out successfully");
     }
 
-    //Inner class
     public static class ErrorDetail {
         public String error;
         public String message;
