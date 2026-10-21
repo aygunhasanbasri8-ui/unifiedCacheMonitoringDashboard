@@ -19,7 +19,7 @@ tipiyle ve RFC 7807 yapısında döner:
 
 ```json
 {
-  "type": "https://ucmd.nkolay.local/problems/instance-not-found",
+  "type": "https://ucmd.example.local/problems/instance-not-found",
   "title": "Instance Not Found",
   "status": 404,
   "detail": "Instance bulunamadı: 999",
@@ -30,7 +30,7 @@ tipiyle ve RFC 7807 yapısında döner:
 ```
 
 Kurallar:
-- `type` alanı `https://ucmd.nkolay.local/problems/<suffix>` biçiminde; suffix makine
+- `type` alanı `https://ucmd.example.local/problems/<suffix>` biçiminde; suffix makine
   tarafından okunabilir ayırt edici (`invalid-prefix`, `map-not-allowed`,
   `rate-limit-exceeded`, `circuit-open`, `monitor-timeout`, `instance-busy`, ...)
 - `traceId` istekteki `X-Request-Id` header'ından alınır, yoksa üretilir

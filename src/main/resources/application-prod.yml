@@ -52,4 +52,4 @@ springdoc:
 logging:
   level:
     root: WARN
-    com.nkolay: INFO
+    com.ucmd: INFO

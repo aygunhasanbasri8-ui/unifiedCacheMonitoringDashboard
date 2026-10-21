@@ -6,7 +6,7 @@ body:
   type: json
   content: "{\r
 
-    \  \"type\": \"https://ucmd.nkolay.local/problems/bad-request\",\r
+    \  \"type\": \"https://ucmd.example.local/problems/bad-request\",\r
 
     \  \"title\": \"Invalid Request\",\r
 
