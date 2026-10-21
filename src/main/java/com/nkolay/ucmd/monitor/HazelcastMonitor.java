@@ -860,7 +860,7 @@ public class HazelcastMonitor implements CacheMonitor {
 
                         boolean matched = false;
                         for (KeyPatternStats stats : result) {
-                            if (matchesPatternHz(mapName, stats.getPattern())) {
+                            if (KeyPatternMatcher.matches(mapName, stats.getPattern())) {
                                 stats.increment(entryCount);   // boyut yerine entry sayısı
                                 matched = true;
                                 break;
@@ -881,27 +881,5 @@ public class HazelcastMonitor implements CacheMonitor {
         result.removeIf(s -> s.getKeyCount() == 0);
         return result;
     }
-
-    private boolean matchesPatternHz(String mapName, String pattern) {
-
-        return matchesPattern(mapName, pattern);
-    }
-
-    private boolean matchesPattern(String keyName, String pattern) {
-        if (pattern == null || pattern.equals("*")) return true;
-        StringBuilder regex = new StringBuilder("^");
-        for (char c : pattern.toCharArray()) {
-            if (c == '*') {
-                regex.append(".*");
-            } else if ("\\.[]{}()+-?^$|".indexOf(c) >= 0) {
-                regex.append('\\').append(c);
-            } else {
-                regex.append(c);
-            }
-        }
-        regex.append("$");
-        return keyName.matches(regex.toString());
-    }
-
 
 }

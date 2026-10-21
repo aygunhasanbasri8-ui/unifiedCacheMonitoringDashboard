@@ -723,7 +723,7 @@ public class RedisMonitor implements CacheMonitor {
 
                     boolean matched = false;
                     for (KeyPatternStats stats : result) {
-                        if (matchesPattern(keyName, stats.getPattern())) {
+                        if (KeyPatternMatcher.matches(keyName, stats.getPattern())) {
                             stats.increment(size);
                             matched = true;
                             break;
@@ -843,21 +843,5 @@ public class RedisMonitor implements CacheMonitor {
             if (c == '*' || c == '?' || c == '[') return i;
         }
         return pattern.length();
-    }
-
-    private boolean matchesPattern(String keyName, String pattern) {
-        if (pattern == null || pattern.equals("*")) return true;
-        StringBuilder regex = new StringBuilder("^");
-        for (char c : pattern.toCharArray()) {
-            if (c == '*') {
-                regex.append(".*");
-            } else if ("\\.[]{}()+-?^$|".indexOf(c) >= 0) {
-                regex.append('\\').append(c);
-            } else {
-                regex.append(c);
-            }
-        }
-        regex.append("$");
-        return keyName.matches(regex.toString());
     }
 }
