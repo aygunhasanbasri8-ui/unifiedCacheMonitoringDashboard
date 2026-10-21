@@ -2,7 +2,7 @@ package com.nkolay.ucmd.model.dto;
 
 import com.nkolay.ucmd.enums.MetricStatus;
 
-public class CacheEfficiencyStats {
+public class CacheEfficiencyStats implements MonitoredMetric {
     private long keyspaceHits;
     private long keyspaceMisses;
 

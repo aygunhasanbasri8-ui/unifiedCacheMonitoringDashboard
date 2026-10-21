@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class ReplicationInfo {
+public class ReplicationInfo implements MonitoredMetric {
 
     private String role;                    // master | slave
     private int connectedReplicas;

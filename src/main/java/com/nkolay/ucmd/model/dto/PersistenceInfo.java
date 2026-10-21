@@ -3,7 +3,7 @@ package com.nkolay.ucmd.model.dto;
 import com.nkolay.ucmd.enums.MetricStatus;
 
 
-public class PersistenceInfo {
+public class PersistenceInfo implements MonitoredMetric {
 
     // RDB
     private boolean rdbEnabled;

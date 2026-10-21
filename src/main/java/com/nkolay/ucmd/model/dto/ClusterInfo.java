@@ -8,7 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ClusterInfo {
+public class ClusterInfo implements MonitoredMetric {
     private int nodeCount;
     private int partitionCount;
     private List<MemberInfo> members = new ArrayList<>();

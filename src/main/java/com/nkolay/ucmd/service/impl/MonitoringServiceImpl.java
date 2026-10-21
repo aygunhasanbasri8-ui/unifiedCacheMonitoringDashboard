@@ -12,18 +12,16 @@ import com.nkolay.ucmd.monitor.MonitorRegistry;
 import com.nkolay.ucmd.monitor.ProtectedMonitorExecutor;
 import com.nkolay.ucmd.repository.InstanceRepository;
 import com.nkolay.ucmd.service.MonitoringService;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 @Service
 public class MonitoringServiceImpl implements MonitoringService {
-
-    private final Logger logger = LoggerFactory.getLogger(MonitoringServiceImpl.class);
 
     private final MonitorRegistry monitorRegistry;
     private final InstanceRepository instanceRepository;
@@ -39,7 +37,6 @@ public class MonitoringServiceImpl implements MonitoringService {
         this.executor = executor;
         this.hazelcastConnectionManager = hazelcastConnectionManager;
         this.seedInstanceConfig = seedInstanceConfig;
-
     }
 
     @PostConstruct
@@ -90,7 +87,6 @@ public class MonitoringServiceImpl implements MonitoringService {
         instanceRepository.deleteById(id);
     }
 
-
     @Override
     public HealthInfo getInstanceHealth(Long id) {
         InstanceRef instance = getInstanceById(id);
@@ -116,214 +112,56 @@ public class MonitoringServiceImpl implements MonitoringService {
 
     @Override
     public ResourceStats getResourceStats(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "resources",
-                () -> monitor.getResourceStats(instance));
-
-        if (result.isTimeout()) {
-            ResourceStats s = unavailableResourceStats();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return unavailableResourceStats();
-        }
-        ResourceStats stats = result.value();
-        stats.setMeta(result.toMeta());
-        if (result.isStale()) {
-            stats.setOverallStatus(MetricStatus.STALE);
-        }
-        return stats;
+        return collect(id, "resources", CacheMonitor::getResourceStats,
+                this::unavailableResourceStats, true);
     }
 
     @Override
     public ConnectionStats getConnectionStats(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "connections",
-                () -> monitor.getConnectionStats(instance));
-
-        if (result.isTimeout()) {
-            ConnectionStats s = unavailableConnectionStats();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return unavailableConnectionStats();
-        }
-        ConnectionStats stats = result.value();
-        if (result.isStale()) {
-            stats.setOverallStatus(MetricStatus.STALE);
-        }
-        return stats;
+        return collect(id, "connections", CacheMonitor::getConnectionStats,
+                this::unavailableConnectionStats, false);
     }
 
     @Override
     public DataStats getDataStats(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "data-stats",
-                () -> monitor.getDataStats(instance));
-
-        if (result.isTimeout()) {
-            DataStats s = unavailableDataStats();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return unavailableDataStats();
-        }
-        DataStats stats = result.value();
-        if (result.isStale()) {
-            stats.setOverallStatus(MetricStatus.STALE);
-        }
-        return stats;
+        return collect(id, "data-stats", CacheMonitor::getDataStats,
+                this::unavailableDataStats, false);
     }
 
     @Override
     public ClusterInfo getClusterInfo(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "cluster",
-                () -> monitor.getClusterInfo(instance));
-
-        if (result.isTimeout()) {
-            ClusterInfo s = unavailableClusterInfo();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return unavailableClusterInfo();
-        }
-        ClusterInfo info = result.value();
-        if (result.isStale()) {
-            info.setOverallStatus(MetricStatus.STALE);
-        }
-        return info;
+        return collect(id, "cluster", CacheMonitor::getClusterInfo,
+                this::unavailableClusterInfo, false);
     }
 
     @Override
     public CacheEfficiencyStats getCacheEfficiency(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "efficiency",
-                () -> monitor.getCacheEfficiency(instance));
-
-        if (result.isTimeout()) {
-            CacheEfficiencyStats s = unavailableCacheEfficiencyStats();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return unavailableCacheEfficiencyStats();
-        }
-        CacheEfficiencyStats stats = result.value();
-        if (result.isStale()) {
-            stats.setOverallStatus(MetricStatus.STALE);
-        }
-        return stats;
+        return collect(id, "efficiency", CacheMonitor::getCacheEfficiency,
+                this::unavailableCacheEfficiencyStats, false);
     }
 
     @Override
     public ReplicationInfo getReplicationInfo(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "replication",
-                () -> monitor.getReplicationInfo(instance));
-
-        if (result.isTimeout()) {
-            ReplicationInfo s = ReplicationInfo.unavailable();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return ReplicationInfo.unavailable();
-        }
-        ReplicationInfo info = result.value();
-        info.setMeta(result.toMeta());
-        if (result.isStale()) {
-            info.setOverallStatus(MetricStatus.STALE);
-        }
-        return info;
+        return collect(id, "replication", CacheMonitor::getReplicationInfo,
+                ReplicationInfo::unavailable, true);
     }
 
     @Override
     public PersistenceInfo getPersistenceInfo(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "persistence",
-                () -> monitor.getPersistenceInfo(instance));
-
-        if (result.isTimeout()) {
-            PersistenceInfo s = PersistenceInfo.unavailable();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return PersistenceInfo.unavailable();
-        }
-        PersistenceInfo info = result.value();
-        info.setMeta(result.toMeta());
-        if (result.isStale()) {
-            info.setOverallStatus(MetricStatus.STALE);
-        }
-        return info;
+        return collect(id, "persistence", CacheMonitor::getPersistenceInfo,
+                PersistenceInfo::unavailable, true);
     }
 
     @Override
     public MapStatsInfo getMapStats(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "map-stats",
-                () -> monitor.getMapStats(instance));
-
-        if (result.isTimeout()) {
-            MapStatsInfo s = MapStatsInfo.unavailable();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return MapStatsInfo.unavailable();
-        }
-        MapStatsInfo info = result.value();
-        info.setMeta(result.toMeta());
-        if (result.isStale()) {
-            info.setOverallStatus(MetricStatus.STALE);
-        }
-        return info;
+        return collect(id, "map-stats", CacheMonitor::getMapStats,
+                MapStatsInfo::unavailable, true);
     }
 
     @Override
     public OperationStatsInfo getOperationStats(Long id) {
-        InstanceRef instance = getInstanceById(id);
-        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
-
-        var result = executor.executeCachedMetric(instance, "operation-stats",
-                () -> monitor.getOperationStats(instance));
-
-        if (result.isTimeout()) {
-            OperationStatsInfo s = OperationStatsInfo.unavailable();
-            s.setOverallStatus(MetricStatus.TIMEOUT);
-            return s;
-        }
-        if (result.isUnavailable() || result.value() == null) {
-            return OperationStatsInfo.unavailable();
-        }
-        OperationStatsInfo info = result.value();
-        info.setMeta(result.toMeta());
-        if (result.isStale()) {
-            info.setOverallStatus(MetricStatus.STALE);
-        }
-        return info;
+        return collect(id, "operation-stats", CacheMonitor::getOperationStats,
+                OperationStatsInfo::unavailable, true);
     }
 
     @Override
@@ -337,13 +175,42 @@ public class MonitoringServiceImpl implements MonitoringService {
         return stats != null ? stats : new ArrayList<>();
     }
 
+    // attachMeta=false olan uçlar bugüne kadar meta (collectedAt/stale) taşımadı;
+    // yanıt şekli değişmesin diye korunuyor.
+    private <T extends MonitoredMetric> T collect(Long id, String operation,
+                                                  BiFunction<CacheMonitor, InstanceRef, T> call,
+                                                  Supplier<T> fallback,
+                                                  boolean attachMeta) {
+        InstanceRef instance = getInstanceById(id);
+        CacheMonitor monitor = monitorRegistry.getMonitor(instance);
+
+        var result = executor.executeCachedMetric(instance, operation,
+                () -> call.apply(monitor, instance));
+
+        if (result.isTimeout()) {
+            T timedOut = fallback.get();
+            timedOut.setOverallStatus(MetricStatus.TIMEOUT);
+            return timedOut;
+        }
+        if (result.isUnavailable() || result.value() == null) {
+            return fallback.get();
+        }
+        T value = result.value();
+        if (attachMeta) {
+            value.setMeta(result.toMeta());
+        }
+        if (result.isStale()) {
+            value.setOverallStatus(MetricStatus.STALE);
+        }
+        return value;
+    }
+
     private ResourceStats unavailableResourceStats() {
         ResourceStats s = new ResourceStats(0,0,0);
         s.setOverallStatus(MetricStatus.UNAVAILABLE);
         s.setFragmentationStatus(MetricStatus.UNAVAILABLE);
         s.setCpuStats(MetricStatus.UNAVAILABLE);
         s.setMemoryStatus(MetricStatus.UNAVAILABLE);
-
         return s;
     }
 
@@ -376,5 +243,4 @@ public class MonitoringServiceImpl implements MonitoringService {
         s.setOverallStatus(MetricStatus.UNAVAILABLE);
         return s;
     }
-
 }

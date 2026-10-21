@@ -2,7 +2,7 @@ package com.nkolay.ucmd.model.dto;
 
 import com.nkolay.ucmd.enums.MetricStatus;
 
-public class ConnectionStats {
+public class ConnectionStats implements MonitoredMetric {
     private int activeClients;
     private long totalConnectionErrors;   // Redis'te doğrudan karşılığı yok
     private long rejectedConnections;

@@ -6,7 +6,7 @@ import com.nkolay.ucmd.enums.MetricStatus;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class DataStats {
+public class DataStats implements MonitoredMetric {
     private long totalKeyCount;
     private long usedMemoryBytes;
     private long maxMemoryBytes;
