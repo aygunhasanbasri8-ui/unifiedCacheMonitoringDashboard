@@ -1,24 +1,26 @@
 # UCMD — Unified Cache Monitoring Dashboard
 
-## 1. Proje Özeti
+English | [Türkçe](README.tr.md)
 
-UCMD, dağıtık ortamdaki Redis ve Hazelcast instance'larını tek merkezden izleyen
-**salt-okunur** bir monitoring aracıdır. Farklı takımların farklı araçlarla (redis-cli,
-Hazelcast Management Center, Grafana) baktığı cache sistemlerini tek API ve tek panel
-altında toplar.
+## 1. Overview
 
-Çözdüğü problem: bir üretim olayında "cache dolu mu, hangi key'ler şişiyor, replica
-gerilerde mi, hangi node yük altında" sorularının cevabı bugün birkaç ayrı araca
-bakmayı gerektiriyor. UCMD bu bilgileri tek yerde, tutarlı bir durum modeliyle sunar.
+UCMD is a **read-only** monitoring tool that watches Redis and Hazelcast instances in a
+distributed environment from a single place. It brings cache systems that different teams
+inspect with different tools (redis-cli, Hazelcast Management Center, Grafana) under one API
+and one dashboard.
 
-Kritik tasarım ilkesi: **izlenen sistemi asla bozmamak**. Hiçbir yazma komutu
-çalıştırılmaz, `KEYS *` kullanılmaz, her çağrı rate limit / bulkhead / circuit breaker /
-timeout katmanından geçer, erişilemeyen metrik için uydurma değer değil `UNAVAILABLE`
-döner.
+The problem it solves: during a production incident, answering "is the cache full, which
+keys are growing, is a replica lagging, which node is under load" today means looking at
+several separate tools. UCMD presents that information in one place with a consistent status model.
+
+The key design principle is **never harm the monitored system**. No write command is
+ever executed, `KEYS *` is never used, every call goes through a rate limit / bulkhead /
+circuit breaker / timeout chain, and a metric that cannot be reached returns `UNAVAILABLE`
+instead of a made-up value.
 
 ---
 
-## 2. Mimari
+## 2. Architecture
 
 ```
 ┌────────────────┐
@@ -37,13 +39,13 @@ döner.
 └───────┬────────────────┘      └──────────────────────────────┘
         │
 ┌───────▼─────────────────────────────────────────────────────────┐
-│              ProtectedMonitorExecutor  (rehber §2.2)             │
+│              ProtectedMonitorExecutor  (ADR-0006)                │
 │   cache → rate limiter → bulkhead → circuit breaker → timeout    │
 │   executeCachedMetric()  |  executeExpensive()                   │
 └───────┬─────────────────────────────────────────────────────────┘
         │
 ┌───────▼────────────────┐
-│  CacheMonitor (arayüz) │  ← MonitorRegistry tipe göre seçer
+│ CacheMonitor (interface)│  ← MonitorRegistry picks by type
 └───┬────────────────┬───┘
     │                │
 ┌───▼──────────┐  ┌──▼───────────────┐
@@ -58,115 +60,127 @@ döner.
 ┌─────────┐   ┌─────────────┐  ┌──────────────────┐
 │  Redis  │   │  Hazelcast  │  │ jmx_exporter     │
 │ 6379/80 │   │ dev(2 node) │  │ :9404/9405/9406  │
-│         │   │ analytics   │  │ /metrics (~1877  │
-│         │   │ (1 node)    │  │  satır scrape)   │
+│         │   │ analytics   │  │ /metrics         │
+│         │   │ (1 node)    │  │                  │
 └─────────┘   └─────────────┘  └──────────────────┘
 
-Yan dallar:
+Side branches:
   • PostgreSQL  → instances, metric_snapshots, audit_logs, users
-  • Caffeine    → 10 sn TTL metrik cache + 30 dk STALE fallback penceresi
-  • Micrometer  → /actuator/prometheus (UCMD'nin kendi öz-izleme metrikleri)
-  • SnapshotScheduler → 30 sn'de bir tüm instance'lardan snapshot toplar
+  • Caffeine    → 10 s TTL metric cache + 30 min STALE fallback window
+  • Micrometer  → /actuator/prometheus (UCMD's own self-monitoring metrics)
+  • SnapshotScheduler → collects a snapshot from every instance every 30 s
 ```
 
-**Bağlantı havuzları:** `RedisConnectionManager` (`host:port:username` bazlı),
-`HazelcastConnectionManager` (`clusterName|members` bazlı). İkisi de bağlantıları
-önbelleğe alır, ölü bağlantıyı yeniden kurar, `@PreDestroy` ile kapatır.
+**Connection pools:** `RedisConnectionManager` (keyed by `host:port:username`),
+`HazelcastConnectionManager` (keyed by `clusterName|members`). Both cache connections,
+re-establish dead ones and close them with `@PreDestroy`.
 
 ---
 
-## 3. Teknoloji Yığını
+## 3. Tech Stack
 
-| Bileşen | Sürüm | Not |
+| Component | Version | Note |
 |---|---|---|
-| Java | 21 | Virtual Threads aktif (`spring.threads.virtual.enabled`) |
+| Java | 21 | Virtual Threads enabled (`spring.threads.virtual.enabled`) |
 | Spring Boot | 3.5.16 | Web, Data JPA, Actuator, AOP |
 | PostgreSQL | 15 | `ucmd_db` |
-| H2 | test | test profili in-memory DB |
-| Testcontainers | Spring Boot yönetimli | integration testlerde gerçek Redis |
-| Lettuce | Spring Boot yönetimli | `RedisClient`, `ByteArrayCodec` |
+| H2 | test | in-memory DB for the test profile |
+| Testcontainers | managed by Spring Boot | real Redis in integration tests |
+| Lettuce | managed by Spring Boot | `RedisClient`, `ByteArrayCodec` |
 | Hazelcast Client | 5.3.8 | unisocket (`smartRouting=false`) |
 | resilience4j | 2.2.0 | rate limiter, bulkhead, circuit breaker |
-| Caffeine | Spring Boot yönetimli | kısa TTL metrik cache |
-| Micrometer + Prometheus | Spring Boot yönetimli | `/actuator/prometheus` |
-| springdoc-openapi | 2.8.6 | Swagger UI, iki grup |
+| Caffeine | managed by Spring Boot | short-TTL metric cache |
+| Micrometer + Prometheus | managed by Spring Boot | `/actuator/prometheus` |
+| springdoc-openapi | 2.8.6 | Swagger UI, two groups |
 | jjwt | 0.12.6 | HMAC-SHA256 |
-| BCrypt | spring-security-crypto | parola özeti |
+| BCrypt | spring-security-crypto | password hashing |
+| Frontend | React 19, Vite, React Router, Recharts, Axios | under `frontend/`; served by nginx in Docker |
 
-> **Not:** springdoc 2.6.0 Spring Framework 6.2 ile ikili uyumsuzdur
-> (`NoSuchMethodError: ControllerAdviceBean.<init>`). 2.8.6 kullanılmalıdır.
+> **Note:** springdoc 2.6.0 is binary-incompatible with Spring Framework 6.2
+> (`NoSuchMethodError: ControllerAdviceBean.<init>`). Use 2.8.6.
 
 ---
 
-## 4. Kurulum
+## 4. Setup
 
-### 4.1 Ön koşullar
+### 4.1 Prerequisites
 
 - JDK 21
-- Maven 3.9+ (veya depodaki `mvnw`)
+- Maven 3.9+ (or the `mvnw` in the repo)
 - Docker + Docker Compose
-- PostgreSQL 15 (compose ile geliyor)
+- PostgreSQL 15 (comes with compose)
 
-> Her şeyi Docker'dan çalıştıracaksanız (§4.6) bunlardan **yalnızca Docker**
-> gerekir; JDK, Maven, Node ve PostgreSQL imajların içindedir.
+> If you run everything from Docker (section 4.6), **only Docker** is required; the JDK,
+> Maven, Node and PostgreSQL live inside the images.
 
-### 4.2 `.env` değişkenleri
+### 4.2 `.env` variables
 
-Kök dizinde `.env` dosyası oluşturun:
+Create a `.env` file in the repo root:
 
-| Değişken | Zorunlu | Açıklama |
+| Variable | Required | Description |
 |---|---|---|
-| `JWT_SECRET` | ✅ | En az 32 karakter. Kısa olursa uygulama açılışta durur |
-| `JWT_EXPIRATION_HOURS` | — | Varsayılan 24 |
-| `UCMD_BOOTSTRAP_USERNAME` | ✅ (dev) | İlk açılışta oluşturulan tek yönetici hesabının adı |
-| `UCMD_BOOTSTRAP_PASSWORD` | ✅ (dev) | Aynı hesabın parolası |
-| `UCMD_BOOTSTRAP_ROLE` | — | Varsayılan `ADMIN` |
-| `SPRING_DATASOURCE_URL` | — | Varsayılan `jdbc:postgresql://localhost:5432/ucmd_db` |
-| `SPRING_DATASOURCE_USERNAME` | — | Varsayılan `ucmd_user` |
-| `SPRING_DATASOURCE_PASSWORD` | — | Varsayılan `ucmd_pass` |
-| `APP_ENVIRONMENT` | — | `production` ise varsayılan kullanıcılar oluşturulmaz |
-| `<INSTANCE_PASSWORD_ENV>` | — | Redis ACL parolası; adı `instances.password_env_var` kolonunda tutulur |
+| `JWT_SECRET` | ✅ | At least 32 characters. If shorter, the app stops at startup |
+| `JWT_EXPIRATION_HOURS` | — | Default 24 |
+| `UCMD_BOOTSTRAP_USERNAME` | ✅ (dev) | Name of the single admin account created on first start |
+| `UCMD_BOOTSTRAP_PASSWORD` | ✅ (dev) | Password of that account |
+| `UCMD_BOOTSTRAP_ROLE` | — | Default `ADMIN` |
+| `SPRING_DATASOURCE_URL` | — | Default `jdbc:postgresql://localhost:5432/ucmd_db` |
+| `SPRING_DATASOURCE_USERNAME` | ✅ | No default. In Docker Compose it comes from `POSTGRES_USER` |
+| `SPRING_DATASOURCE_PASSWORD` | ✅ | No default. In Docker Compose it comes from `POSTGRES_PASSWORD` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD` | ✅ (Compose) | Shared credentials of the `postgres` and `ucmd-backend` services |
+| `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` | ✅ (Compose) | Grafana admin account |
+| `REDIS_CACHE_PASSWORD` | ✅ (Compose) | Password of `redis-2` (6380) |
+| `UCMD_CORS_ALLOWED_ORIGINS` | — | Default `http://localhost:5173,http://localhost:5174,http://localhost:3000` |
+| `APP_ENVIRONMENT` | — | If `production`, the bootstrap admin account is not created |
+| `<INSTANCE_PASSWORD_ENV>` | — | Redis ACL password; its name is stored in the `instances.password_env_var` column |
 
-> Parolalar **veritabanında saklanmaz**. `InstanceRef.passwordEnvVar` yalnızca
-> hangi environment değişkeninden okunacağının **adını** taşır (rehber §9).
+An example file with every Compose variable: [`.env.example`](.env.example).
 
-> Kodda gömülü varsayılan kullanıcı adı veya parola **yoktur**. Uygulama ilk
-> açılışta yalnızca `UCMD_BOOTSTRAP_*` ile tanımlanan tek yönetici hesabını
-> oluşturur; diğer kullanıcılar bu hesapla UI'daki kullanıcı yönetimi
-> ekranından açılır. Değişkenler tanımsızsa uygulama açılışta durur.
+> Passwords are **not stored in the database**. `InstanceRef.passwordEnvVar` only carries
+> the **name** of the environment variable to read from. For the server-side second line of
+> defense see [`docs/redis-acl-setup.md`](docs/redis-acl-setup.md); the limits of this
+> approach are in [`docs/known-limitations.md`](docs/known-limitations.md) item 6.
+
+> There is **no** hard-coded default username or password in the code. On first start the
+> app only creates the single admin account defined by `UCMD_BOOTSTRAP_*`; other users are
+> created with that account from the user management screen in the UI. If the variables are
+> missing, the app stops at startup.
 >
-> Hesap veritabanında zaten varsa bu değerler yok sayılır — parolayı
-> değiştirmek için hesabı silip uygulamayı yeniden başlatın.
+> If the account already exists in the database these values are ignored. To change the
+> password, delete the account and restart the app.
 
-### 4.3 Altyapıyı ayağa kaldır
+### 4.3 Start the infrastructure
+
+The compose file requires the `.env` variables; first create it with `cp .env.example .env`
+and fill in the values.
 
 ```bash
 docker compose up -d
 ```
 
-Gelen servisler:
+Services that come up:
 
-| Servis | Port | Açıklama |
+| Service | Port | Description |
 |---|---|---|
 | `redis` | 6379 | 256 MB, `allkeys-lru` |
 | `redis-2` | 6380 | 128 MB, `allkeys-lru` |
-| `hazelcast` + `hazelcast-2` | 5701, 5702 | `dev` cluster, 2 node |
+| `hazelcast` + `hazelcast-2` | 5701, 5702 | `dev` cluster, 2 nodes |
 | `hz-analytics` | 5703 | `analytics` cluster, 1 node |
-| jmx_exporter | 9404, 9405, 9406 | Hazelcast node'larının Prometheus scrape'i |
-| `postgres` | 5433 | `ucmd_db` (container içi 5432) |
+| jmx_exporter | 9404, 9405, 9406 | Prometheus scrape of the Hazelcast nodes |
+| `postgres` | 5433 | `ucmd_db` (5432 inside the container) |
 | `prometheus` | 9090 | — |
-| `grafana` | 3001 | admin/admin |
-| `ucmd-backend` | 8080 | Spring Boot API (opsiyonel — bkz. §4.6) |
-| `ucmd-frontend` | 3000 | React + nginx (opsiyonel — bkz. §4.6) |
+| `grafana` | 3001 | Account from `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` in `.env` |
+| `ucmd-backend` | 8080 | Spring Boot API (optional, see section 4.6) |
+| `ucmd-frontend` | 3000 | React + nginx (optional, see section 4.6) |
 
-> `docker compose up -d` **tüm** servisleri başlatır. Yalnızca altyapıyı isterseniz
-> servis adlarını açıkça verin:
+> `docker compose up -d` starts **all** services. If you only want the infrastructure,
+> name the services explicitly:
 >
 > ```bash
 > docker compose up -d redis redis-2 hazelcast hazelcast-2 hz-analytics postgres prometheus grafana
 > ```
 
-Doğrulama:
+Verify:
 
 ```bash
 docker logs hazelcast 2>&1 | grep -A3 "Members {"
@@ -180,13 +194,17 @@ docker logs hz-analytics 2>&1 | grep -A2 "Members {"
 curl -s localhost:9406/metrics | grep jvm_memory_bytes_used | head -3
 ```
 
-`hazelcast` için `size:2`, `hz-analytics` için `size:1` görülmelidir.
+You should see `size:2` for `hazelcast` and `size:1` for `hz-analytics`.
 
-### 4.4 Veritabanı
+### 4.4 Database
 
-`ddl-auto: update` dev profilinde tabloları oluşturur, ancak **güvenilir değildir**
-(bkz. `docs/known-limitations.md` madde 5). Kolon eklemeleri elle yapılmalıdır.
-Prod profilinde `validate` kullanılır.
+`ddl-auto: update` creates the tables in the dev profile but is **not reliable** (see
+[`docs/known-limitations.md`](docs/known-limitations.md) item 5). Column additions must be done by hand.
+The prod profile uses `validate`.
+
+If you are setting up the schema from scratch, the file in the "Database schema" section
+below is enough. The SQL here is for upgrading an **older** database that was created
+before these columns existed:
 
 ```sql
 -- ── Hazelcast multi-cluster ──
@@ -195,17 +213,7 @@ ALTER TABLE instances
   ADD COLUMN IF NOT EXISTS members      VARCHAR(1000),
   ADD COLUMN IF NOT EXISTS metrics_url  VARCHAR(1000);
 
-UPDATE instances
-SET cluster_name = 'dev',
-    members      = 'localhost:5701,localhost:5702',
-    metrics_url  = 'http://localhost:9404/metrics,http://localhost:9405/metrics'
-WHERE type = 'HAZELCAST' AND cluster_name IS NULL;
-
-INSERT INTO instances (name, type, host, port, enabled, cluster_name, members, metrics_url)
-VALUES ('Hazelcast-analytics', 'HAZELCAST', 'localhost', 5703, true,
-        'analytics', 'localhost:5703', 'http://localhost:9406/metrics');
-
--- ── Denetim kaydı ──
+-- ── Audit log ──
 CREATE TABLE IF NOT EXISTS audit_logs (
     id          BIGSERIAL PRIMARY KEY,
     action      VARCHAR(64)  NOT NULL,
@@ -219,53 +227,58 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs (timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_username  ON audit_logs (username);
 CREATE INDEX IF NOT EXISTS idx_audit_action    ON audit_logs (action);
 
--- ── Redis ACL credential desteği ──
+-- ── Redis ACL credential support ──
 ALTER TABLE instances
   ADD COLUMN IF NOT EXISTS username          VARCHAR(255),
   ADD COLUMN IF NOT EXISTS password_env_var  VARCHAR(255);
 ```
 
-### Veritabanı şeması
+The default instance records (`Redis-prod`, `Redis-cache`, `Hazelcast-dev`,
+`Hazelcast-analytics`) are created by the app from the `ucmd.seed.*` settings when the
+`instances` table is empty; no manual `INSERT` is needed.
 
-`ddl-auto: update` bu projede kolon eklemelerini güvenilir biçimde yapmadı.
-Şema kaynağı `docs/migrations/001-initial-schema.sql` dosyasıdır.
+### Database schema
 
-Temiz bir ortamda ilk kurulum:
+`ddl-auto: update` did not add columns reliably in this project. The schema source is
+`docs/migrations/001-initial-schema.sql`.
+
+First setup on a clean environment:
 
 ```bash
 psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
 ```
 
-Bu dosya yalnızca UCMD'nin kendi tablolarını (`instances`, `users`,
-`metric_snapshots`, `audit_logs`) oluşturur. `sim/` altındaki simülasyon
-scriptlerinin ürettiği tablolar buraya dahil değildir.
+This file only creates UCMD's own tables (`instances`, `users`, `metric_snapshots`,
+`audit_logs`). Tables produced by the simulation scripts under `sim/` are not included.
 
-### 4.5 Uygulamayı çalıştır
+### 4.5 Run the application
 
 ```bash
 mvn spring-boot:run
 ```
 
-Windows'ta `.env` yükleyip başlatmak için depodaki `run.ps1` kullanılabilir.
+The app does not read the `.env` file itself; the variables (especially `JWT_SECRET`,
+`UCMD_BOOTSTRAP_*`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`) must be
+defined in the environment. On Windows, the `run.ps1` in the repo can load `.env` and start the app.
 
-- API kökü: `http://localhost:8080/api`
+- API root: `http://localhost:8080/api`
 - Swagger UI: `http://localhost:8080/api/swagger-ui.html`
 
-Frontend'i ayrı çalıştırmak için:
+To run the frontend separately:
 
 ```bash
 cd frontend && npm install && npm run dev
 ```
 
-Vite `http://localhost:5173` üzerinde açılır ve API'ye doğrudan
-`http://localhost:8080/api` adresinden gider (CORS izni `CorsConfig`'te tanımlıdır).
+Vite opens on `http://localhost:5173` and calls the API directly at
+`http://localhost:8080/api` (the CORS allowance is defined in `CorsConfig`).
 
-### 4.6 Her şeyi Docker ile çalıştırma
+### 4.6 Run everything with Docker
 
-Backend ve frontend de compose'a dahildir; host'a JDK veya Node kurmadan tüm
-sistem ayağa kalkar. **Tek ön koşul Docker'dır.**
+The backend and frontend are part of the compose file too; the whole system comes up
+without installing a JDK or Node on the host. **The only prerequisite is Docker.**
 
-Sıfırdan bir makinede:
+On a fresh machine:
 
 ```bash
 git clone https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard.git
@@ -275,57 +288,54 @@ git clone https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard
 cd unifiedCacheMonitoringDashboard && cp .env.example .env
 ```
 
-`.env` git'te tutulmaz, her makinede oluşturulmalıdır. İçindeki `JWT_SECRET`
-(en az 32 karakter) ile yönetici hesabının adı ve parolasını doldurun, sonra:
+`.env` is not kept in git and has to be created on every machine. Fill in `JWT_SECRET`
+(at least 32 characters) and the admin account's username and password, then:
 
 ```bash
 docker compose up -d --build
 ```
 
-İlk build Maven bağımlılıklarını indirdiği için 5–10 dakika sürer; sonraki
-build'ler katman cache'inden saniyeler içinde tamamlanır.
+The first build takes 5-10 minutes because it downloads the Maven dependencies; later
+builds finish in seconds from the layer cache.
 
-**Makine gereksinimleri**
+**Machine requirements**
 
-- Docker'a en az ~4 GB RAM ayrılmalı — backend ve 3 Hazelcast node'u ayrı
-  JVM'ler olarak çalışır.
-- Şu portlar boş olmalı: 3000, 8080, 5433, 6379, 6380, 5701–5703, 9090,
-  9404–9406, 3001.
+- Docker should get at least ~4 GB of RAM: the backend and the 3 Hazelcast nodes run as
+  separate JVMs.
+- These ports must be free: 3000, 8080, 5433, 6379, 6380, 5701-5703, 9090, 9404-9406, 3001.
 
-| Adres | İçerik |
+| URL | Content |
 |---|---|
-| `http://localhost:3000` | **Dashboard (giriş noktası)** |
-| `http://localhost:8080/api` | API kökü |
+| `http://localhost:3000` | **Dashboard (entry point)** |
+| `http://localhost:8080/api` | API root |
 | `http://localhost:8080/api/swagger-ui.html` | Swagger UI |
 | `http://localhost:9090` | Prometheus |
-| `http://localhost:3001` | Grafana (admin/admin) |
+| `http://localhost:3001` | Grafana (the `GRAFANA_ADMIN_*` account from `.env`) |
 
-Giriş için `.env`'deki `UCMD_BOOTSTRAP_USERNAME` / `UCMD_BOOTSTRAP_PASSWORD`
-değerlerini kullanın.
+Log in with `UCMD_BOOTSTRAP_USERNAME` / `UCMD_BOOTSTRAP_PASSWORD` from `.env`.
 
-**Nasıl çalışır**
+**How it works**
 
-- `ucmd-frontend` nginx, `/api/` isteklerini container ağı üzerinden
-  `ucmd-backend:8080`'e proxy'ler. Tarayıcı açısından API aynı origin'dedir.
-  Buna rağmen tarayıcı POST isteklerinde `Origin` başlığı gönderdiği için
-  `http://localhost:3000` backend'in izin listesinde olmak zorundadır
-  (`ucmd.cors.allowed-origins`, gerekirse `UCMD_CORS_ALLOWED_ORIGINS` ile
-  override edilir). Listede değilse Spring isteği `403 Invalid CORS request`
-  ile reddeder ve giriş ekranı "Kullanıcı adı veya şifre hatalı" gösterir.
-- Frontend imajı `VITE_API_BASE_URL=/api` ile derlenir. Host'ta `npm run dev`
-  bu değişkeni tanımlamaz, `client.js` `http://localhost:8080/api`'ye düşer —
-  yani iki çalışma biçimi de bozulmadan yan yana durur.
-- `ucmd-backend`, `postgres` ve `redis` servisleri **healthy** olana kadar
-  bekler; `ucmd-frontend` de backend healthy olana kadar bekler.
-- Varsayılan instance kayıtları (`ucmd.seed.*`) compose'ta servis adlarına
-  (`redis`, `redis-2`, `hazelcast`, `hz-analytics`) göre override edilir.
-  Host üzerinde çalışırken varsayılanlar `localhost` olarak kalır.
+- The `ucmd-frontend` nginx proxies `/api/` requests to `ucmd-backend:8080` over the
+  container network. From the browser's point of view the API is same-origin. Even so,
+  browsers send an `Origin` header on POST requests, so `http://localhost:3000` has to be in
+  the backend's allow list (`ucmd.cors.allowed-origins`, overridable with
+  `UCMD_CORS_ALLOWED_ORIGINS`). If it is not, Spring rejects the request with
+  `403 Invalid CORS request` and the login screen shows a "wrong username or password" message.
+- The frontend image is built with `VITE_API_BASE_URL=/api`. `npm run dev` on the host does
+  not define this variable and `client.js` falls back to `http://localhost:8080/api`, so both
+  ways of running sit side by side without breaking each other.
+- `ucmd-backend` waits until the `postgres` and `redis` services are **healthy**;
+  `ucmd-frontend` waits until the backend is healthy.
+- The default instance records (`ucmd.seed.*`) are overridden in compose to use the service
+  names (`redis`, `redis-2`, `hazelcast`, `hz-analytics`). When running on the host the
+  defaults stay `localhost`.
 
-> Instance kayıtları yalnızca `instances` tablosu **boşken** oluşturulur.
-> Daha önce `localhost` adresleriyle dolmuş bir veritabanınız varsa adresleri
-> UI'daki instance yönetimi ekranından güncelleyin veya volume'ü sıfırlayın.
+> Instance records are only created while the `instances` table is **empty**. If you have a
+> database already filled with `localhost` addresses, update the addresses from the instance
+> management screen in the UI or reset the volume.
 
-Durum ve log:
+Status and logs:
 
 ```bash
 docker compose ps
@@ -337,295 +347,312 @@ docker compose logs -f ucmd-backend
 
 ---
 
-## 5. Endpoint Listesi
+## 5. Endpoints
 
-Mimari karar: **okuma uçları POST kullanır** (ADR-0007). İstisnalar `GET /v1/health`,
-`GET /v1/audit`, `GET /v1/admin/users`.
+Architectural decision: **read endpoints use POST** (ADR-0007). The exceptions are
+`GET /v1/health`, `GET /v1/audit` and `GET /v1/admin/users`.
 
-### Kimlik doğrulama
+### Authentication
 
-| Metot | Yol | Rol | Açıklama |
+| Method | Path | Role | Description |
 |---|---|---|---|
-| POST | `/v1/auth/login` | — | JWT üretir |
-| POST | `/v1/auth/logout` | MONITOR | Token'ı kara listeye alır |
+| POST | `/v1/auth/login` | — | Issues a JWT |
+| POST | `/v1/auth/logout` | MONITOR | Blacklists the token |
 
-### Sağlık (kimlik doğrulama gerekmez)
+### Health (no authentication required)
 
-| Metot | Yol | Açıklama |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/v1/health` | UCMD durumu, versiyon, gerçek uptime |
-| GET | `/v1/health/app` | Basit canlılık yanıtı |
-| GET | `/v1/health/collection` | Toplama kalitesi: OK / PARTIAL / FAILED |
+| GET | `/v1/health` | UCMD status, version, real uptime |
+| GET | `/v1/health/app` | Simple liveness response |
+| GET | `/v1/health/collection` | Collection quality: OK / PARTIAL / FAILED |
 
-### Instance okuma
+### Instance reads
 
-| Metot | Yol | Rol | Açıklama |
+| Method | Path | Role | Description |
 |---|---|---|---|
-| POST | `/v1/instances/list` | MONITOR | Kayıtlı instance'lar |
-| POST | `/v1/instances/{id}/detail` | MONITOR | Tek instance kaydı |
+| POST | `/v1/instances/list` | MONITOR | Registered instances |
+| POST | `/v1/instances/{id}/detail` | MONITOR | A single instance record |
 
-### Metrikler (hepsi `@RequireRole("MONITOR")`)
+### Metrics (all `@RequireRole("MONITOR")`)
 
-| Metot | Yol | Rehber | Açıklama |
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/instances/{id}/health` | UP/DOWN, version, uptime |
+| POST | `/v1/instances/{id}/resources` | CPU, memory, fragmentation + JVM/GC/thread/FD |
+| POST | `/v1/instances/{id}/connections` | Active clients, blocked, maxclients |
+| POST | `/v1/instances/{id}/data-stats` | Key count, DB distribution, TTL, eviction |
+| POST | `/v1/instances/{id}/efficiency` | Hit/miss, ops/sec, network I/O (HZ: N/A) |
+| POST | `/v1/instances/{id}/replication` | Role, replicas, lag (HZ: N/A) |
+| POST | `/v1/instances/{id}/persistence` | RDB/AOF state (HZ: N/A) |
+| POST | `/v1/instances/{id}/cluster` | Members, partition distribution, skew |
+| POST | `/v1/instances/{id}/map-stats` | IMap entries/memory/operations (Redis: N/A) |
+| POST | `/v1/instances/{id}/operation-stats` | Operation/event queues, executors (Redis: N/A) |
+
+### Key analysis (expensive, all protections active)
+
+| Method | Path | Role | Description |
 |---|---|---|---|
-| POST | `/v1/instances/{id}/health` | §4.1 | UP/DOWN, versiyon, uptime |
-| POST | `/v1/instances/{id}/resources` | §4.1, §4.2, §5.6 | CPU, bellek, fragmentation + JVM/GC/thread/FD |
-| POST | `/v1/instances/{id}/connections` | §4.2, §5.2 | Aktif istemci, bloklu, maxclients |
-| POST | `/v1/instances/{id}/data-stats` | §4.3 | Key sayısı, DB dağılımı, TTL, eviction |
-| POST | `/v1/instances/{id}/efficiency` | §4.4 | Hit/miss, ops/sec, ağ I/O |
-| POST | `/v1/instances/{id}/replication` | §4.5 | Rol, replica'lar, gecikme (HZ: N/A) |
-| POST | `/v1/instances/{id}/persistence` | §4.6 | RDB/AOF durumu (HZ: N/A) |
-| POST | `/v1/instances/{id}/cluster` | §4.7, §5.4 | Üyeler, partition dağılımı, skew |
-| POST | `/v1/instances/{id}/map-stats` | §5.3 | IMap entry/bellek/operasyon (Redis: N/A) |
-| POST | `/v1/instances/{id}/operation-stats` | §5.5 | Operation/event kuyruğu, executor (Redis: N/A) |
+| POST | `/v1/instances/{id}/keys` | MONITOR | Redis: SCAN. HZ: map names if `mapName` is empty, entry keys otherwise |
+| POST | `/v1/instances/{id}/keys/top` | MONITOR | The N largest keys |
+| POST | `/v1/instances/{id}/keys/ttl` | MONITOR | TTL of a single key |
+| POST | `/v1/instances/{id}/key-patterns` | MONITOR | Grouping by pattern |
 
-### Key analizi (pahalı — tüm korumalar aktif)
+### Time series
 
-| Metot | Yol | Rol | Açıklama |
+| Method | Path | Role | Description |
 |---|---|---|---|
-| POST | `/v1/instances/{id}/keys` | MONITOR | Redis: SCAN. HZ: `mapName` boşsa map adları, doluysa entry key'leri |
-| POST | `/v1/instances/{id}/keys/top` | MONITOR | En büyük N key |
-| POST | `/v1/instances/{id}/keys/ttl` | MONITOR | Tek key TTL |
-| POST | `/v1/instances/{id}/key-patterns` | MONITOR | Desen bazlı gruplama |
+| POST | `/v1/instances/{id}/snapshots` | MONITOR | Raw snapshot list |
+| POST | `/v1/instances/{id}/history` | MONITOR | Sampled series (RAW / DOWNSAMPLED) |
 
-### Zaman serisi
+### Administration (write surface)
 
-| Metot | Yol | Rol | Açıklama |
+| Method | Path | Role | Description |
 |---|---|---|---|
-| POST | `/v1/instances/{id}/snapshots` | MONITOR | Ham snapshot listesi |
-| POST | `/v1/instances/{id}/history` | MONITOR | Örneklenmiş seri (RAW / DOWNSAMPLED) |
+| POST | `/v1/admin/instances` | ADMIN | Create an instance record |
+| PUT | `/v1/admin/instances/{id}` | ADMIN | Update (invalidates cache + HZ client) |
+| DELETE | `/v1/admin/instances/{id}` | ADMIN | Delete |
+| GET | `/v1/admin/users` | ADMIN | User list |
+| POST | `/v1/admin/users` | ADMIN | Create a user |
+| DELETE | `/v1/admin/users/{username}` | ADMIN | Delete a user |
+| GET | `/v1/audit` | ADMIN | Paged audit log |
 
-### Yönetim (yazma yüzeyi)
+**Swagger:** `http://localhost:8080/api/swagger-ui.html`. The `monitoring` group shows the
+read-only surface, the `admin` group shows the write endpoints. The deliverable
+documentation is the `monitoring` group.
 
-| Metot | Yol | Rol | Açıklama |
-|---|---|---|---|
-| POST | `/v1/admin/instances` | ADMIN | Instance kaydı oluştur |
-| PUT | `/v1/admin/instances/{id}` | ADMIN | Güncelle (cache + HZ client geçersizlenir) |
-| DELETE | `/v1/admin/instances/{id}` | ADMIN | Sil |
-| GET | `/v1/admin/users` | ADMIN | Kullanıcı listesi |
-| POST | `/v1/admin/users` | ADMIN | Kullanıcı oluştur |
-| DELETE | `/v1/admin/users/{username}` | ADMIN | Kullanıcı sil |
-| GET | `/v1/audit` | ADMIN | Sayfalı denetim kaydı |
-
-**Swagger:** `http://localhost:8080/api/swagger-ui.html` — `monitoring` grubu salt-okunur
-yüzeyi, `admin` grubu yazma uçlarını gösterir. Teslim dokümanı `monitoring` grubudur.
-
-Elle test için: [`docs/api-examples.http`](docs/api-examples.http)
+For manual testing: [`docs/api-examples.http`](docs/api-examples.http)
 
 ---
 
-## 6. Güvenlik Modeli
+## 6. Security Model
 
-### Kimlik doğrulama
+### Authentication
 
-JWT (HMAC-SHA256, jjwt 0.12.6). `AuthInterceptor` her istekte token imzasını ve
-süresini doğrular, kara liste kontrolü yapar, kullanıcıyı DB'den okuyup
-`request.currentUser` olarak koyar. Çıkışta token süresi dolana kadar kara listede kalır.
+JWT (HMAC-SHA256, jjwt 0.12.6). On every request `AuthInterceptor` verifies the token's
+signature and expiry, checks the blacklist, reads the user from the DB and puts it in
+`request.currentUser`. On logout the token stays blacklisted until it expires.
 
-Muaf yollar: `/v1/auth/login`, `/v1/health/**`, `/actuator/**`, `/swagger-ui/**`,
+Exempt paths: `/v1/auth/login`, `/v1/health/**`, `/actuator/**`, `/swagger-ui/**`,
 `/v3/api-docs/**`.
 
-### Rol hiyerarşisi
+### Role hierarchy
 
 ```
 ADMIN  ⊇  MONITOR
 ```
 
-`@RequireRole("MONITOR")` bir uçta ADMIN de geçer; `@RequireRole("ADMIN")` yalnızca
-ADMIN geçer. Ek olarak `AuthInterceptor` savunma derinliği uygular: `/v1/admin/`
-içeren her yol, anotasyon unutulsa bile ADMIN olmayan kullanıcıya **403** döner.
+On an endpoint with `@RequireRole("MONITOR")` ADMIN passes as well; `@RequireRole("ADMIN")`
+lets only ADMIN through. In addition, `AuthInterceptor` applies defense in depth: any path
+containing `/v1/admin/` returns **403** to a non-ADMIN user even if the annotation was forgotten.
 
-Parolalar BCrypt ile özetlenir. Varsayılan `monitor` ve `admin` kullanıcıları silinemez;
-`APP_ENVIRONMENT=production` ise hiç oluşturulmaz.
+Passwords are hashed with BCrypt. The admin account created on first start from
+`UCMD_BOOTSTRAP_*` cannot be deleted (so access is never lost); with
+`APP_ENVIRONMENT=production` this account is not created at all.
 
-### Key maskeleme (rehber §9)
+### Key masking (ADR-0010)
 
-Fintech ortamında key adı hassas veri taşır (`ucmd:merchant:88123:commission` komisyon
-oranını, `...:risk` risk skorunu açığa çıkarır).
+In a fintech environment a key name can carry sensitive data (`ucmd:merchant:88123:commission`
+exposes a commission rate, `...:risk` a risk score).
 
-- **Kural:** 3+ haneli rakam dizileri → `***`
-- **Varsayılan:** açık (`ucmd.security.key-masking.enabled`)
-- **Rol istisnası yok** — ADMIN de maskeli görür (denetim izini bulanıklaştırmamak için)
-- `mask()` yapılandırmaya uyar; `maskForLog()` **her zaman** maskeler (log ve denetim kaydı)
-- İstisna: `KeyTtlResponse.key` maskelenmez — kullanıcı ne sorguladığını bilmeli.
-  Denetim kaydına maskeli yazılır.
+- **Rule:** digit sequences of 3 or more digits become `***`
+- **Default:** on (`ucmd.security.key-masking.enabled`)
+- **No role exception:** ADMIN sees masked keys too (so the audit trail is not blurred)
+- `mask()` follows the configuration; `maskForLog()` **always** masks (logs and audit log)
+- Exception: `KeyTtlResponse.key` is not masked, because the user must know what they
+  queried. It is written masked to the audit log.
 
 ### Allowlist
 
-| Ayar | Etki |
+| Setting | Effect |
 |---|---|
-| `ucmd.security.allowed-prefixes` | Boşsa kısıt yok. Doluysa Redis prefix'i listede olmalı → aksi halde **400 · `invalid-prefix`** |
-| `ucmd.security.allowed-maps` | Boşsa kısıt yok. Doluysa Hazelcast map adı listede olmalı → aksi halde **403 · `map-not-allowed`** (yetki kısıtı, girdi hatası değil) |
+| `ucmd.security.allowed-prefixes` | No restriction if empty. If set, the Redis prefix must be in the list, otherwise **400 · `invalid-prefix`** |
+| `ucmd.security.allowed-maps` | No restriction if empty. If set, the Hazelcast map name must be in the list, otherwise **403 · `map-not-allowed`** (an authorization limit, not an input error) |
 
-Prod profilinde prefix listesi `ucmd:merchant`, `ucmd:terminal`, `ucmd:transaction`,
-`ucmd:stats` ile sınırlıdır.
+In the prod profile the prefix list is limited to `ucmd:merchant`, `ucmd:terminal`,
+`ucmd:transaction`, `ucmd:stats`.
 
-### Salt-okunur ilkesi (ADR-0001)
+### Read-only principle (ADR-0001)
 
-Redis'te yalnızca `PING`, `INFO`, `SCAN`, `TYPE`, `TTL`, `PTTL`, `MEMORY USAGE`.
-Hazelcast'te yalnızca `size()`, `getDistributedObjects()`, `getCluster()`,
-`getPartitionService()`, `getEntryView()`. `KEYS *` yasaktır.
+On Redis only `PING`, `INFO`, `SCAN`, `TYPE`, `TTL`, `PTTL`, `MEMORY USAGE`.
+On Hazelcast only `size()`, `getDistributedObjects()`, `getCluster()`,
+`getPartitionService()`, `getEntryView()`. `KEYS *` is forbidden.
 
-Sunucu tarafı ikinci savunma hattı için [`docs/redis-acl-setup.md`](docs/redis-acl-setup.md).
-ACL kullanıcısı bir komuta yetkisizse UCMD `NOPERM` yanıtını ayırt edip
-`PERMISSION_DENIED` statüsü döner.
+For the server-side second line of defense see [`docs/redis-acl-setup.md`](docs/redis-acl-setup.md).
+If an ACL user is not permitted to run a command, UCMD recognizes the `NOPERM` reply and
+returns the `PERMISSION_DENIED` status.
 
-### Prod sıkılaştırması
+### Prod hardening
 
-`ProdSecurityValidation` `prod` profilinde açılışta durur: Redis TLS kapalıysa,
-Hazelcast TLS kapalıysa veya Redis parolası boşsa `IllegalStateException`.
-Swagger prod'da kapalıdır.
+`ProdSecurityValidation` stops the app at startup in the `prod` profile with an
+`IllegalStateException` if Redis TLS is off, Hazelcast TLS is off or the Redis password is
+empty. Swagger is disabled in prod.
 
 ---
 
-## 7. Koruma Katmanı
+## 7. Protection Layer
 
-Tüm monitor çağrıları `ProtectedMonitorExecutor` üzerinden geçer (ADR-0006).
+All monitor calls go through `ProtectedMonitorExecutor` (ADR-0006).
 
-Sıra: **cache → rate limiter → bulkhead → circuit breaker → timeout → çağrı**.
-Cache en dışta: hit durumunda hiçbir limit tüketilmez.
+Order: **cache → rate limiter → bulkhead → circuit breaker → timeout → call**.
+The cache is outermost: on a hit no limit is consumed.
+The values are the `ucmd.protection` and `ucmd.cache` settings in
+`src/main/resources/application.yml`; the defaults inside the code may differ.
 
-| Ayar | Değer | Uygulandığı yer |
+| Setting | Value | Applies to |
 |---|---|---|
-| `cheap-concurrency` | 5 | Metrik uçları, instance başına eş zamanlılık |
-| `expensive-concurrency` | 2 | SCAN tabanlı uçlar |
-| `cheap-timeout-ms` | 5000 | Metrik çağrısı zaman aşımı |
-| `expensive-timeout-ms` | 15000 | SCAN çağrısı zaman aşımı |
-| `expensive-rate-limit-per-minute` | 10 | Instance başına dakikalık pahalı sorgu |
-| `circuit-failure-rate-percent` | 50 | Devreyi açan hata oranı |
-| `circuit-sliding-window` | 10 | Oranın ölçüldüğü çağrı sayısı |
-| `circuit-open-duration-seconds` | 30 | Devre açık kalma süresi |
-| `bulkhead-max-wait-ms` | 0 | Beklemeden reddet |
-| `cache.ttl-seconds` | 10 | Taze kabul süresi |
-| `cache.stale-ttl-minutes` | 30 | Son bilinen değerin saklandığı süre |
-| `key-search.hazelcast-max-scan-entries` | 5000 | Map içi entry taramasında üst sınır |
+| `cheap-concurrency` | 12 | Metric endpoints, concurrency per instance |
+| `expensive-concurrency` | 2 | SCAN-based endpoints |
+| `cheap-timeout-ms` | 5000 | Metric call timeout |
+| `expensive-timeout-ms` | 15000 | SCAN call timeout |
+| `expensive-rate-limit-per-minute` | 10 | Expensive queries per minute per instance |
+| `circuit-failure-rate-percent` | 50 | Failure rate that opens the circuit |
+| `circuit-sliding-window` | 10 | Number of calls the rate is measured over |
+| `circuit-open-duration-seconds` | 30 | How long the circuit stays open |
+| `bulkhead-max-wait-ms` | 2000 | Value in `application.yml`. The executor uses the non-blocking `tryAcquirePermission`, so when the bulkhead is full the call is in practice rejected without waiting |
+| `cache.ttl-seconds` | 10 | How long a value counts as fresh |
+| `cache.stale-ttl-minutes` | 30 | How long the last known value is kept |
+| `key-search.hazelcast-max-scan-entries` | 5000 | Upper bound for scanning entries inside a map |
 
-**İki yürütme modu:**
+**Two execution modes:**
 
-- `executeCachedMetric` — ucuz, cache'li. Rate limit/bulkhead reddi dashboard'ı
-  kilitlemesin diye uygulanmaz. Hata durumunda son bilinen değer `STALE` olarak döner;
-  yoksa `UNAVAILABLE`, zaman aşımında `TIMEOUT`.
-- `executeExpensive` — SCAN tabanlı. Tüm limitler aktif, cache yok. Reddedilirse
-  **429** (rate limit), **503** (bulkhead / circuit), **504** (timeout).
+- `executeCachedMetric`: cheap, cached. Rate limit/bulkhead rejection is not applied so a
+  rejection never locks the dashboard. On failure the last known value is returned as `STALE`;
+  otherwise `UNAVAILABLE`, or `TIMEOUT` on a timeout.
+- `executeExpensive`: SCAN-based. All limits are active, no cache. If rejected it returns
+  **429** (rate limit), **503** (bulkhead / circuit) or **504** (timeout).
 
-Reddetme sayaçları `/actuator/prometheus` altında `ucmd_protection_*` olarak yayınlanır.
+Rejection counters are published under `/actuator/prometheus` as `ucmd_protection_*`.
 
 ---
 
-## 8. Rehber Uyum Matrisi (§11 zorunlu kapsam)
+## 8. Feature Coverage
 
-| Madde | Durum | Not |
+The table shows which parts of the monitoring scope are implemented.
+
+| Topic | Status | Note |
 |---|---|---|
-| §4.1 Sağlık, versiyon, uptime | ✅ | Redis `INFO server`; HZ `runtime.uptime` (Prometheus) |
-| §4.1/§4.2 CPU ve bellek | ✅ | Redis: delta tabanlı CPU (ilk turda `NOT_READY`); HZ: `processcpuload` |
-| §4.2 Bağlantılar | ✅ | Redis: connected/blocked/maxclients/rejected. HZ: `tcp.connection.clientcount` |
-| §4.3 Key sayısı, TTL, eviction | ✅ | `INFO keyspace` tüm DB'ler toplanır, `avg_ttl` ağırlıklı |
-| §4.4 Hit/miss, throughput, ağ | ✅ Redis / ⚠️ HZ | HZ'de map sayaçlarından türetilir → `ESTIMATED`; oran 1'i aşabilir (bkz. sınır 11) |
-| §4.5 Replikasyon | ✅ | Master/replica, offset, lag. HZ'de `NOT_APPLICABLE` |
-| §4.6 Kalıcılık | ✅ | RDB/AOF durumu, son bgsave. HZ Hot Restart enterprise → N/A |
-| §4.7 Redis Cluster | ❌ | `cluster_enabled` okunuyor, `CLUSTER INFO/NODES` parse edilmiyor → `NOT_READY`. Kapsam dışı |
-| §5.2 Hazelcast bağlantı | ✅ | Gerçek client sayısı (`tcp.connection`), member sayısıyla karıştırılmıyor |
-| §5.3 Map istatistikleri | ✅ | 16 alan Prometheus scrape'ten: entry, bellek maliyeti, get/put/remove, gecikme |
-| §5.4 Partition dağılımı | ✅ | Gerçek partition sayısı, member başına dağılım, skew %, `clusterSafe` |
-| §5.5 Operation/event | ✅ | Queue, invocation, event, 21 internal executor |
-| §5.6 JVM metrikleri | ✅ | Heap/non-heap, GC, thread, FD, loaded class, system CPU |
-| §5.7 Hazelcast key arama | ⚠️ | Entry araması var ama `keySet()` + `maxScan` tabanlı → `ESTIMATED`. `PagingPredicate` kapsam dışı |
-| §6 Öz-izleme | ✅ | 11 Micrometer metriği + `/v1/health/collection` |
-| §7 Salt-okunur API yüzeyi | ✅ | Yazma uçları `/v1/admin/**` altında, Swagger `monitoring` grubunda görünmez |
-| §9 Maskeleme ve erişim kontrolü | ✅ | Key/map maskeleme, prefix + map allowlist, ACL dokümanı, `PERMISSION_DENIED` |
-| §9 Denetim kaydı | ✅ | DB'de, 90 gün, kimlik + mutasyon + key erişimi (metrik uçları hariç) |
-| §9 Vault | ❌ | Kapsam dışı. Credential env değişkeninden okunur, parola DB'de saklanmaz |
-| §11 Export / download | ❌ | Rehber kapsam dışı bırakmış |
-| §11 Value görüntüleme | ❌ | Rehber kapsam dışı bırakmış |
-| §12 Yanlış değer üretmeme | ⚠️ | Statü modeli uygulanıyor; üç bilinen ihlal sınırlar dokümanında madde 11–13 |
+| Health, version, uptime | ✅ | Redis `INFO server`; HZ `runtime.uptime` (Prometheus) |
+| CPU and memory | ✅ | Redis: delta-based CPU (`NOT_READY` on the first round); HZ: `processcpuload` |
+| Connections | ✅ | Redis: connected/blocked/maxclients/rejected. HZ: `tcp.connection.clientcount`; the real client count, not confused with the member count |
+| Key count, TTL, eviction | ✅ | `INFO keyspace` summed over all DBs, `avg_ttl` weighted |
+| Hit/miss, throughput, network | ✅ Redis / ⚠️ HZ | On Hazelcast `/efficiency` returns `NOT_APPLICABLE`; the per-map `hitRatio` is inside `map-stats`, filled only when the counters are consistent, otherwise `null` ([limitations](docs/known-limitations.md) item 11) |
+| Replication | ✅ | Master/replica, offset, lag. `NOT_APPLICABLE` on HZ |
+| Persistence | ✅ | RDB/AOF state, last bgsave. HZ Hot Restart is enterprise → N/A |
+| Redis Cluster | ❌ | `cluster_enabled` is read, `CLUSTER INFO/NODES` is not parsed → `NOT_READY` (item 3) |
+| Hazelcast map statistics | ✅ | 16 fields from the Prometheus scrape: entries, memory cost, get/put/remove, latency |
+| Partition distribution | ✅ | Real partition count, distribution per member, skew %, `clusterSafe` |
+| Operation/event | ✅ | Queues, invocations, events, 21 internal executors |
+| JVM metrics | ✅ | Heap/non-heap, GC, threads, FD, loaded classes, system CPU |
+| Hazelcast key search | ⚠️ | Entry search exists but is `keySet()` + `maxScan` based → `ESTIMATED`. `PagingPredicate` is out of scope (item 2) |
+| Self-monitoring | ✅ | 11 Micrometer metrics + `/v1/health/collection` |
+| Read-only API surface | ✅ | Write endpoints are under `/v1/admin/**` and do not appear in the Swagger `monitoring` group ([ADR-0011](docs/adr/ADR-0011-yazma-uclarinin-admin-altina-ayrilmasi.md)) |
+| Masking and access control | ✅ | Key/map masking, prefix + map allowlist, ACL document, `PERMISSION_DENIED` ([ADR-0010](docs/adr/ADR-0010-key-maskeleme-ve-allowlist.md)) |
+| Audit log | ✅ | In the DB, 90 days, identity + mutations + key access (metric endpoints excluded) ([ADR-0012](docs/adr/ADR-0012-audit-log-db-ve-kapsam.md)) |
+| Vault | ❌ | Out of scope. Credentials are read from an environment variable, passwords are not stored in the DB (item 6) |
+| Export / download | ❌ | Deliberately out of scope (item 9) |
+| Viewing values | ❌ | Deliberately out of scope; it would also contradict the read-only principle (item 9) |
+| Never producing wrong values | ✅ | The status model is applied ([ADR-0003](docs/adr/ADR-0003-metricstatus-durum-modeli.md)): an unknown value returns `UNAVAILABLE`. Items 11-13 in the limitations document violated this principle and have been fixed |
 
-Ayrıntılı gerekçeler için [`docs/adr/`](docs/adr/), açık maddeler için
-[`docs/known-limitations.md`](docs/known-limitations.md).
+For detailed rationale see [`docs/adr/`](docs/adr/) (written in Turkish); the "item N"
+references point to [`docs/known-limitations.md`](docs/known-limitations.md).
 
 ---
 
-## 9. Bilinen Sınırlar
+## 9. Known Limitations
 
-Tam liste: [`docs/known-limitations.md`](docs/known-limitations.md)
+Full list: [`docs/known-limitations.md`](docs/known-limitations.md) (in Turkish)
 
-Öne çıkanlar:
-- Hazelcast entry araması `keySet()` tabanlı, örneklem sınırlı (`ESTIMATED`)
-- HZ `hitRatio` iki farklı node'da sayılan sayaçlardan türediği için 1'i aşabilir
-- Redis Cluster (`CLUSTER INFO/NODES`) desteklenmiyor
-- `ddl-auto: update` güvenilmez, migration elle yapılıyor
-- Vault entegrasyonu yok
-- TLS desteği kodda mevcut ancak TLS'li bir ortamda doğrulanmadı
+Highlights:
+- Hazelcast entry search is `keySet()`-based and sample-limited (`ESTIMATED`)
+- The per-map Hazelcast `hitRatio` returns `null` when counters are inconsistent across nodes (it used to be able to exceed 1)
+- Redis Cluster (`CLUSTER INFO/NODES`) is not supported
+- `ddl-auto: update` is unreliable, migrations are done by hand
+- No Vault integration
+- TLS support exists in the code but has not been verified in a TLS environment
+
 ---
 
-## 10. Geliştirme Notları
+## 10. Development Notes
 
-### Şema yönetimi
+### Schema management
 
-`dev` profilinde `spring.jpa.hibernate.ddl-auto: update`, `prod` profilinde `validate`.
-`update` yeni kolonları çoğu zaman ekler ama **güvenilmezdir** — kolon tipi daralması,
-index ve constraint değişikliklerini kaçırır. Teslim edilen SQL'ler (bölüm 4.4) elle
-çalıştırılmalıdır. Flyway/Liquibase önerilir, bu fazda kapsam dışı.
+`spring.jpa.hibernate.ddl-auto: update` in the `dev` profile, `validate` in `prod`.
+`update` usually adds new columns but is **unreliable**: it misses narrowed column types,
+index and constraint changes. The SQL shipped with the repo (section 4.4) has to be run by
+hand. Flyway/Liquibase is recommended and out of scope for now.
 
-### Test
+### Tests
 
 ```bash
 mvn clean test
 ```
 
-109 test, iki katman:
+109 tests in two layers:
 
-| Katman | Kapsam |
+| Layer | Scope |
 |---|---|
-| Unit | INFO parser, keyspace parser, CPU delta, hit ratio, cursor pagination, metric status eşleme, HZ partition aggregation, sampling, maskeleme, Prometheus parser |
-| Integration | Redis standalone, Redis ACL + yetki reddi, bağlantı kaybı, HZ multi-member, koruma katmanı (timeout / STALE / bulkhead / rate limit) |
+| Unit | INFO parser, keyspace parser, CPU delta, hit ratio, cursor pagination, metric status mapping, HZ partition aggregation, sampling, masking, Prometheus parser |
+| Integration | Redis standalone, Redis ACL + permission denial, connection loss, HZ multi-member, protection layer (timeout / STALE / bulkhead / rate limit) |
 
-**Docker gereksinimi.** Redis integration testleri Testcontainers ile gerçek bir
-`redis:7-alpine` container'ı ayağa kaldırır. Docker yoksa bu sınıflar
-`@Testcontainers(disabledWithoutDocker = true)` sayesinde **atlanır**, build kırılmaz.
-Hazelcast testleri gömülü member kullanır, Docker gerektirmez.
+**Docker requirement.** The Redis integration tests start a real `redis:7-alpine` container
+with Testcontainers. Without Docker these classes are **skipped** thanks to
+`@Testcontainers(disabledWithoutDocker = true)` and the build does not fail. The Hazelcast
+tests use an embedded member and do not need Docker.
 
-**IntelliJ'den çalıştırma.** `pom.xml`'deki surefire `environmentVariables` bloğu
-yalnızca Maven üzerinden geçerlidir. IntelliJ'den test çalıştıracaksan
-Run/Debug Configurations → Templates → JUnit → Environment variables kısmına
-şunları ekle, yoksa `contextLoads` ve ACL testi kırmızı olur:
+**Running from IntelliJ.** The surefire `environmentVariables` block in `pom.xml` only
+applies through Maven. If you run tests from IntelliJ, add the following to
+Run/Debug Configurations → Templates → JUnit → Environment variables, otherwise
+`contextLoads` and the ACL test fail:
 
+```
 JWT_SECRET=ucmd-test-secret-key-min-32-characters-long
 UCMD_BOOTSTRAP_USERNAME=test-admin
 UCMD_BOOTSTRAP_PASSWORD=test-admin-pass
 UCMD_TEST_REDIS_PASSWORD=ucmdTestPass
 UCMD_TEST_REDIS_LIMITED_PASSWORD=limitedTestPass
+```
 
-Test profili H2 in-memory kullanır (`src/test/resources/application-test.yml`);
-PostgreSQL'in ayakta olması gerekmez.
+The test profile uses H2 in memory (`src/test/resources/application-test.yml`); PostgreSQL
+does not need to be running.
 
-`RedisMonitor` ve `HazelcastMonitor`'daki ayrıştırıcılar `private`. Testler bunlara
-`ReflectionTestUtils.invokeMethod` ile erişir — üretim kodunda test uğruna
-görünürlük gevşetilmemiştir.
+The parsers in `RedisMonitor` and `HazelcastMonitor` are `private`. Tests reach them with
+`ReflectionTestUtils.invokeMethod`; visibility was not loosened in production code for the
+sake of tests.
 
-### Profiller
+There is currently no CI workflow in the repo.
+
+### Profiles
+
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
-Prod profilinde TLS zorunludur ve Swagger kapalıdır. Profil verilmezse `dev` çalışır.
+TLS is mandatory and Swagger is disabled in the prod profile. If no profile is given, `dev` runs.
 
 ### `open-in-view`
 
-`false` — lazy loading'in HTTP katmanına sızmasını engeller. Repository çağrıları
-servis sınırında tamamlanır.
+`false`: it stops lazy loading from leaking into the HTTP layer. Repository calls finish at
+the service boundary.
 
-### Prometheus scrape bağımlılığı
+### Prometheus scrape dependency
 
-Hazelcast'in map, operation, event, JVM ve partition metriklerinin **tamamı**
-jmx_exporter scrape'inden gelir; Hazelcast Java client bunları sunmaz. Bir instance'ın
-`metrics_url` kolonu boşsa ilgili metrikler `UNAVAILABLE` döner — sahte sıfır üretilmez.
+**All** of Hazelcast's map, operation, event, JVM and partition metrics come from the
+jmx_exporter scrape; the Hazelcast Java client does not expose them. If an instance's
+`metrics_url` column is empty, the related metrics return `UNAVAILABLE`: no fake zeros are produced.
 
-Parser `com.ucmd.monitor.prometheus` paketindedir ve etiket duyarlıdır:
-`prefix` etiketiyle alan ayrımı yapar (`queuesize` hem `operation` hem
-`executor.internal` altında vardır), `tag0` içindeki escape'li nesne adını çözer.
+The parser lives in the `com.ucmd.monitor.prometheus` package and is label-aware: it
+separates fields by the `prefix` label (`queuesize` exists under both `operation` and
+`executor.internal`) and decodes the escaped object name inside `tag0`.
 
-### Log seviyeleri
+### Log levels
 
 `dev`: `com.ucmd` DEBUG. `prod`: root WARN, `com.ucmd` INFO.
-Key adı, prefix veya pattern içeren log satırı bırakılmamalıdır — maskeleme kuralı
-loglar için de geçerlidir.
+No log line containing a key name, prefix or pattern should be left behind: the masking
+rule applies to logs too.
+
+---
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
