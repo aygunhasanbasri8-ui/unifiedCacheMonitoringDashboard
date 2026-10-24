@@ -19,7 +19,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @EnableScheduling
@@ -32,15 +34,17 @@ public class SnapshotScheduler {
     private final AuditService auditService;
     private final CollectionMetrics collectionMetrics;
     private final SnapshotRepository snapshotRepository;
+    private final AlertService alertService;
 
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
-    public SnapshotScheduler(ExecutorService virtualThreadExecutor, MonitoringService monitoringService, AuditService auditService, CollectionMetrics collectionMetrics, SnapshotRepository snapshotRepository) {
+    public SnapshotScheduler(ExecutorService virtualThreadExecutor, MonitoringService monitoringService, AuditService auditService, CollectionMetrics collectionMetrics, SnapshotRepository snapshotRepository, AlertService alertService) {
         this.virtualThreadExecutor = virtualThreadExecutor;
         this.monitoringService = monitoringService;
         this.auditService = auditService;
         this.collectionMetrics = collectionMetrics;
         this.snapshotRepository = snapshotRepository;
+        this.alertService = alertService;
     }
 
     @PreDestroy
@@ -60,8 +64,9 @@ public class SnapshotScheduler {
         try {
             List<MetricSnapshot> currentSnapshots = Collections.synchronizedList(new ArrayList<>());
 
+            List<InstanceRef> instances = monitoringService.getAllInstances();
             List<Future<?>> futures = new ArrayList<>(
-                    monitoringService.getAllInstances().stream()
+                    instances.stream()
                             .map(instance -> (Future<?>) virtualThreadExecutor.submit(
                                     () -> collectInstance(instance, currentSnapshots)))
                             .toList()
@@ -76,6 +81,15 @@ public class SnapshotScheduler {
             }
 
             snapshotRepository.saveAll(currentSnapshots);
+
+            // Alarm hatası metrik kaydını etkilemesin; snapshot'lar zaten yazıldı
+            try {
+                Map<Long, String> names = new HashMap<>();
+                instances.forEach(i -> names.put(i.getId(), i.getName()));
+                alertService.evaluate(currentSnapshots, names);
+            } catch (Exception e) {
+                logger.error("Alert evaluation failed: {}", e.getMessage(), e);
+            }
 
             logger.debug("Metrics collected from {} instances", currentSnapshots.size());
 

@@ -250,7 +250,7 @@ psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
 ```
 
 Bu dosya yalnızca UCMD'nin kendi tablolarını (`instances`, `users`,
-`metric_snapshots`, `audit_logs`) oluşturur. `sim/` altındaki simülasyon
+`metric_snapshots`, `audit_logs`, `alert_events`) oluşturur. `sim/` altındaki simülasyon
 scriptlerinin ürettiği tablolar buraya dahil değildir.
 
 ### 4.5 Uygulamayı çalıştır
@@ -410,6 +410,28 @@ Mimari karar: **okuma uçları POST kullanır** (ADR-0007). İstisnalar `GET /v1
 | POST | `/v1/instances/{id}/snapshots` | MONITOR | Ham snapshot listesi |
 | POST | `/v1/instances/{id}/history` | MONITOR | Örneklenmiş seri (RAW / DOWNSAMPLED) |
 
+### Alarmlar
+
+| Metot | Yol | Rol | Açıklama |
+|---|---|---|---|
+| POST | `/v1/alerts/active` | MONITOR | Şu an süren alarmlar |
+| POST | `/v1/alerts/history` | MONITOR | Başlayan/düzelen olaylar, yeniden eskiye (`instanceId`, `limit` en fazla 500) |
+| POST | `/v1/alerts/rules` | MONITOR | Tanımlı kurallar |
+
+Kurallar `ucmd.alerts.rules` altında (metrik, `GT`/`LT`, eşik, `for-minutes`, önem,
+isteğe bağlı instance adları) ve 30 sn'lik her toplama turunda o an alınan
+snapshot üzerinden değerlendiriliyor; alarm için izlenen sisteme ek istek gitmiyor.
+Metrikler: `INSTANCE_DOWN`, `MEMORY_PERCENT`, `CPU_PERCENT`, `HIT_RATIO_PERCENT`,
+`FRAGMENTATION_RATIO`, `CLIENT_COUNT`, `CONNECTED_REPLICAS`, `EVICTIONS_PER_MINUTE`.
+Hesaplanamayan metrik (maxmemory yok, hit oranı `null`) karar üretmiyor. Alarm
+başlarken ve düzelirken bildiriliyor, sürdükçe `repeat-interval-minutes`'ta bir
+hatırlatılıyor. Kanallar ortam değişkenleriyle açılıyor:
+`UCMD_ALERT_TELEGRAM_BOT_TOKEN` + `UCMD_ALERT_TELEGRAM_CHAT_ID`,
+`UCMD_ALERT_SLACK_WEBHOOK_URL`, `UCMD_ALERT_WEBHOOK_URL` (ham JSON olay),
+`UCMD_ALERT_EMAIL_TO` (ve `spring.mail.*`). Olaylar `alert_events`'te 90 gün tutuluyor,
+denetim kaydına da düşüyor. Frontend'deki **Alarmlar** sayfası üçünü de gösteriyor.
+Ayrıntı: [ADR-0015](docs/adr/ADR-0015-esik-alarm-motoru.md).
+
 ### Yönetim (yazma yüzeyi)
 
 | Metot | Yol | Rol | Açıklama |
@@ -550,6 +572,7 @@ Aşağıdaki tablo, izleme kapsamının hangi kısmının uygulandığını gös
 | Öz-izleme | ✅ | 11 Micrometer metriği + `/v1/health/collection` |
 | Salt-okunur API yüzeyi | ✅ | Yazma uçları `/v1/admin/**` altında, Swagger `monitoring` grubunda görünmez ([ADR-0011](docs/adr/ADR-0011-yazma-uclarinin-admin-altina-ayrilmasi.md)) |
 | Maskeleme ve erişim kontrolü | ✅ | Key/map maskeleme, prefix + map allowlist, ACL dokümanı, `PERMISSION_DENIED` ([ADR-0010](docs/adr/ADR-0010-key-maskeleme-ve-allowlist.md)) |
+| Eşik alarmları | ✅ | Toplanan snapshot üzerinde süreli ihlal kuralları, Telegram/Slack/webhook/e-posta, geçmiş `alert_events`'te ([ADR-0015](docs/adr/ADR-0015-esik-alarm-motoru.md)) |
 | Denetim kaydı | ✅ | DB'de, 90 gün, kimlik + mutasyon + key erişimi (metrik uçları hariç) ([ADR-0012](docs/adr/ADR-0012-audit-log-db-ve-kapsam.md)) |
 | Vault | ❌ | Kapsam dışı. Credential env değişkeninden okunur, parola DB'de saklanmaz (madde 6) |
 | Export / download | ❌ | Bilinçli olarak kapsam dışı (madde 9) |

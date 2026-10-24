@@ -20,6 +20,8 @@ const ACTION_TYPES = [
   "KEY_TOP_N",
   "KEY_TTL_QUERY",
   "METRICS_COLLECTION_FAILED",
+  "ALERT_FIRING",
+  "ALERT_RESOLVED",
 ];
 
 export default function AuditLog() {

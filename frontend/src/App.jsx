@@ -9,6 +9,7 @@ import Overview from "./pages/Overview";
 import InstanceDetail from "./pages/InstanceDetail";
 import KeyAnalysis from "./pages/KeyAnalysis";
 import AuditLog from "./pages/AuditLog";
+import Alerts from "./pages/Alerts";
 import UserManagement from "./pages/UserManagement";
 import InstanceManagement from "./pages/InstanceManagement";
 
@@ -41,6 +42,7 @@ function App() {
             <Route path="/overview" element={<Overview />} />
             <Route path="/instances/:id" element={<InstanceDetail />} />
             <Route path="/instances/:id/keys" element={<KeyAnalysis />} />
+            <Route path="/alerts" element={<Alerts />} />
             <Route
               path="/audit"
               element={

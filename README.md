@@ -251,7 +251,7 @@ psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
 ```
 
 This file only creates UCMD's own tables (`instances`, `users`, `metric_snapshots`,
-`audit_logs`). Tables produced by the simulation scripts under `sim/` are not included.
+`audit_logs`, `alert_events`). Tables produced by the simulation scripts under `sim/` are not included.
 
 ### 4.5 Run the application
 
@@ -407,6 +407,28 @@ Architectural decision: **read endpoints use POST** (ADR-0007). The exceptions a
 | POST | `/v1/instances/{id}/snapshots` | MONITOR | Raw snapshot list |
 | POST | `/v1/instances/{id}/history` | MONITOR | Sampled series (RAW / DOWNSAMPLED) |
 
+### Alerts
+
+| Method | Path | Role | Description |
+|---|---|---|---|
+| POST | `/v1/alerts/active` | MONITOR | Alerts currently firing |
+| POST | `/v1/alerts/history` | MONITOR | Fired/resolved events, newest first (`instanceId`, `limit` up to 500) |
+| POST | `/v1/alerts/rules` | MONITOR | Configured rules |
+
+Rules live under `ucmd.alerts.rules` (metric, `GT`/`LT`, threshold, `for-minutes`,
+severity, optional instance names) and are evaluated on every 30 s collection round
+from the snapshot that was just taken, so alerting sends no extra request to the
+monitored systems. Metrics: `INSTANCE_DOWN`, `MEMORY_PERCENT`, `CPU_PERCENT`,
+`HIT_RATIO_PERCENT`, `FRAGMENTATION_RATIO`, `CLIENT_COUNT`, `CONNECTED_REPLICAS`,
+`EVICTIONS_PER_MINUTE`. A metric that cannot be computed (no maxmemory, `null` hit
+ratio) makes no decision. An alert is announced when it starts and when it resolves,
+and reminded every `repeat-interval-minutes` while it lasts. Channels are switched on by
+environment variables: `UCMD_ALERT_TELEGRAM_BOT_TOKEN` + `UCMD_ALERT_TELEGRAM_CHAT_ID`,
+`UCMD_ALERT_SLACK_WEBHOOK_URL`, `UCMD_ALERT_WEBHOOK_URL` (raw JSON event),
+`UCMD_ALERT_EMAIL_TO` (plus `spring.mail.*`). Events are kept in `alert_events` for 90
+days and also land in the audit log. The **Alerts** page in the frontend shows all
+three. See [ADR-0015](docs/adr/ADR-0015-esik-alarm-motoru.md).
+
 ### Administration (write surface)
 
 | Method | Path | Role | Description |
@@ -550,6 +572,7 @@ The table shows which parts of the monitoring scope are implemented.
 | Self-monitoring | ✅ | 11 Micrometer metrics + `/v1/health/collection` |
 | Read-only API surface | ✅ | Write endpoints are under `/v1/admin/**` and do not appear in the Swagger `monitoring` group ([ADR-0011](docs/adr/ADR-0011-yazma-uclarinin-admin-altina-ayrilmasi.md)) |
 | Masking and access control | ✅ | Key/map masking, prefix + map allowlist, ACL document, `PERMISSION_DENIED` ([ADR-0010](docs/adr/ADR-0010-key-maskeleme-ve-allowlist.md)) |
+| Threshold alerts | ✅ | Sustained-breach rules on the collected snapshots, Telegram/Slack/webhook/e-mail, history in `alert_events` ([ADR-0015](docs/adr/ADR-0015-esik-alarm-motoru.md)) |
 | Audit log | ✅ | In the DB, 90 days, identity + mutations + key access (metric endpoints excluded) ([ADR-0012](docs/adr/ADR-0012-audit-log-db-ve-kapsam.md)) |
 | Vault | ❌ | Out of scope. Credentials are read from an environment variable, passwords are not stored in the DB (item 6) |
 | Export / download | ❌ | Deliberately out of scope (item 9) |
