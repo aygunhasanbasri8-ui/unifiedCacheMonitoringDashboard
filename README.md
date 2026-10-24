@@ -2,6 +2,8 @@
 
 English | [Türkçe](README.tr.md)
 
+[![CI](https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard/actions/workflows/ci.yml)
+
 ## 1. Overview
 
 UCMD is a **read-only** monitoring tool that watches Redis and Hazelcast instances in a
@@ -587,6 +589,8 @@ hand. Flyway/Liquibase is recommended and out of scope for now.
 ```bash
 mvn clean test
 ```
+
+GitHub Actions runs `mvn verify` and the frontend lint + build on every push to `main`/`claude` and on pull requests.
 
 109 tests in two layers:
 

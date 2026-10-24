@@ -2,6 +2,8 @@
 
 [English](README.md) | Türkçe
 
+[![CI](https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/aygunhasanbasri8-ui/unifiedCacheMonitoringDashboard/actions/workflows/ci.yml)
+
 ## 1. Proje Özeti
 
 UCMD, dağıtık ortamdaki Redis ve Hazelcast instance'larını tek merkezden izleyen
@@ -587,6 +589,8 @@ index ve constraint değişikliklerini kaçırır. Teslim edilen SQL'ler (bölü
 ```bash
 mvn clean test
 ```
+
+GitHub Actions, `main`/`claude`'a her push'ta ve pull request'lerde `mvn verify`'ı ve frontend lint + build'i çalıştırıyor.
 
 109 test, iki katman:
 
