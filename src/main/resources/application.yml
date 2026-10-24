@@ -183,6 +183,11 @@ ucmd:
         threshold: 85
         for-minutes: 5
         severity: WARNING
+      - name: bellek-dolmak-uzere          # kapasite tahmini: bu hızla 14 günden az kaldı
+        metric: DAYS_TO_FULL
+        operator: LT
+        threshold: 14
+        severity: WARNING
       - name: replika-yok
         metric: CONNECTED_REPLICAS
         operator: LT

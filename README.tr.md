@@ -409,6 +409,13 @@ Mimari karar: **okuma uçları POST kullanır** (ADR-0007). İstisnalar `GET /v1
 |---|---|---|---|
 | POST | `/v1/instances/{id}/snapshots` | MONITOR | Ham snapshot listesi |
 | POST | `/v1/instances/{id}/history` | MONITOR | Örneklenmiş seri (RAW / DOWNSAMPLED) |
+| POST | `/v1/instances/{id}/capacity-forecast` | MONITOR | Son `windowHours` saatin (varsayılan 24) bellek eğilimi: günlük büyüme ve sınıra kalan gün |
+
+Kapasite tahmini saklanan bellek ölçümlerine doğru uyduruyor. En az ~30 dakikalık veri
+istiyor (öncesinde `NOT_READY`), sınır yoksa (Redis `maxmemory 0`) `NOT_APPLICABLE`
+dönüyor, bellek büyümüyorsa tarih yerine `STABLE`/`DECREASING` diyor ve gürültülü bir
+eğilimi ayırt etmek için R² veriyor. Instance sayfasında "Belleğin Dolmasına" kartı olarak
+görünüyor; `DAYS_TO_FULL` alarm metriği de bunu kullanıyor ("14 günden az kaldı").
 
 ### Alarmlar
 
@@ -422,8 +429,8 @@ Kurallar `ucmd.alerts.rules` altında (metrik, `GT`/`LT`, eşik, `for-minutes`, 
 isteğe bağlı instance adları) ve 30 sn'lik her toplama turunda o an alınan
 snapshot üzerinden değerlendiriliyor; alarm için izlenen sisteme ek istek gitmiyor.
 Metrikler: `INSTANCE_DOWN`, `MEMORY_PERCENT`, `CPU_PERCENT`, `HIT_RATIO_PERCENT`,
-`FRAGMENTATION_RATIO`, `CLIENT_COUNT`, `CONNECTED_REPLICAS`, `EVICTIONS_PER_MINUTE`.
-Hesaplanamayan metrik (maxmemory yok, hit oranı `null`) karar üretmiyor. Alarm
+`FRAGMENTATION_RATIO`, `CLIENT_COUNT`, `CONNECTED_REPLICAS`, `EVICTIONS_PER_MINUTE`,
+`DAYS_TO_FULL`. Hesaplanamayan metrik (maxmemory yok, hit oranı `null`) karar üretmiyor. Alarm
 başlarken ve düzelirken bildiriliyor, sürdükçe `repeat-interval-minutes`'ta bir
 hatırlatılıyor. Kanallar ortam değişkenleriyle açılıyor:
 `UCMD_ALERT_TELEGRAM_BOT_TOKEN` + `UCMD_ALERT_TELEGRAM_CHAT_ID`,
@@ -572,6 +579,7 @@ Aşağıdaki tablo, izleme kapsamının hangi kısmının uygulandığını gös
 | Öz-izleme | ✅ | 11 Micrometer metriği + `/v1/health/collection` |
 | Salt-okunur API yüzeyi | ✅ | Yazma uçları `/v1/admin/**` altında, Swagger `monitoring` grubunda görünmez ([ADR-0011](docs/adr/ADR-0011-yazma-uclarinin-admin-altina-ayrilmasi.md)) |
 | Maskeleme ve erişim kontrolü | ✅ | Key/map maskeleme, prefix + map allowlist, ACL dokümanı, `PERMISSION_DENIED` ([ADR-0010](docs/adr/ADR-0010-key-maskeleme-ve-allowlist.md)) |
+| Kapasite tahmini | ✅ | Snapshot geçmişinden doğrusal bellek eğilimi, sınıra kalan gün; alarm kuralı olarak da kullanılabiliyor |
 | Eşik alarmları | ✅ | Toplanan snapshot üzerinde süreli ihlal kuralları, Telegram/Slack/webhook/e-posta, geçmiş `alert_events`'te ([ADR-0015](docs/adr/ADR-0015-esik-alarm-motoru.md)) |
 | Denetim kaydı | ✅ | DB'de, 90 gün, kimlik + mutasyon + key erişimi (metrik uçları hariç) ([ADR-0012](docs/adr/ADR-0012-audit-log-db-ve-kapsam.md)) |
 | Vault | ❌ | Kapsam dışı. Credential env değişkeninden okunur, parola DB'de saklanmaz (madde 6) |
