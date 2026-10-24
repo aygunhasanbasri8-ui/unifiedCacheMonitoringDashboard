@@ -200,12 +200,12 @@ curl -s localhost:9406/metrics | grep jvm_memory_bytes_used | head -3
 
 ### 4.4 Veritabanı
 
-`ddl-auto: update` dev profilinde tabloları oluşturur, ancak **güvenilir değildir**
-(bkz. [`docs/known-limitations.md`](docs/known-limitations.md) madde 5). Kolon eklemeleri elle yapılmalıdır.
-Prod profilinde `validate` kullanılır.
-
-Şemayı sıfırdan kuruyorsanız aşağıdaki "Veritabanı şeması" bölümündeki dosya yeterlidir. Aşağıdaki
-SQL'ler, bu kolonlar eklenmeden önce kurulmuş **eski** bir veritabanını yükseltmek içindir:
+Şemayı Flyway yönetiyor (`src/main/resources/db/migration`): temiz bir veritabanında
+`V1__initial_schema.sql` açılışta çalışıyor, Hibernate yalnızca doğruluyor
+(`ddl-auto: validate`), uyuşmazlıkta uygulama sessizce bozulmak yerine açılmıyor. Elle ya da
+eski `ddl-auto: update` ile kurulmuş mevcut bir veritabanı ilk açılışta sürüm 1 olarak
+işaretleniyor (`baseline-on-migrate`) ve olduğu gibi bırakılıyor. Böyle bir veritabanı aşağıdaki
+kolonlardan önceyse açılıştaki doğrulama eksik kolonu söylüyor; bunu bir kez çalıştırın:
 
 ```sql
 -- ── Hazelcast multi-cluster ──
@@ -240,16 +240,8 @@ gerekmez.
 
 ### Veritabanı şeması
 
-`ddl-auto: update` bu projede kolon eklemelerini güvenilir biçimde yapmadı.
-Şema kaynağı `docs/migrations/001-initial-schema.sql` dosyasıdır.
-
-Temiz bir ortamda ilk kurulum:
-
-```bash
-psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
-```
-
-Bu dosya yalnızca UCMD'nin kendi tablolarını (`instances`, `users`,
+Şema kaynağı `src/main/resources/db/migration/V1__initial_schema.sql`; temiz bir ortamda
+elle çalıştırılacak bir şey yok. Bu dosya yalnızca UCMD'nin kendi tablolarını (`instances`, `users`,
 `metric_snapshots`, `audit_logs`, `alert_events`) oluşturur. `sim/` altındaki simülasyon
 scriptlerinin ürettiği tablolar buraya dahil değildir.
 
@@ -600,7 +592,6 @@ Tam liste: [`docs/known-limitations.md`](docs/known-limitations.md)
 - Hazelcast entry araması `keySet()` tabanlı, örneklem sınırlı (`ESTIMATED`)
 - HZ map bazlı `hitRatio`, sayaçlar node'lar arasında tutarsız olduğunda `null` döner (eskiden 1'i aşabiliyordu)
 - Redis Cluster (`CLUSTER INFO/NODES`) desteklenmiyor
-- `ddl-auto: update` güvenilmez, migration elle yapılıyor
 - Vault entegrasyonu yok
 - TLS desteği kodda mevcut ancak TLS'li bir ortamda doğrulanmadı
 
@@ -610,10 +601,9 @@ Tam liste: [`docs/known-limitations.md`](docs/known-limitations.md)
 
 ### Şema yönetimi
 
-`dev` profilinde `spring.jpa.hibernate.ddl-auto: update`, `prod` profilinde `validate`.
-`update` yeni kolonları çoğu zaman ekler ama **güvenilmezdir** — kolon tipi daralması,
-index ve constraint değişikliklerini kaçırır. Teslim edilen SQL'ler (bölüm 4.4) elle
-çalıştırılmalıdır. Flyway/Liquibase önerilir, bu fazda kapsam dışı.
+H2 test profili dışında her profilde şemayı Flyway yönetiyor; test profili şemayı
+entity'lerden kuruyor. Şema değişikliği `db/migration` altına yeni bir `V<n>__aciklama.sql`
+dosyasıdır; uygulanmış dosyalar değiştirilmez (Flyway sağlama toplamlarını denetliyor).
 
 ### Test
 
