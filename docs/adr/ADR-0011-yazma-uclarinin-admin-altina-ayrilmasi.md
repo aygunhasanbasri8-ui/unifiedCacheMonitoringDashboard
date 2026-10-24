@@ -18,12 +18,12 @@ DELETE /v1/instances/{id}        (delete)
 Sınıf seviyesinde `@RequireRole("MONITOR")` vardı — yani **MONITOR rolündeki bir
 kullanıcı instance kaydı silebiliyordu.** Bu bir yetki açığıydı.
 
-Ayrıca rehber §7 açıkça diyor ki: *"UCMD yalnızca read-only endpoint'ler sunmalıdır.
+Ayrıca salt-okunur ilke ([ADR-0001](ADR-0001-salt-okunur-ilkesi.md)) açıkça şunu istiyor: *"UCMD yalnızca read-only endpoint'ler sunmalıdır.
 Swagger/OpenAPI dokümanında POST, PUT, PATCH ve DELETE endpoint'leri bulunmamalıdır."*
 Aynı controller'da karışık durdukları için üretilen API dokümanı bu beklentiyi
 karşılayamıyordu.
 
-Not: Okuma uçları da POST kullanıyor (ADR-0007). Rehberin kastettiği "yazma metodu
+Not: Okuma uçları da POST kullanıyor (ADR-0007). Bu ilkenin kastettiği "yazma metodu
 yok" değil, "**yazma işlemi** yok"tur; ayrım yol ve rol ile yapılır.
 
 ## Karar
@@ -75,7 +75,7 @@ başlatma kabul edilemez.
 **Artılar**
 - MONITOR rolü artık hiçbir şeyi değiştiremiyor (doğrulandı: MONITOR ile
   `POST /v1/admin/instances` → 403, `DELETE /v1/admin/users/x` → 403)
-- Teslim edilen Swagger dokümanı rehber §7 beklentisini karşılıyor
+- Teslim edilen Swagger dokümanı salt-okunur API beklentisini (ADR-0001) karşılıyor
 - Tüm mutasyonlar denetim kaydında; kim ne zaman ne değiştirdi izlenebiliyor
 - Yol ayrımı ileride ağ seviyesinde kısıtlamaya imkân veriyor
 

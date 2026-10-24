@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** Rehber §5.4 — gerçek partition sayısı, dağılım ve skew hesabı. */
+/** Gerçek partition sayısı, dağılım ve skew hesabı. */
 class HazelcastPartitionMetricsTest {
 
     private final HazelcastMonitor monitor =

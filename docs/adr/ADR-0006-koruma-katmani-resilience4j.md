@@ -5,7 +5,7 @@
 
 ## Bağlam
 
-Rehber §2.2 ve §2.3'ün temel kuralı: **izleme aracı izlediği sistemi yormamalıdır.**
+Projenin temel kuralı: **izleme aracı izlediği sistemi yormamalıdır.**
 
 Somut riskler:
 - Dashboard 5 saniyede bir 8 kart yeniliyor. 10 kullanıcı açık tutarsa saniyede

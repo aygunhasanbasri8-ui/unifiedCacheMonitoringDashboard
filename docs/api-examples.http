@@ -143,7 +143,7 @@ Authorization: Bearer {{token}}
 POST {{host}}/v1/instances/{{hzId}}/health
 Authorization: Bearer {{token}}
 
-### Kaynaklar + JVM metrikleri (rehber §5.6):
+### Kaynaklar + JVM metrikleri:
 ### gcCollectionCount, threadCount, openFileDescriptors, nonHeapUsedBytes,
 ### memberUptimeSeconds, loadedClassCount
 POST {{host}}/v1/instances/{{hzId}}/resources

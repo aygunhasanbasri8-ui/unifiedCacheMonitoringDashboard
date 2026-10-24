@@ -84,7 +84,7 @@ UNAVAILABLE`, `balanced: null` döner. Bir map işleminden sonra doğru değerle
 (doğrulandı: `{hz-analytics:5701: 271}`, `skew: 0.0`, `balanced: true`).
 
 **Etki değerlendirmesi:** Bu bir hata değil, dürüst raporlamadır — kod uydurma değer
-üretmek yerine "bilinmiyor" diyor (rehber §12). Yine de dashboard ilk saniyelerde
+üretmek yerine "bilinmiyor" diyor ([ADR-0003](adr/ADR-0003-metricstatus-durum-modeli.md)). Yine de dashboard ilk saniyelerde
 "dağılım bilinmiyor" gösterir.
 
 **Çözüm yolu:** `HazelcastConnectionManager` client kurduktan sonra ısıtma (warm-up)
@@ -173,7 +173,7 @@ sayı döndürülebilir, ya da uç `/actuator` gibi ayrı bir porta taşınabili
 **Ne:** Metrik verisini CSV/Excel dışa aktarma ve cache'teki key **değerlerini**
 görüntüleme özellikleri yok.
 
-**Neden:** Rehber §11 bu iki maddeyi açıkça kapsam dışı bırakmıştır. Value
+**Neden:** Proje kapsamı bu iki maddeyi açıkça dışarıda bırakıyor. Value
 görüntüleme ayrıca ADR-0001 ile de çelişir: değer okumak kart numarası, komisyon
 oranı gibi veriyi doğrudan açığa çıkarır.
 
@@ -229,13 +229,13 @@ node 9405 (ucmd-merchants):  hits = 710,  getcount = 0
 member'a bağlandığı için `getcount` orada toplanıyor, `hits` ise partition sahipliğine
 göre tüm node'lara dağılıyor. İki sayacın node'lar arası toplamını bölmek geçersiz.
 
-**Etkisi:** Dashboard'da yanıltıcı hit oranı. Rehber §12'nin ("yanlış değer üretme")
+**Etkisi:** Dashboard'da yanıltıcı hit oranı. ADR-0003'teki "yanlış değer üretme" kuralının
 ihlali. Redis tarafı etkilenmiyor — orada `keyspace_hits`/`keyspace_misses` tek
 süreçte tutulan tutarlı sayaçlardır.
 
 **Çözüm yolu (onay bekliyor):** Oranı node bazında hesaplayıp yalnızca `getcount > 0`
 olan node'ları dikkate almak; veya `hits > getcount` durumunda oranı `null` bırakıp
-statüyü `UNAVAILABLE` yapmak. İkincisi rehber §12'ye daha uygun.
+statüyü `UNAVAILABLE` yapmak. İkincisi ADR-0003'e daha uygun.
 
 **Çözüldü (branch `claude`):** `HazelcastMonitor.getMapStats` artık `MapDetail.hitRatio`
 alanını yalnızca veri kendi içinde tutarlıysa (`getcount > 0` ve `hits <= getcount`)
@@ -310,8 +310,8 @@ güncel değil.
 Lettuce'un `withSsl(true)` yolundan kurar. Bu yol **hiç çalıştırılmadı** —
 geliştirme ortamındaki Redis container'ları TLS'siz yapılandırılmıştır.
 
-Rehber §9 TLS'i güvenlik kontrol listesinde sayar; §11'in zorunlu kapsamında yer
-almaz. Kod, TLS'li bir ortam sağlandığında yapılandırmayla açılabilmesi için
+TLS güvenlik kontrol listesinde var ama zorunlu kapsamda yer almıyor
+([ADR-0014](adr/ADR-0014-instance-bazli-tls.md)). Kod, TLS'li bir ortam sağlandığında yapılandırmayla açılabilmesi için
 hazır bırakılmıştır.
 
 Prod ortamında etkinleştirmeden önce:
@@ -340,7 +340,7 @@ Hazelcast instance'larında dikkate alınmaz.
 | 6 | Vault yok | Kapsam dışı | Parola DB'de değil |
 | 7 | Basit downsampling | Tasarım ödünü | `resolution` ile bildiriliyor |
 | 8 | `/health/collection` açık | Bilinçli karar | Hassas veri yok |
-| 9 | Export / value yok | Kapsam dışı | Rehber §11 |
+| 9 | Export / value yok | Kapsam dışı | Proje kapsamı |
 | 10 | Test yok | Teknik borç | Güncel değil — 109 test var (ADR-0013) |
 | 11 | `hitRatio` > 1 | **Hata** | ✅ Çözüldü (branch `claude`) — tutarlıysa oran, değilse `null` |
 | 12 | `systemCpuPercent` yüzde değil / `nonHeapMax` = -2 | **Hata** | ✅ Çözüldü (branch `claude`) — negatif-sentinel koruması |

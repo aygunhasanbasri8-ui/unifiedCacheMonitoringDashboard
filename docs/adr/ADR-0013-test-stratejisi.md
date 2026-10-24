@@ -5,7 +5,7 @@
 
 ## Bağlam
 
-Rehber §10 ve §11 unit ve integration testleri zorunlu kapsamda sayıyor. Test
+Proje kapsamı unit ve integration testlerini zorunlu sayıyor. Test
 altyapısı kurulurken üç ayrı karar gerekti: ayrıştırıcıların private olması,
 integration testlerin gerçek bağımlılık ihtiyacı, ve secret'ların env değişkeninden
 okunması.

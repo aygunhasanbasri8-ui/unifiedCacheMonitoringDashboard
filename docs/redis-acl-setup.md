@@ -1,6 +1,6 @@
 # UCMD — Redis ACL ve Hazelcast Read-Only Erişim Kurulumu
 
-Rehber §9 gereği UCMD, izlediği cache sistemlerine **yalnızca okuma** yetkisiyle
+Güvenlik gereği UCMD, izlediği cache sistemlerine **yalnızca okuma** yetkisiyle
 bağlanmalıdır. Uygulama katmanında salt-okunurluk zaten zorlanıyor (`RedisMonitor`
 sadece `PING`, `INFO`, `SCAN`, `TYPE`, `PTTL`, `TTL`, `MEMORY USAGE` çağırıyor),
 fakat bu **tek savunma hattı olmamalıdır**. Sunucu tarafında ACL ile de kısıtlanır.
