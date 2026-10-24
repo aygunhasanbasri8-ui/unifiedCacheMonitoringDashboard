@@ -93,7 +93,7 @@ amaçlı hafif bir okuma yapabilir. Eklenmedi — salt-okunur ilkesi gereği yap
 
 ---
 
-## 5. `ddl-auto: update` güvenilir değil
+## 5. `ddl-auto: update` güvenilir değil (çözüldü: Flyway)
 
 **Ne:** `dev` profilinde `spring.jpa.hibernate.ddl-auto: update` kullanılıyor.
 Geliştirme sırasında bazı kolon eklemelerinin uygulanmadığı gözlendi.
@@ -107,7 +107,11 @@ uyguladıklarını da sessizce yapar.
 Atlanırsa uygulama açılır ama ilgili özellikler sessizce çalışmaz — örneğin
 `cluster_name` yoksa Hazelcast instance'ı **400** döner.
 
-**Çözüm yolu:** Flyway veya Liquibase entegrasyonu. Bu fazda kapsam dışı bırakıldı.
+**Çözüldü:** Şema artık Flyway'de (`db/migration/V1__initial_schema.sql`), Hibernate
+her profilde `validate` modunda. Mevcut veritabanları `baseline-on-migrate` ile sürüm 1
+sayılıyor.
+
+**Eski çözüm yolu notu:** Flyway veya Liquibase entegrasyonu.
 Prod profilinde `validate` kullanılıyor — şema eksikse uygulama açılışta durur, bu
 sessiz başarısızlıktan iyidir.
 
@@ -336,7 +340,7 @@ Hazelcast instance'larında dikkate alınmaz.
 | 2 | `keySet()` tabanlı entry araması | Tasarım ödünü | `ESTIMATED` ile bildiriliyor |
 | 3 | Redis Cluster desteği | Kapsam dışı | `NOT_READY` dönüyor |
 | 4 | Partition tablosu gecikmesi | Davranış | Dürüst raporlanıyor |
-| 5 | `ddl-auto: update` | Operasyon | SQL elle çalıştırılıyor |
+| 5 | `ddl-auto: update` | Çözüldü | Flyway |
 | 6 | Vault yok | Kapsam dışı | Parola DB'de değil |
 | 7 | Basit downsampling | Tasarım ödünü | `resolution` ile bildiriliyor |
 | 8 | `/health/collection` açık | Bilinçli karar | Hassas veri yok |

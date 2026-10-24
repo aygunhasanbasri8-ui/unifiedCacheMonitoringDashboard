@@ -4,12 +4,8 @@
 -- Bu dosya UCMD'nin KENDİ veritabanını kurar. İzlenen Redis/Hazelcast
 -- sistemleriyle ilgisi yoktur.
 --
--- Kullanım (temiz ortam):
---   createdb -U postgres ucmd_db
---   psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
---
--- Not: application.yml'de ddl-auto=update tanımlı ancak bu projede kolon
--- eklemeleri güvenilir çalışmadı. Şema kaynağı bu dosyadır.
+-- Flyway uygulama açılırken çalıştırır. Uygulanmış bir migration dosyası
+-- değiştirilmez; şema değişikliği yeni bir V2__... dosyasıyla eklenir.
 -- ============================================================================
 
 -- ── İzlenecek instance kayıtları ────────────────────────────────────────────

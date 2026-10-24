@@ -200,13 +200,12 @@ You should see `size:2` for `hazelcast` and `size:1` for `hz-analytics`.
 
 ### 4.4 Database
 
-`ddl-auto: update` creates the tables in the dev profile but is **not reliable** (see
-[`docs/known-limitations.md`](docs/known-limitations.md) item 5). Column additions must be done by hand.
-The prod profile uses `validate`.
-
-If you are setting up the schema from scratch, the file in the "Database schema" section
-below is enough. The SQL here is for upgrading an **older** database that was created
-before these columns existed:
+The schema is managed by Flyway (`src/main/resources/db/migration`): on a clean
+database `V1__initial_schema.sql` runs at startup, and Hibernate only validates
+(`ddl-auto: validate`) so a mismatch stops the app instead of failing silently. An
+existing database that was set up by hand or by the old `ddl-auto: update` is marked as
+version 1 on first start (`baseline-on-migrate`) and left as it is. If such a database
+predates the columns below, startup validation names the missing column; run this once:
 
 ```sql
 -- ── Hazelcast multi-cluster ──
@@ -241,16 +240,8 @@ The default instance records (`Redis-prod`, `Redis-cache`, `Hazelcast-dev`,
 
 ### Database schema
 
-`ddl-auto: update` did not add columns reliably in this project. The schema source is
-`docs/migrations/001-initial-schema.sql`.
-
-First setup on a clean environment:
-
-```bash
-psql -U ucmd_user -d ucmd_db -f docs/migrations/001-initial-schema.sql
-```
-
-This file only creates UCMD's own tables (`instances`, `users`, `metric_snapshots`,
+The schema source is `src/main/resources/db/migration/V1__initial_schema.sql`; there is
+nothing to run by hand on a clean environment. It only creates UCMD's own tables (`instances`, `users`, `metric_snapshots`,
 `audit_logs`, `alert_events`). Tables produced by the simulation scripts under `sim/` are not included.
 
 ### 4.5 Run the application
@@ -601,7 +592,6 @@ Highlights:
 - Hazelcast entry search is `keySet()`-based and sample-limited (`ESTIMATED`)
 - The per-map Hazelcast `hitRatio` returns `null` when counters are inconsistent across nodes (it used to be able to exceed 1)
 - Redis Cluster (`CLUSTER INFO/NODES`) is not supported
-- `ddl-auto: update` is unreliable, migrations are done by hand
 - No Vault integration
 - TLS support exists in the code but has not been verified in a TLS environment
 
@@ -611,10 +601,9 @@ Highlights:
 
 ### Schema management
 
-`spring.jpa.hibernate.ddl-auto: update` in the `dev` profile, `validate` in `prod`.
-`update` usually adds new columns but is **unreliable**: it misses narrowed column types,
-index and constraint changes. The SQL shipped with the repo (section 4.4) has to be run by
-hand. Flyway/Liquibase is recommended and out of scope for now.
+Flyway owns the schema in every profile except the H2 test profile, which builds it from
+the entities. A schema change is a new `V<n>__description.sql` in `db/migration`; applied
+files are never edited (Flyway checks their checksums).
 
 ### Tests
 
