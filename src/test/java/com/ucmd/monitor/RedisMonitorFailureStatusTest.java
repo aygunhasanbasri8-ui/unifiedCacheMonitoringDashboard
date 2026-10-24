@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Rehber §9 — ACL reddi erişilemezlikten ayrılmalı. */
+/** ACL reddi erişilemezlikten ayrılmalı (ADR-0003). */
 class RedisMonitorFailureStatusTest {
 
     private final RedisMonitor monitor =

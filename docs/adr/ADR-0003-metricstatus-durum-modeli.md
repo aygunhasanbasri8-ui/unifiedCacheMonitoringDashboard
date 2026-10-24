@@ -12,7 +12,7 @@ Bir izleme aracında `0` değerinin en az dört farklı anlamı olabilir:
 - bu teknolojide böyle bir metrik yok (Redis'te "partition sayısı")
 - metrik henüz hesaplanmadı (CPU delta için ikinci örnek gerekiyor)
 
-Rehber §12 bu ayrımı zorunlu kılıyor: *"erişilemeyen metrikler yanlış değer üretmek
+Projenin temel gereksinimi bu ayrımı zorunlu kılıyor: *"erişilemeyen metrikler yanlış değer üretmek
 yerine UNAVAILABLE dönmelidir."* Dashboard'da "eviction: 0" gösterip aslında Redis'e
 ulaşılamadığını gizlemek, operatörü yanlış yönlendirir — en kötü izleme hatası budur.
 

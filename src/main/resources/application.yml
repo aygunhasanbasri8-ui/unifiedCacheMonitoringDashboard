@@ -147,7 +147,7 @@ ucmd:
     min-prefix-length: 3                # Redis'te prefix için asgari uzunluk
     hazelcast-max-scan-entries: 5000    # map içi entry taramasında üst sınır
 
-  # İzlenen sistemi koruma limitleri (rehber §2.2, §2.3)
+  # İzlenen sistemi koruma limitleri (ADR-0006)
   protection:
     cheap-concurrency: 12                # ucuz metrik çağrılarında eş zamanlılık
     expensive-concurrency: 2            # SCAN tabanlı çağrılarda eş zamanlılık
@@ -159,7 +159,7 @@ ucmd:
     circuit-open-duration-seconds: 30   # devre açık kalma süresi
     bulkhead-max-wait-ms: 2000             # 2 sn bekleyip reddet
 
-  # Key/map maskeleme ve allowlist (rehber §9)
+  # Key/map maskeleme ve allowlist (ADR-0010)
   security:
     key-masking:
       enabled: true                     # 3+ haneli rakam dizileri *** ile maskelenir

@@ -5,7 +5,7 @@
 
 ## Bağlam
 
-Rehber §9 hem Redis hem Hazelcast için TLS'i güvenlik kontrol listesinde sayıyor.
+Güvenlik kontrol listesi hem Redis hem Hazelcast için TLS'i sayıyor.
 §11'in zorunlu kapsamında yer almıyor. Geliştirme ortamındaki Redis container'ları
 TLS'siz yapılandırılmış; TLS'li bir ortam kurmak sertifika üretimi ve JVM truststore
 yapılandırması gerektiriyor.
