@@ -31,7 +31,7 @@ final class AlertMetrics {
             case CONNECTED_REPLICAS -> "master".equalsIgnoreCase(snapshot.getReplicationRole())
                     ? (double) snapshot.getConnectedReplicas() : null;
             case EVICTIONS_PER_MINUTE -> evictionsPerMinute(snapshot, previous);
-            case INSTANCE_DOWN -> null;
+            case INSTANCE_DOWN, DAYS_TO_FULL -> null;
         };
         if (value == null) {
             return null;

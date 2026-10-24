@@ -7,6 +7,7 @@ import com.ucmd.model.entity.AlertEvent;
 import com.ucmd.model.entity.MetricSnapshot;
 import com.ucmd.repository.AlertEventRepository;
 import com.ucmd.service.AuditService;
+import com.ucmd.service.CapacityForecastService;
 import com.ucmd.service.alert.AlertChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,7 +58,7 @@ class AlertServiceImplTest {
             public void send(AlertEvent event) { sent.add(event); }
         };
         service = new AlertServiceImpl(config, repository, mock(AuditService.class), List.of(channel),
-                new DirectExecutor(), clock);
+                new DirectExecutor(), mock(CapacityForecastService.class), clock);
     }
 
     @Test

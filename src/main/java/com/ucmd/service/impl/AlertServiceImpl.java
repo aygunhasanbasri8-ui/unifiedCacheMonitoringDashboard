@@ -1,6 +1,7 @@
 package com.ucmd.service.impl;
 
 import com.ucmd.config.AlertConfig;
+import com.ucmd.enums.AlertMetric;
 import com.ucmd.enums.AlertState;
 import com.ucmd.model.dto.ActiveAlert;
 import com.ucmd.model.entity.AlertEvent;
@@ -8,6 +9,7 @@ import com.ucmd.model.entity.MetricSnapshot;
 import com.ucmd.repository.AlertEventRepository;
 import com.ucmd.service.AlertService;
 import com.ucmd.service.AuditService;
+import com.ucmd.service.CapacityForecastService;
 import com.ucmd.service.alert.AlertChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,7 @@ public class AlertServiceImpl implements AlertService {
     private final AuditService auditService;
     private final List<AlertChannel> channels;
     private final ExecutorService executor;
+    private final CapacityForecastService forecastService;
     private final Clock clock;
 
     /** kural + instance başına durum; yeniden başlatmada sıfırlanır (alarm o zaman yeniden açılır). */
@@ -46,17 +49,21 @@ public class AlertServiceImpl implements AlertService {
 
     @Autowired
     public AlertServiceImpl(AlertConfig config, AlertEventRepository repository, AuditService auditService,
-                            List<AlertChannel> channels, ExecutorService virtualThreadExecutor) {
-        this(config, repository, auditService, channels, virtualThreadExecutor, Clock.systemDefaultZone());
+                            List<AlertChannel> channels, ExecutorService virtualThreadExecutor,
+                            CapacityForecastService forecastService) {
+        this(config, repository, auditService, channels, virtualThreadExecutor, forecastService,
+                Clock.systemDefaultZone());
     }
 
     AlertServiceImpl(AlertConfig config, AlertEventRepository repository, AuditService auditService,
-                     List<AlertChannel> channels, ExecutorService executor, Clock clock) {
+                     List<AlertChannel> channels, ExecutorService executor, CapacityForecastService forecastService,
+                     Clock clock) {
         this.config = config;
         this.repository = repository;
         this.auditService = auditService;
         this.channels = channels;
         this.executor = executor;
+        this.forecastService = forecastService;
         this.clock = clock;
     }
 
@@ -73,12 +80,22 @@ public class AlertServiceImpl implements AlertService {
                 if (rule.getMetric() == null || !rule.appliesTo(name)) {
                     continue;
                 }
-                Reading reading = AlertMetrics.read(rule, snapshot, before);
+                Reading reading = rule.getMetric() == AlertMetric.DAYS_TO_FULL
+                        ? daysToFull(rule, snapshot)
+                        : AlertMetrics.read(rule, snapshot, before);
                 if (reading != null) {
                     step(rule, snapshot.getInstanceId(), name, reading, now);
                 }
             }
         }
+    }
+
+    private Reading daysToFull(AlertConfig.Rule rule, MetricSnapshot snapshot) {
+        if (!"UP".equalsIgnoreCase(snapshot.getStatus())) {
+            return null;
+        }
+        Double days = forecastService.cachedDaysToFull(snapshot.getInstanceId());
+        return days == null ? null : new Reading(days, rule.getOperator().breached(days, rule.getThreshold()));
     }
 
     private void step(AlertConfig.Rule rule, Long instanceId, String instanceName, Reading reading, LocalDateTime now) {

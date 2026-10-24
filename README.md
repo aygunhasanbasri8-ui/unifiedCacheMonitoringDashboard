@@ -406,6 +406,14 @@ Architectural decision: **read endpoints use POST** (ADR-0007). The exceptions a
 |---|---|---|---|
 | POST | `/v1/instances/{id}/snapshots` | MONITOR | Raw snapshot list |
 | POST | `/v1/instances/{id}/history` | MONITOR | Sampled series (RAW / DOWNSAMPLED) |
+| POST | `/v1/instances/{id}/capacity-forecast` | MONITOR | Memory trend over the last `windowHours` (default 24): growth per day and days left until the memory limit |
+
+The capacity forecast fits a straight line to the stored memory readings. It needs at
+least ~30 minutes of data (`NOT_READY` before that), returns `NOT_APPLICABLE` when there
+is no limit (Redis `maxmemory 0`), reports `STABLE`/`DECREASING` instead of a date when
+memory is not growing, and includes R² so a noisy trend can be told apart. The instance
+page shows it as the "Belleğin Dolmasına" card, and the `DAYS_TO_FULL` alert metric
+uses it ("fewer than 14 days left").
 
 ### Alerts
 
@@ -420,7 +428,7 @@ severity, optional instance names) and are evaluated on every 30 s collection ro
 from the snapshot that was just taken, so alerting sends no extra request to the
 monitored systems. Metrics: `INSTANCE_DOWN`, `MEMORY_PERCENT`, `CPU_PERCENT`,
 `HIT_RATIO_PERCENT`, `FRAGMENTATION_RATIO`, `CLIENT_COUNT`, `CONNECTED_REPLICAS`,
-`EVICTIONS_PER_MINUTE`. A metric that cannot be computed (no maxmemory, `null` hit
+`EVICTIONS_PER_MINUTE`, `DAYS_TO_FULL`. A metric that cannot be computed (no maxmemory, `null` hit
 ratio) makes no decision. An alert is announced when it starts and when it resolves,
 and reminded every `repeat-interval-minutes` while it lasts. Channels are switched on by
 environment variables: `UCMD_ALERT_TELEGRAM_BOT_TOKEN` + `UCMD_ALERT_TELEGRAM_CHAT_ID`,
@@ -572,6 +580,7 @@ The table shows which parts of the monitoring scope are implemented.
 | Self-monitoring | ✅ | 11 Micrometer metrics + `/v1/health/collection` |
 | Read-only API surface | ✅ | Write endpoints are under `/v1/admin/**` and do not appear in the Swagger `monitoring` group ([ADR-0011](docs/adr/ADR-0011-yazma-uclarinin-admin-altina-ayrilmasi.md)) |
 | Masking and access control | ✅ | Key/map masking, prefix + map allowlist, ACL document, `PERMISSION_DENIED` ([ADR-0010](docs/adr/ADR-0010-key-maskeleme-ve-allowlist.md)) |
+| Capacity forecast | ✅ | Linear memory trend from the snapshot history, days until the limit, also usable as an alert rule |
 | Threshold alerts | ✅ | Sustained-breach rules on the collected snapshots, Telegram/Slack/webhook/e-mail, history in `alert_events` ([ADR-0015](docs/adr/ADR-0015-esik-alarm-motoru.md)) |
 | Audit log | ✅ | In the DB, 90 days, identity + mutations + key access (metric endpoints excluded) ([ADR-0012](docs/adr/ADR-0012-audit-log-db-ve-kapsam.md)) |
 | Vault | ❌ | Out of scope. Credentials are read from an environment variable, passwords are not stored in the DB (item 6) |

@@ -17,5 +17,7 @@ public enum AlertMetric {
     /** Master'a bağlı replika sayısı; replika düşünce "LT 1" gibi kullanılır. */
     CONNECTED_REPLICAS,
     /** Son iki snapshot arasında dakikada atılan key sayısı. */
-    EVICTIONS_PER_MINUTE
+    EVICTIONS_PER_MINUTE,
+    /** Bellek eğilimiyle sınıra kalan gün (kapasite tahmini); büyüme yoksa karar yok. */
+    DAYS_TO_FULL
 }

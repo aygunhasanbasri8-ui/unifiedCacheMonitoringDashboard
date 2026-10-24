@@ -13,6 +13,7 @@ import client from "../api/client";
 import { toProblem } from "../api/problemDetails";
 import MetricCard from "../components/MetricCard";
 import DonutMetric from "../components/DonutMetric";
+import CapacityForecastCard from "../components/CapacityForecastCard";
 import RefreshIndicator from "../components/RefreshIndicator";
 import ProblemError from "../components/ProblemError";
 import { useTransientErrors, MAX_CONSECUTIVE_TRANSIENT_ERRORS } from "../hooks/useTransientErrors";
@@ -455,6 +456,7 @@ export default function InstanceDetail() {
             meta={resources?.meta}
           />
         )}
+        {isApplicable(resources?.memoryStatus) && <CapacityForecastCard instanceId={id} />}
         {isApplicable(connections?.activeClientStatus) && (
           <MetricCard
             title="Aktif Bağlantılar"

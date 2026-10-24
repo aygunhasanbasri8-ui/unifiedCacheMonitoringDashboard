@@ -1,8 +1,11 @@
 package com.ucmd.controller;
 
+import com.ucmd.model.dto.CapacityForecast;
+import com.ucmd.model.dto.CapacityForecastRequest;
 import com.ucmd.model.dto.HistoryResponse;
 import com.ucmd.model.entity.MetricSnapshot;
 import com.ucmd.security.RequireRole;
+import com.ucmd.service.CapacityForecastService;
 import com.ucmd.service.HistoryService;
 import com.ucmd.service.MonitoringService;
 import com.ucmd.model.dto.SnapshotQueryRequest;
@@ -24,9 +27,28 @@ public class SnapshotController {
 
     private final MonitoringService monitoringService;
 
-    public SnapshotController(HistoryService historyService, MonitoringService monitoringService) {
+    private final CapacityForecastService capacityForecastService;
+
+    public SnapshotController(HistoryService historyService, MonitoringService monitoringService,
+                              CapacityForecastService capacityForecastService) {
         this.historyService = historyService;
         this.monitoringService = monitoringService;
+        this.capacityForecastService = capacityForecastService;
+    }
+
+    @Operation(summary = "Bellek kapasite tahmini",
+               description = "Son windowHours saatin (varsayılan 24) bellek kullanımına doğrusal eğilim uydurur, "
+                       + "bu hızla bellek sınırına kaç gün kaldığını döner. Yeterli veri yoksa NOT_READY, "
+                       + "sınır tanımsızsa (Redis maxmemory=0) NOT_APPLICABLE.")
+    @ApiResponse(responseCode = "200", description = "Başarılı")
+    @ApiResponse(responseCode = "404", description = "Instance bulunamadı")
+    @PostMapping("/{id}/capacity-forecast")
+    public ResponseEntity<CapacityForecast> getCapacityForecast(
+            @PathVariable Long id,
+            @RequestBody(required = false) CapacityForecastRequest request) {
+        monitoringService.getInstanceById(id);
+        Integer windowHours = request != null ? request.getWindowHours() : null;
+        return ResponseEntity.ok(capacityForecastService.forecast(id, windowHours));
     }
 
     @Operation(summary = "Ham snapshot listesi",
