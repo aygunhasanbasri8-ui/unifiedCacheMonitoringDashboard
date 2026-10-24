@@ -166,6 +166,41 @@ ucmd:
     allowed-prefixes: []                # boş = kısıt yok
     allowed-maps: []                    # boş = kısıt yok
 
+  # Eşik alarmları. Kural her 30 sn'lik toplamada değerlendirilir; for-minutes
+  # boyunca kesintisiz sürmeyen ihlal alarm üretmez. Kanal bilgileri env'den.
+  alerts:
+    enabled: ${UCMD_ALERTS_ENABLED:true}
+    repeat-interval-minutes: 60         # süren alarm için hatırlatma aralığı
+    retention-days: 90
+    rules:
+      - name: instance-erisilemiyor
+        metric: INSTANCE_DOWN
+        for-minutes: 1
+        severity: CRITICAL
+      - name: bellek-yuksek
+        metric: MEMORY_PERCENT
+        operator: GT
+        threshold: 85
+        for-minutes: 5
+        severity: WARNING
+      - name: replika-yok
+        metric: CONNECTED_REPLICAS
+        operator: LT
+        threshold: 1
+        for-minutes: 2
+        severity: WARNING
+    channels:
+      telegram:
+        bot-token: ${UCMD_ALERT_TELEGRAM_BOT_TOKEN:}
+        chat-id: ${UCMD_ALERT_TELEGRAM_CHAT_ID:}
+      slack:
+        url: ${UCMD_ALERT_SLACK_WEBHOOK_URL:}
+      webhook:
+        url: ${UCMD_ALERT_WEBHOOK_URL:}
+      email:
+        to: ${UCMD_ALERT_EMAIL_TO:}       # virgülle ayrılmış; spring.mail.host da gerekir
+        from: ${UCMD_ALERT_EMAIL_FROM:ucmd@localhost}
+
   # Snapshot saklama ve grafik çözünürlüğü
   snapshot:
     retention-days: 7                   # hacim yüksek, denetim değeri yok

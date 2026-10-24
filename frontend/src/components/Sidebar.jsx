@@ -44,6 +44,11 @@ export default function Sidebar({ isOpen, onClose }) {
     onClose();
   }
 
+  function handleAlertsClick() {
+    navigate("/alerts");
+    onClose();
+  }
+
   function handleSelect(id) {
     navigate(`/instances/${id}`);
     onClose();
@@ -107,6 +112,9 @@ export default function Sidebar({ isOpen, onClose }) {
             onClick={handleOverviewClick}
           >
             <span className="sidebar-item-name">Overview</span>
+          </button>
+          <button type="button" className="sidebar-item" onClick={handleAlertsClick}>
+            <span className="sidebar-item-name">Alarmlar</span>
           </button>
         </div>
 
