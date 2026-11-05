@@ -24,7 +24,7 @@ jobs:
           cache: maven
       # Redis/PostgreSQL entegrasyon testleri Testcontainers ile, Hazelcast testleri gömülü üyeyle koşuyor
       - run: mvn -B -ntp verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: test-reports
